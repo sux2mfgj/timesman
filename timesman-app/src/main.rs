@@ -1,4 +1,4 @@
-use eframe::egui::ScrollArea;
+use eframe::egui::{self, FontData, FontDefinitions, FontFamily, ScrollArea};
 use reqwest;
 use serde::{Deserialize, Serialize};
 
@@ -21,6 +21,24 @@ struct TimesManApp {
 }
 
 impl TimesManApp {
+    fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        let mut fonts = FontDefinitions::default();
+
+        fonts.font_data.insert(
+            "ja".to_owned(),
+            FontData::from_static(include_bytes!(
+                "../fonts/ja/NotoSansJP-VariableFont_wght.ttf"
+            )),
+        );
+        fonts
+            .families
+            .entry(egui::FontFamily::Proportional)
+            .or_default()
+            .insert(0, "ja".to_owned());
+        cc.egui_ctx.set_fonts(fonts);
+        Self::default()
+    }
+
     fn post(&mut self, text: &String) {
         let client = reqwest::blocking::Client::new();
         let data = RequestData {
@@ -29,11 +47,7 @@ impl TimesManApp {
 
         let url = self.server.clone() + "/append";
 
-        let res = client
-            //.post("http://localhost:8080/append")
-            .post(url)
-            .json(&data)
-            .send();
+        let res = client.post(url).json(&data).send();
 
         let com = Comments {
             id: 0,
@@ -109,7 +123,7 @@ fn main() -> eframe::Result {
     eframe::run_native(
         "My egui App",
         options,
-        Box::new(|_| Ok(Box::<TimesManApp>::default())),
+        Box::new(|cc| Ok(Box::<TimesManApp>::new(TimesManApp::new(cc)))),
     )
 }
 
