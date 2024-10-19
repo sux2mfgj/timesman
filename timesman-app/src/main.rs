@@ -32,7 +32,7 @@ impl TimesManApp {
         );
         fonts
             .families
-            .entry(egui::FontFamily::Proportional)
+            .entry(FontFamily::Proportional)
             .or_default()
             .insert(0, "ja".to_owned());
         cc.egui_ctx.set_fonts(fonts);
@@ -139,11 +139,5 @@ mod tests {
         let j = serde_json::to_string(&data).unwrap();
         println!("{}", j);
         assert_eq!(j, r#"{"comment":"hello"}"#);
-    }
-
-    #[test]
-    fn get_list() {
-        let vec = TimesManApp::get_list(&"http://localhost:8080/list".to_string());
-        println!("{:?}", vec);
     }
 }
