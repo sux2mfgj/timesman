@@ -121,7 +121,7 @@ fn main() -> eframe::Result {
     };
 
     eframe::run_native(
-        "My egui App",
+        "TimesMan",
         options,
         Box::new(|cc| Ok(Box::<TimesManApp>::new(TimesManApp::new(cc)))),
     )
