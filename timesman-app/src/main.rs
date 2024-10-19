@@ -83,7 +83,10 @@ impl eframe::App for TimesManApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("TimesMan");
             ui.separator();
-            let scroll_area = ScrollArea::vertical().max_height(200.0).auto_shrink(false);
+            let scroll_area = ScrollArea::vertical()
+                .max_height(200.0)
+                .auto_shrink(false)
+                .stick_to_bottom(true);
             scroll_area.show(ui, |ui| {
                 ui.vertical(|ui| {
                     for comment in &self.list {
