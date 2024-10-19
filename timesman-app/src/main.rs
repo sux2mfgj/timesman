@@ -81,28 +81,35 @@ impl Default for TimesManApp {
 impl eframe::App for TimesManApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("TimesMan");
-            ui.separator();
-            let scroll_area = ScrollArea::vertical()
-                .max_height(200.0)
-                .auto_shrink(false)
-                .stick_to_bottom(true);
-            scroll_area.show(ui, |ui| {
-                ui.vertical(|ui| {
-                    for comment in &self.list {
-                        ui.horizontal(|ui| {
-                            ui.label(format!("{}", comment.created_at));
-                            ui.label(&comment.comment);
-                        });
-                    }
+            egui::TopBottomPanel::top("title").show(ctx, |ui| {
+                ui.heading("TimesMan");
+            });
+
+            // bottom
+            egui::TopBottomPanel::bottom("textbox").show(ctx, |ui| {
+                egui::TextEdit::multiline(&mut self.input_text)
+                    .hint_text("Type something!")
+                    .show(ui);
+            });
+
+            egui::CentralPanel::default().show(ctx, |ui| {
+                // middle
+                let scroll_area = ScrollArea::vertical()
+                    .auto_shrink(false)
+                    .max_height(ui.available_height())
+                    .stick_to_bottom(true);
+                scroll_area.show(ui, |ui| {
+                    ui.vertical(|ui| {
+                        for comment in &self.list {
+                            ui.horizontal(|ui| {
+                                ui.label(format!("{}", comment.created_at));
+                                ui.label(&comment.comment);
+                            });
+                        }
+                    });
                 });
             });
 
-            ui.separator();
-
-            egui::TextEdit::multiline(&mut self.input_text)
-                .hint_text("Type something!")
-                .show(ui);
             if ui.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::Enter)) {
                 if self.input_text.is_empty() {
                     return;
@@ -119,7 +126,7 @@ impl eframe::App for TimesManApp {
 
 fn main() -> eframe::Result {
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size([400.0, 320.0]),
+        viewport: egui::ViewportBuilder::default().with_inner_size([600.0, 400.0]),
         ..Default::default()
     };
 
