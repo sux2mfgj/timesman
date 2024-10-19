@@ -10,6 +10,7 @@ async fn get_list(data: web::Data<AppState>) -> impl Responder {
         .await
         .unwrap();
 
+    println!("Received a request to get list");
     HttpResponse::Ok().body(serde_json::to_string(&comments).unwrap())
 }
 
@@ -29,6 +30,8 @@ async fn post_append(data: web::Data<AppState>, info: web::Json<Info>) -> impl R
     .execute(&data.db)
     .await
     .unwrap();
+
+    println!("Received a request {0}", info.comment);
 
     HttpResponse::Ok().body("hello, world!")
 }
