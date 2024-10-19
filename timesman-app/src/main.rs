@@ -102,7 +102,8 @@ impl eframe::App for TimesManApp {
                     ui.vertical(|ui| {
                         for comment in &self.list {
                             ui.horizontal(|ui| {
-                                ui.label(format!("{}", comment.created_at));
+                                ui.label(comment.created_at.format("%Y-%m-%d %H:%M").to_string());
+                                ui.separator();
                                 ui.label(&comment.comment);
                             });
                         }
