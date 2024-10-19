@@ -89,6 +89,7 @@ impl eframe::App for TimesManApp {
             egui::TopBottomPanel::bottom("textbox").show(ctx, |ui| {
                 egui::TextEdit::multiline(&mut self.input_text)
                     .hint_text("Type something!")
+                    .desired_width(f32::INFINITY)
                     .show(ui);
             });
 
