@@ -13,7 +13,7 @@ struct RequestData {
     comment: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize)]
 struct Comments {
     id: i64,
     comment: String,
@@ -76,6 +76,11 @@ impl TimesManApp {
         };
 
         self.list.push(com);
+    }
+
+    fn delete(&mut self, id: i64) {
+        let client = reqwest::blocking::Client::new();
+        //TODO
     }
 
     fn get_list(server: &String) -> Vec<Comments> {
@@ -155,7 +160,14 @@ impl eframe::App for TimesManApp {
                             ui.horizontal(|ui| {
                                 ui.label(comment.created_at.format("%Y-%m-%d %H:%M").to_string());
                                 ui.separator();
-                                ui.label(&comment.comment);
+                                ui.label(&comment.comment).on_hover_ui(|ui| {
+                                    ui.horizontal(|ui| {
+                                        ui.label(format!("id: {}", comment.id));
+                                        if ui.button("delete").clicked() {
+                                            println!("TODO: do delete the post!");
+                                        }
+                                    });
+                                });
                             });
                         }
                     });
