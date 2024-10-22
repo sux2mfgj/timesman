@@ -57,7 +57,7 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(appdata.clone()))
-            .route("/append", web::post().to(post_append))
+            .route("/post", web::post().to(post_append))
             .route("/list", web::get().to(get_list))
     })
     .bind("localhost:8080")?
