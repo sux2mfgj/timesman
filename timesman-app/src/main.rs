@@ -1,6 +1,12 @@
 use eframe::egui::{self, FontData, FontDefinitions, FontFamily, ScrollArea};
+use egui_file_dialog::FileDialog;
 use reqwest;
 use serde::{Deserialize, Serialize};
+use std::fmt;
+use std::fs::File;
+use std::io::prelude::*;
+use std::io::BufWriter;
+use std::path::PathBuf;
 
 #[derive(Serialize)]
 struct RequestData {
@@ -14,10 +20,24 @@ struct Comments {
     created_at: chrono::NaiveDateTime,
 }
 
+impl fmt::Display for Comments {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}, {}, {}",
+            self.id,
+            self.created_at.format("%Y-%m-%d").to_string(),
+            self.comment
+        )
+    }
+}
+
 struct TimesManApp {
     input_text: String,
     server: String,
     list: Vec<Comments>,
+    file_path: Option<PathBuf>,
+    file_dialog: FileDialog,
 }
 
 impl TimesManApp {
@@ -65,6 +85,16 @@ impl TimesManApp {
             .json::<Vec<Comments>>()
             .unwrap()
     }
+
+    fn save_file(&self, path: &PathBuf) -> std::io::Result<()> {
+        let file = File::create(path)?;
+
+        let mut w = BufWriter::new(file);
+        for l in &self.list {
+            writeln!(w, "{}", l).unwrap();
+        }
+        Ok(())
+    }
 }
 
 impl Default for TimesManApp {
@@ -74,6 +104,8 @@ impl Default for TimesManApp {
             input_text: "".to_owned(),
             server: server.to_string(),
             list: TimesManApp::get_list(&server.to_string()),
+            file_path: None,
+            file_dialog: FileDialog::new(),
         }
     }
 }
@@ -82,7 +114,25 @@ impl eframe::App for TimesManApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::TopBottomPanel::top("title").show(ctx, |ui| {
-                ui.heading("TimesMan");
+                if ui.button("Save").clicked() {
+                    self.file_dialog.save_file();
+                }
+
+                if let Some(path) = &self.file_path {
+                    ui.label(format!("File to save: {:?}", path));
+                }
+
+                if let Some(path) = self.file_dialog.update(ctx).selected() {
+                    let pathbuf = path.to_path_buf();
+                    match self.save_file(&pathbuf) {
+                        Err(e) => {
+                            println!("Failed to save logs: {}", e)
+                        }
+                        Ok(()) => {
+                            self.file_path = Some(pathbuf);
+                        }
+                    }
+                }
             });
 
             // bottom
