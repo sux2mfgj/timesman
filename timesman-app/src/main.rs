@@ -45,7 +45,7 @@ impl TimesManApp {
             comment: text.clone(),
         };
 
-        let url = self.server.clone() + "/append";
+        let url = self.server.clone() + "/post";
 
         let res = client.post(url).json(&data).send();
 
