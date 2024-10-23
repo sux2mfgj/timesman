@@ -1,2 +1,3 @@
 -- Add down migration script here
-drop table comments;
+drop table times;
+drop table posts;
