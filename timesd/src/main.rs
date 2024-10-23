@@ -103,6 +103,41 @@ async fn get_posts(ctx: web::Data<AppContext>, path: web::Path<i64>)
     HttpResponse::Ok().body(serde_json::to_string(&resp).unwrap())
 }
 
+#[derive(Serialize)]
+struct PostPostResponse {
+    base: ResponseBase,
+    pid: i64,
+}
+
+#[derive(Deserialize)]
+struct PostPostRequest {
+    post: String,
+}
+
+async fn post_post(ctx: web::Data<AppContext>, path: web::Path<i64>,
+                   req: web::Json<PostPostRequest>) -> impl Responder {
+
+    let tid = path.into_inner();
+    //TODO: use query_as, but I have to fix an issue related the following link:
+    // https://docs.rs/sqlx/latest/sqlx/macro.query_as.html#troubleshooting-error-mismatched-types
+    let pid = sqlx::query!(
+            r#"insert into posts(times_id, post) values ($1, $2) returning id"#,
+            tid, req.post)
+        .fetch_one(&ctx.db)
+        .await
+        .unwrap();
+
+    let resp = PostPostResponse {
+        base: ResponseBase {
+            status: 0,
+            text: "Ok".to_string()
+        },
+        pid: pid.id.unwrap()
+    };
+
+    HttpResponse::Ok().body(serde_json::to_string(&resp).unwrap())
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let pool = SqlitePool::connect("./database.db").await.unwrap();
@@ -115,7 +150,7 @@ async fn main() -> std::io::Result<()> {
             .route("/times", web::get().to(get_times))
             .route("/times", web::post().to(create_times))
             .route("/times/{tid}", web::get().to(get_posts))
-            //.route("/times/{tid}", web::post().to(post_post))
+            .route("/times/{tid}", web::post().to(post_post))
     })
     .bind("localhost:8080")?
     .run()
