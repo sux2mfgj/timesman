@@ -45,6 +45,30 @@ async fn get_times(ctx: web::Data<AppContext>) -> impl Responder {
     HttpResponse::Ok().body(serde_json::to_string(&resp).unwrap())
 }
 
+#[derive(Deserialize)]
+struct CreateTimesRequest {
+    title: String,
+}
+
+async fn create_times(ctx: web::Data<AppContext>, req: web::Json<CreateTimesRequest>) 
+    -> impl Responder {
+
+    let times = sqlx::query_as!(
+        Times,
+        r#"insert into times("title") values ($1) returning *"#, req.title)
+        .fetch_one(&ctx.db).await.unwrap();
+    
+    let resp = ResponseTimes {
+        base: ResponseBase{
+            status: 0,
+            text: "Ok".to_string(),
+        },
+        times: vec![times],
+    };
+
+    HttpResponse::Ok().body(serde_json::to_string(&resp).unwrap())
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let pool = SqlitePool::connect("./database.db").await.unwrap();
@@ -55,7 +79,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(web::Data::new(ctx.clone()))
             .route("/times", web::get().to(get_times))
-            //.route("/times", web::post().to(create_times))
+            .route("/times", web::post().to(create_times))
             //.route("/times/{tid}", web::get().to(get_posts))
             //.route("/times/{tid}", web::post().to(post_post))
     })
