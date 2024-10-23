@@ -5,7 +5,7 @@ use serde_json;
 use sqlx::sqlite::SqlitePool;
 
 #[derive(Clone)]
-struct AppState {
+struct AppContext {
     db: SqlitePool,
 }
 
@@ -29,10 +29,10 @@ struct Times {
     updated_at: Option<chrono::NaiveDateTime>
 }
 
-async fn get_times(data: web::Data<AppState>) -> impl Responder {
+async fn get_times(ctx: web::Data<AppContext>) -> impl Responder {
 
     let times = sqlx::query_as!(Times, r#"select * from times"#)
-        .fetch_all(&data.db).await.unwrap();
+        .fetch_all(&ctx.db).await.unwrap();
 
     let resp = ResponseTimes {
         base: ResponseBase{
@@ -49,11 +49,11 @@ async fn get_times(data: web::Data<AppState>) -> impl Responder {
 async fn main() -> std::io::Result<()> {
     let pool = SqlitePool::connect("./database.db").await.unwrap();
 
-    let appdata = AppState { db: pool.clone() };
+    let ctx= AppContext{ db: pool.clone() };
 
     HttpServer::new(move || {
         App::new()
-            .app_data(web::Data::new(appdata.clone()))
+            .app_data(web::Data::new(ctx.clone()))
             .route("/times", web::get().to(get_times))
             //.route("/times", web::post().to(create_times))
             //.route("/times/{tid}", web::get().to(get_posts))
