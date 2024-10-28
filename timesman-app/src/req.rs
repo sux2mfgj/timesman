@@ -17,7 +17,7 @@ struct ResponseBase {
 }
 
 pub struct Requester {
-    pub server: String,
+    pub server: String
 }
 
 impl Requester {
