@@ -3108,6 +3108,7 @@ dependencies = [
  "eframe",
  "egui",
  "egui-file-dialog",
+ "log",
  "reqwest",
  "serde",
  "serde_json",
