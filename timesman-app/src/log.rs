@@ -1,33 +1,60 @@
-use log;
+use std::fmt;
 
 use crate::app::{Event, Pane};
 use crate::req::Requester;
 
 //TODO: use Log trait in the log crate.
 
-//static mut log_pane: Option<&LogPane> = None;
+enum LogLevel {
+    Error,
+    Info,
+    Debug,
+}
+
+impl fmt::Display for LogLevel {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let t = match self {
+            LogLevel::Error => "ERROR",
+            LogLevel::Info => "INFO",
+            LogLevel::Debug => "DEBUG",
+        };
+
+        write!(f, "{}", t)
+    }
+}
+
+struct LogRecord {
+    level: LogLevel,
+    text: String,
+}
+
+static mut LOGS: Vec<LogRecord> = vec![];
 
 pub struct Logger {}
 
 impl Logger {
     //pub fn set_log_pane(logp: &LogPane) { log_pane = logp; }
 
-    fn log(level: &str, text: String) {
+    fn log(level: LogLevel, text: String) {
         eprintln!(
             "{}: {}: {}",
             level,
             chrono::Utc::now().format("%Y-%m-%d %h%M").to_string(),
             text
         );
+
+        unsafe {
+            LOGS.push(LogRecord { level, text });
+        }
     }
     pub fn info(text: String) {
-        Self::log("INFO", text);
+        Self::log(LogLevel::Info, text);
     }
     pub fn error(text: String) {
-        Self::log("ERROR", text);
+        Self::log(LogLevel::Error, text);
     }
     pub fn debug(text: String) {
-        Self::log("DEBUG", text);
+        Self::log(LogLevel::Debug, text);
     }
 }
 

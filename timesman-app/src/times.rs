@@ -52,6 +52,10 @@ impl Pane for TimesPane {
                 ui.label("times");
                 ui.separator();
                 ui.label(&self.times.title);
+                ui.spacing_mut();
+                if ui.button("back").clicked() {
+                    event = Event::ToStart;
+                }
             });
         });
         egui::TopBottomPanel::bottom("bottom").show(ctx, |ui| {
