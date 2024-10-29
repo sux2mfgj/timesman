@@ -1,6 +1,7 @@
 use crate::app::{Event, Pane};
 use crate::log::Logger;
 use crate::req::{Post, Requester, Times};
+use chrono::{DateTime, Local, TimeZone, Utc};
 use eframe::egui::ScrollArea;
 use egui::{Key, Modifiers, Ui};
 
@@ -23,7 +24,15 @@ impl TimesPane {
         scroll_area.show(ui, |ui| {
             for p in &self.posts {
                 ui.horizontal(|ui| {
-                    ui.label(p.created_at.format("%Y-%m-%d %H:%M").to_string());
+                    let utc_time = Utc.from_utc_datetime(&p.created_at);
+                    let local_time: DateTime<Local> = DateTime::from(utc_time);
+                    ui.label(
+                        local_time
+                            .naive_local()
+                            .format("%Y-%m-%d %H:%M")
+                            .to_string(),
+                    );
+                    //ui.label(p.created_at.format("%Y-%m-%d %H:%M").to_string());
                     ui.separator();
                     ui.label(&p.post).on_hover_ui(|ui| {
                         ui.horizontal(|ui| {
