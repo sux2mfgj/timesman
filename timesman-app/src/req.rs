@@ -1,5 +1,4 @@
 use chrono;
-use log;
 use reqwest;
 use serde::{Deserialize, Serialize};
 
@@ -107,5 +106,42 @@ impl Requester {
         } else {
             Some(resp.posts)
         }
+    }
+
+    pub fn post_post(&self, tid: i64, post: &String) -> Result<Post, String>
+    {
+        let url = format!("{}/times/{}", self.server, tid);
+
+        #[derive(Serialize)]
+        struct Request {
+            post: String
+        }
+
+        #[derive(Deserialize)]
+        struct Response {
+            base: ResponseBase,
+            pid: i64
+        }
+
+        let data = Request {
+            post: post.to_string()
+        };
+
+        let client = reqwest::blocking::Client::new();
+        let result = client.post(url).json(&data).send().unwrap();
+
+        let resp = result.json::<Response>().unwrap();
+
+        if resp.base.status != 0 {
+            return Err(format!("request error: {}", resp.base.text));
+        }
+
+        Ok(Post {
+            times_id: tid,
+            id: resp.pid,
+            post: post.to_string(),
+            created_at: chrono::Utc::now().naive_utc(),
+            updated_at: None,
+        })
     }
 }
