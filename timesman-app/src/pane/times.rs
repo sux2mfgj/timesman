@@ -9,6 +9,8 @@ use eframe::egui::ScrollArea;
 use egui::{Key, Modifiers, Ui};
 use egui_file_dialog::FileDialog;
 
+use super::pane_menu;
+
 pub struct TimesPane {
     times: Times,
     posts: Vec<Post>,
@@ -81,6 +83,14 @@ impl Pane for TimesPane {
     ) -> Event {
         let mut event = Event::Nothing;
         egui::TopBottomPanel::top("top").show(ctx, |ui| {
+            egui::menu::bar(ui, |ui| {
+                ui.menu_button("Times", |ui| {
+                    if let Some(e) = pane_menu(ui) {
+                        event = e;
+                    }
+                });
+            });
+
             ui.horizontal(|ui| {
                 ui.label("times");
                 ui.separator();

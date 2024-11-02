@@ -1,4 +1,5 @@
 use crate::app::{Event, Pane};
+use crate::pane::pane_menu;
 use crate::req::{Requester, Times};
 use eframe::egui::ScrollArea;
 
@@ -19,15 +20,9 @@ impl Pane for StartPane {
         egui::TopBottomPanel::top("top").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("Times", |ui| {
-                    if ui.button("Show logs").clicked() {
-                        event = Event::Logs;
+                    if let Some(e) = pane_menu(ui) {
+                        event = e;
                     }
-                    if ui.button("Config").clicked() {}
-                    ui.horizontal(|ui| {
-                        ui.label("server");
-                        ui.separator();
-                        ui.label(&req.server);
-                    });
                 });
             });
 
