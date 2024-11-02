@@ -2,6 +2,7 @@ use crate::app::{Event, Pane};
 use crate::pane::pane_menu;
 use crate::req::{Requester, Times};
 use eframe::egui::ScrollArea;
+use egui::{Key, Modifiers};
 
 pub struct StartPane {
     times: Vec<Times>,
@@ -31,14 +32,14 @@ impl Pane for StartPane {
                 ui.label("new");
                 ui.separator();
                 ui.text_edit_singleline(&mut self.title);
-                ui.separator();
-                if ui.button("new").clicked() {
-                    if let Some(newt) = req.create_times(&self.title) {
-                        event = Event::OpenTimes(newt);
-                    }
-                }
             });
+            if ui.input_mut(|i| i.consume_key(Modifiers::COMMAND, Key::Enter)) {
+                if let Some(newt) = req.create_times(&self.title) {
+                    event = Event::OpenTimes(newt);
+                }
+            }
         });
+
         egui::CentralPanel::default().show(ctx, |ui| {
             let scroll_area = ScrollArea::vertical()
                 .auto_shrink(false)
