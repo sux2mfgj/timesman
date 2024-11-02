@@ -1,8 +1,11 @@
 mod app;
+#[macro_use]
 mod log;
+mod pane;
 mod req;
-mod start;
-mod times;
+
+use std::sync::Arc;
+use std::sync::Mutex;
 
 fn main() -> eframe::Result {
     let options = eframe::NativeOptions {
@@ -11,9 +14,13 @@ fn main() -> eframe::Result {
         ..Default::default()
     };
 
+    let logs = Arc::new(Mutex::new(vec![]));
+    log::register(logs.clone());
+    info!("Starting");
+
     eframe::run_native(
         "TimesMan",
         options,
-        Box::new(|cc| Ok(Box::<app::App>::new(app::App::new(cc)))),
+        Box::new(|cc| Ok(Box::<app::App>::new(app::App::new(cc, logs)))),
     )
 }

@@ -17,14 +17,18 @@ impl Pane for StartPane {
         let mut event = Event::Nothing;
 
         egui::TopBottomPanel::top("top").show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                ui.label("server");
-                ui.separator();
-                ui.label(&req.server);
-                ui.separator();
-                if ui.button("update").clicked() {
-                    //TODO:
-                }
+            egui::menu::bar(ui, |ui| {
+                ui.menu_button("Times", |ui| {
+                    if ui.button("Show logs").clicked() {
+                        event = Event::Logs;
+                    }
+                    if ui.button("Config").clicked() {}
+                    ui.horizontal(|ui| {
+                        ui.label("server");
+                        ui.separator();
+                        ui.label(&req.server);
+                    });
+                });
             });
 
             ui.separator();

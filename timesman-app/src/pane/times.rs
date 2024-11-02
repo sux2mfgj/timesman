@@ -3,7 +3,6 @@ use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 
 use crate::app::{Event, Pane};
-use crate::log::Logger;
 use crate::req::{Post, Requester, Times};
 use chrono::{DateTime, Local, TimeZone, Utc};
 use eframe::egui::ScrollArea;
@@ -113,9 +112,7 @@ impl Pane for TimesPane {
                 }
 
                 match req.post_post(self.times.id, &self.post_text) {
-                    Err(e) => {
-                        Logger::error(e);
-                    }
+                    Err(_e) => {}
                     Ok(p) => {
                         self.posts.push(p);
                         self.post_text.clear();
