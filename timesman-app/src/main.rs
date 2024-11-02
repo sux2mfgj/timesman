@@ -1,6 +1,6 @@
-mod app;
 #[macro_use]
 mod log;
+mod app;
 mod pane;
 mod req;
 
@@ -18,9 +18,12 @@ fn main() -> eframe::Result {
     log::register(logs.clone());
     info!("Starting");
 
-    eframe::run_native(
+    let r = eframe::run_native(
         "TimesMan",
         options,
         Box::new(|cc| Ok(Box::<app::App>::new(app::App::new(cc, logs)))),
-    )
+    );
+
+    info!("Closing");
+    r
 }

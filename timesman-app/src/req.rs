@@ -39,6 +39,8 @@ impl Requester {
     pub fn get_list(&self) -> Option<Vec<Times>> {
         let url = self.server.clone() + "/times";
 
+        debug!("Request HTTP Get to {}", url);
+
         #[derive(Deserialize)]
         struct GetTimesResponse {
             base: ResponseBase,
@@ -59,6 +61,8 @@ impl Requester {
 
     pub fn create_times(&self, title: &String) -> Option<Times> {
         let url = self.server.clone() + "/times";
+
+        debug!("Request HTTP Post to {}", url);
 
         #[derive(Serialize)]
         struct CreateTimesRequest {
@@ -90,6 +94,8 @@ impl Requester {
     pub fn get_posts(&self, tid: i64) -> Option<Vec<Post>> {
         let url = format!("{}/times/{}", self.server, tid);
 
+        debug!("Request HTTP Get to {}", url);
+
         #[derive(Deserialize)]
         struct Response {
             base: ResponseBase,
@@ -108,23 +114,24 @@ impl Requester {
         }
     }
 
-    pub fn post_post(&self, tid: i64, post: &String) -> Result<Post, String>
-    {
+    pub fn post_post(&self, tid: i64, post: &String) -> Result<Post, String> {
         let url = format!("{}/times/{}", self.server, tid);
+
+        debug!("Request HTTP Post to {}", self.server);
 
         #[derive(Serialize)]
         struct Request {
-            post: String
+            post: String,
         }
 
         #[derive(Deserialize)]
         struct Response {
             base: ResponseBase,
-            pid: i64
+            pid: i64,
         }
 
         let data = Request {
-            post: post.to_string()
+            post: post.to_string(),
         };
 
         let client = reqwest::blocking::Client::new();

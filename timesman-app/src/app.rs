@@ -10,7 +10,6 @@ use crate::pane::times::TimesPane;
 use crate::req::{Requester, Times};
 use eframe;
 use egui::{FontData, FontDefinitions, FontFamily};
-use log::info;
 
 pub enum Event {
     Nothing,
@@ -109,7 +108,7 @@ impl eframe::App for App {
         let event = self.pane.update(ctx, _frame, &self.req);
 
         if !event.is_nothing() {
-            info!("Event: {}", event);
+            debug!("Event: {}", event);
         }
 
         match event {
