@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 use crate::log::LogRecord;
+use crate::pane::config::ConfigPane;
 use crate::pane::log::LogPane;
 use crate::pane::start::StartPane;
 use crate::pane::times::TimesPane;
@@ -14,6 +15,7 @@ use log::info;
 pub enum Event {
     Nothing,
     ToStart,
+    ToConfig,
     OpenTimes(Times),
     Logs,
 }
@@ -26,6 +28,9 @@ impl fmt::Display for Event {
             }
             Event::ToStart => {
                 write!(f, "ToStart")
+            }
+            Event::ToConfig => {
+                write!(f, "ToWrite")
             }
             Event::OpenTimes(_t) => {
                 //TODO: show the times info
@@ -114,6 +119,9 @@ impl eframe::App for App {
             }
             Event::ToStart => {
                 self.pane = Box::new(StartPane::new(&self.req));
+            }
+            Event::ToConfig => {
+                self.pane = Box::new(ConfigPane::new());
             }
             Event::Logs => {
                 self.pane = Box::new(LogPane::new(self.logs.clone()));
