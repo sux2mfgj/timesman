@@ -1,14 +1,20 @@
+use std::fs::File;
+use std::io::{BufWriter, Write};
+use std::path::PathBuf;
+
 use crate::app::{Event, Pane};
 use crate::log::Logger;
 use crate::req::{Post, Requester, Times};
 use chrono::{DateTime, Local, TimeZone, Utc};
 use eframe::egui::ScrollArea;
 use egui::{Key, Modifiers, Ui};
+use egui_file_dialog::FileDialog;
 
 pub struct TimesPane {
     times: Times,
     posts: Vec<Post>,
     post_text: String,
+    file_dialog: FileDialog,
 }
 
 impl TimesPane {
@@ -17,6 +23,7 @@ impl TimesPane {
             posts: req.get_posts(times.id).unwrap(),
             times,
             post_text: "".to_string(),
+            file_dialog: FileDialog::new(),
         }
     }
 
@@ -32,7 +39,6 @@ impl TimesPane {
                             .format("%Y-%m-%d %H:%M")
                             .to_string(),
                     );
-                    //ui.label(p.created_at.format("%Y-%m-%d %H:%M").to_string());
                     ui.separator();
                     ui.label(&p.post).on_hover_ui(|ui| {
                         ui.horizontal(|ui| {
@@ -45,6 +51,25 @@ impl TimesPane {
                 });
             }
         });
+    }
+
+    fn save_file(&self, path: &PathBuf) {
+        let file = File::create(path).unwrap();
+
+        let mut bw = BufWriter::new(file);
+
+        for post in &self.posts {
+            writeln!(
+                bw,
+                "{} {} {}",
+                post.id,
+                post.created_at.format("%Y-%m-%d %H:%M").to_string(),
+                post.post
+            )
+            .unwrap();
+        }
+
+        bw.flush().unwrap();
     }
 }
 
@@ -64,6 +89,15 @@ impl Pane for TimesPane {
                 ui.spacing_mut();
                 if ui.button("back").clicked() {
                     event = Event::ToStart;
+                }
+
+                if ui.button("save").clicked() {
+                    self.file_dialog.save_file();
+                }
+                self.file_dialog.update(ctx);
+
+                if let Some(path) = self.file_dialog.take_selected() {
+                    self.save_file(&path);
                 }
             });
         });
