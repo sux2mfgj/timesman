@@ -51,14 +51,6 @@ impl Pane for StartPane {
                             event = Event::OpenTimes(t.clone());
                         }
                         ui.label(format!("{}", t.created_at));
-                        if ui.button("delete").clicked() {
-                            match req.delete_times(t.id) {
-                                Err(e) => {
-                                    error!(e)
-                                }
-                                Ok(()) => {}
-                            }
-                        }
                     });
                 }
             });
