@@ -1,5 +1,4 @@
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
-use log;
 use serde::{Deserialize, Serialize};
 use serde_json;
 
@@ -28,13 +27,17 @@ struct Times {
     title: String,
     created_at: chrono::NaiveDateTime,
     updated_at: Option<chrono::NaiveDateTime>,
+    flags: i64,
 }
 
 async fn get_times(ctx: web::Data<AppContext>) -> impl Responder {
-    let times = sqlx::query_as!(Times, r#"select * from times"#)
-        .fetch_all(&ctx.db)
-        .await
-        .unwrap();
+    let times =
+        sqlx::query_as!(Times, r#"select * from times where flags = 0"#)
+            .fetch_all(&ctx.db)
+            .await
+            .unwrap();
+
+    //let times = all_times.into_iter().filter(|t| t.exists()).collect();
 
     let resp = ResponseTimes {
         base: ResponseBase {
@@ -82,6 +85,32 @@ async fn create_times(
     HttpResponse::Ok().body(serde_json::to_string(&resp).unwrap())
 }
 
+async fn delete_times(
+    ctx: web::Data<AppContext>,
+    path: web::Path<i64>,
+) -> impl Responder {
+    let tid = path.into_inner();
+
+    sqlx::query!(r#"update times set flags = 1 where id = $1"#, tid)
+        .execute(&ctx.db)
+        .await
+        .unwrap();
+
+    /* TODO: asynchronous delete
+    sqlx::query!(r#"delete from posts where times_id = $1"#, tid)
+        .execute(&ctx.db)
+        .await
+        .unwrap();
+    */
+
+    let resp = ResponseBase {
+        status: 0,
+        text: "Ok".to_string(),
+    };
+
+    HttpResponse::Ok().body(serde_json::to_string(&resp).unwrap())
+}
+
 #[derive(Serialize)]
 struct Post {
     id: i64,
@@ -97,12 +126,19 @@ struct GetPostResponse {
     posts: Vec<Post>,
 }
 
-async fn get_posts(ctx: web::Data<AppContext>, path: web::Path<i64>) -> impl Responder {
+async fn get_posts(
+    ctx: web::Data<AppContext>,
+    path: web::Path<i64>,
+) -> impl Responder {
     let tid = path.into_inner();
-    let posts = sqlx::query_as!(Post, r#"select * from posts where times_id = $1"#, tid)
-        .fetch_all(&ctx.db)
-        .await
-        .unwrap();
+    let posts = sqlx::query_as!(
+        Post,
+        r#"select * from posts where times_id = $1"#,
+        tid
+    )
+    .fetch_all(&ctx.db)
+    .await
+    .unwrap();
 
     let resp = GetPostResponse {
         base: ResponseBase {
@@ -165,6 +201,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(ctx.clone()))
             .route("/times", web::get().to(get_times))
             .route("/times", web::post().to(create_times))
+            .route("/times/{tid}", web::delete().to(delete_times))
             .route("/times/{tid}", web::get().to(get_posts))
             .route("/times/{tid}", web::post().to(post_post))
     })
