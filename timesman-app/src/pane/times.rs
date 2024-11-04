@@ -80,13 +80,13 @@ impl Pane for TimesPane {
         ctx: &egui::Context,
         _frame: &mut eframe::Frame,
         req: &Requester,
-    ) -> Event {
-        let mut event = Event::Nothing;
+    ) -> Option<Event> {
+        let mut event = None;
         egui::TopBottomPanel::top("top").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("Times", |ui| {
                     if let Some(e) = pane_menu(ui) {
-                        event = e;
+                        event = Some(e);
                     }
                 });
             });
@@ -97,7 +97,7 @@ impl Pane for TimesPane {
                 ui.label(&self.times.title);
                 ui.spacing_mut();
                 if ui.button("back").clicked() {
-                    event = Event::ToStart;
+                    event = Some(Event::ToStart);
                 }
 
                 if ui.button("save").clicked() {
@@ -110,7 +110,7 @@ impl Pane for TimesPane {
                             error!(e)
                         }
                         Ok(()) => {
-                            event = Event::ToStart;
+                            event = Some(Event::ToStart);
                         }
                     }
                 }

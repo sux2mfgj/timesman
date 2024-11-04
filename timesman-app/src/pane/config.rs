@@ -10,14 +10,13 @@ impl Pane for ConfigPane {
         ctx: &egui::Context,
         _frame: &mut eframe::Frame,
         _req: &crate::req::Requester,
-    ) -> Event {
-        let mut event = Event::Nothing;
+    ) -> Option<Event> {
+        let mut event = None;
         egui::TopBottomPanel::top("top").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("Times", |ui| {
                     if let Some(e) = pane_menu(ui) {
-                        event = e;
-                        ui.close_menu();
+                        event = Some(e);
                     }
                 });
             });

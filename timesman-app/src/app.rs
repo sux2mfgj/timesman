@@ -12,7 +12,6 @@ use eframe;
 use egui::{FontData, FontDefinitions, FontFamily};
 
 pub enum Event {
-    Nothing,
     ToStart,
     ToConfig,
     OpenTimes(Times),
@@ -22,9 +21,6 @@ pub enum Event {
 impl fmt::Display for Event {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Event::Nothing => {
-                write!(f, "Nothing")
-            }
             Event::ToStart => {
                 write!(f, "ToStart")
             }
@@ -42,26 +38,13 @@ impl fmt::Display for Event {
     }
 }
 
-impl Event {
-    fn is_nothing(&self) -> bool {
-        match self {
-            Event::Nothing => {
-                return true;
-            }
-            _ => {
-                return false;
-            }
-        }
-    }
-}
-
 pub trait Pane {
     fn update(
         &mut self,
         ctx: &egui::Context,
         _frame: &mut eframe::Frame,
         req: &Requester,
-    ) -> Event;
+    ) -> Option<Event>;
 }
 
 pub struct App {
@@ -105,25 +88,22 @@ impl App {
 
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        let event = self.pane.update(ctx, _frame, &self.req);
-
-        if !event.is_nothing() {
+        if let Some(event) = self.pane.update(ctx, _frame, &self.req) {
             debug!("Event: {}", event);
-        }
 
-        match event {
-            Event::Nothing => {}
-            Event::OpenTimes(times) => {
-                self.pane = Box::new(TimesPane::new(times, &self.req));
-            }
-            Event::ToStart => {
-                self.pane = Box::new(StartPane::new(&self.req));
-            }
-            Event::ToConfig => {
-                self.pane = Box::new(ConfigPane::new());
-            }
-            Event::Logs => {
-                self.pane = Box::new(LogPane::new(self.logs.clone()));
+            match event {
+                Event::OpenTimes(times) => {
+                    self.pane = Box::new(TimesPane::new(times, &self.req));
+                }
+                Event::ToStart => {
+                    self.pane = Box::new(StartPane::new(&self.req));
+                }
+                Event::ToConfig => {
+                    self.pane = Box::new(ConfigPane::new());
+                }
+                Event::Logs => {
+                    self.pane = Box::new(LogPane::new(self.logs.clone()));
+                }
             }
         }
     }

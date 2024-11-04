@@ -15,14 +15,14 @@ impl Pane for StartPane {
         ctx: &egui::Context,
         _frame: &mut eframe::Frame,
         req: &Requester,
-    ) -> Event {
-        let mut event = Event::Nothing;
+    ) -> Option<Event> {
+        let mut event = None;
 
         egui::TopBottomPanel::top("top").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("Times", |ui| {
                     if let Some(e) = pane_menu(ui) {
-                        event = e;
+                        event = Some(e);
                     }
                 });
             });
@@ -35,7 +35,7 @@ impl Pane for StartPane {
             });
             if ui.input_mut(|i| i.consume_key(Modifiers::COMMAND, Key::Enter)) {
                 if let Some(newt) = req.create_times(&self.title) {
-                    event = Event::OpenTimes(newt);
+                    event = Some(Event::OpenTimes(newt));
                 }
             }
         });
@@ -48,7 +48,7 @@ impl Pane for StartPane {
                 for t in &self.times {
                     ui.horizontal(|ui| {
                         if ui.button(&t.title).clicked() {
-                            event = Event::OpenTimes(t.clone());
+                            event = Some(Event::OpenTimes(t.clone()));
                         }
                         ui.label(format!("{}", t.created_at));
                     });
