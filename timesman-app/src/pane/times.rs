@@ -103,6 +103,18 @@ impl Pane for TimesPane {
                 if ui.button("save").clicked() {
                     self.file_dialog.save_file();
                 }
+
+                if ui.button("delete").clicked() {
+                    match req.delete_times(self.times.id) {
+                        Err(e) => {
+                            error!(e)
+                        }
+                        Ok(()) => {
+                            event = Event::ToStart;
+                        }
+                    }
+                }
+
                 self.file_dialog.update(ctx);
 
                 if let Some(path) = self.file_dialog.take_selected() {

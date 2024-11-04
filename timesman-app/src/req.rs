@@ -151,4 +151,21 @@ impl Requester {
             updated_at: None,
         })
     }
+
+    pub fn delete_times(&self, tid: i64) -> Result<(), String> {
+        let url = format!("{}/times/{}", self.server, tid);
+
+        debug!("Request HTTP Delete to {}", self.server);
+
+        let client = reqwest::blocking::Client::new();
+        let result = client.delete(url).send().unwrap();
+
+        let resp = result.json::<ResponseBase>().unwrap();
+
+        if resp.status != 0 {
+            return Err(format!("request error: {}", resp.text));
+        }
+
+        Ok(())
+    }
 }
