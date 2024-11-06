@@ -133,7 +133,9 @@ impl Pane for TimesPane {
                     return;
                 }
 
-                match req.post_post(self.times.id, &self.post_text) {
+                let text = self.post_text.trim_end();
+
+                match req.post_post(self.times.id, &text.to_string()) {
                     Err(_e) => {}
                     Ok(p) => {
                         self.posts.push(p);
