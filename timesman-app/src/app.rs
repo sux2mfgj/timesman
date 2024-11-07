@@ -1,6 +1,8 @@
 use core::fmt;
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::fs::File;
+use std::io::Read;
 
 use crate::log::LogRecord;
 use crate::pane::config::ConfigPane;
@@ -68,12 +70,22 @@ impl App {
     }
 
     fn config_font(cc: &eframe::CreationContext<'_>) {
+
+        let font_file_path = "../fonts/ja/NotoSansJP-VariableFont_wght.ttf";
+        let mut font_file = match File::open(font_file_path) {
+            Ok(f) => f,
+            Err(e) => {
+                error!(format!("failed to open the font file({}): {}", font_file_path, e));
+                return;
+            }
+        };
+        let mut font_data = vec![];
+        let _ = font_file.read_to_end(&mut font_data);
+
         let mut fonts = FontDefinitions::default();
         fonts.font_data.insert(
             "ja".to_owned(),
-            FontData::from_static(include_bytes!(
-                "../fonts/ja/NotoSansJP-VariableFont_wght.ttf"
-            )),
+            FontData::from_owned(font_data),
         );
 
         fonts
