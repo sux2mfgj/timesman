@@ -47,10 +47,11 @@ impl Pane for StartPane {
             scroll_area.show(ui, |ui| {
                 for t in &self.times {
                     ui.horizontal(|ui| {
+                        ui.label(format!("{}", t.created_at));
+                        ui.separator();
                         if ui.button(&t.title).clicked() {
                             event = Some(Event::OpenTimes(t.clone()));
                         }
-                        ui.label(format!("{}", t.created_at));
                     });
                 }
             });
