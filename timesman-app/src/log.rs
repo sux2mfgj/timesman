@@ -53,6 +53,7 @@ pub fn register(logs: Arc<Mutex<Vec<LogRecord>>>) {
 }
 
 pub fn log(level: LogLevel, text: String) {
+    println!("{} {}", level, text);
     LOGS.get_or_init(|| Arc::new(Mutex::new(vec![])))
         .lock()
         .unwrap()

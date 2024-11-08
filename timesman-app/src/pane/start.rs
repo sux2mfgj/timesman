@@ -1,12 +1,11 @@
-use crate::app::{Event, Pane};
-use crate::pane::pane_menu;
-use crate::req::{Requester, Times};
-use eframe::egui::ScrollArea;
-use egui::{Key, Modifiers};
+use crate::app::Event;
+use crate::config::Config;
+use crate::req::Requester;
+
+use super::{pane_menu, Pane};
 
 pub struct StartPane {
-    times: Vec<Times>,
-    title: String,
+    config: Config,
 }
 
 impl Pane for StartPane {
@@ -14,10 +13,8 @@ impl Pane for StartPane {
         &mut self,
         ctx: &egui::Context,
         _frame: &mut eframe::Frame,
-        req: &Requester,
     ) -> Option<Event> {
         let mut event = None;
-
         egui::TopBottomPanel::top("top").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("Times", |ui| {
@@ -26,47 +23,24 @@ impl Pane for StartPane {
                     }
                 });
             });
-
-            ui.separator();
-            ui.horizontal(|ui| {
-                ui.label("new");
-                ui.separator();
-                ui.text_edit_singleline(&mut self.title);
-            });
-            if ui.input_mut(|i| i.consume_key(Modifiers::COMMAND, Key::Enter)) {
-                if let Some(newt) = req.create_times(&self.title) {
-                    event = Some(Event::OpenTimes(newt));
-                }
-            }
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            let scroll_area = ScrollArea::vertical()
-                .auto_shrink(false)
-                .max_height(ui.available_height());
-            scroll_area.show(ui, |ui| {
-                for t in &self.times {
-                    ui.horizontal(|ui| {
-                        ui.label(format!("{}", t.created_at));
-                        ui.separator();
-                        if ui.button(&t.title).clicked() {
-                            event = Some(Event::OpenTimes(t.clone()));
-                        }
-                    });
-                }
-            });
+            ui.label("server");
+            ui.text_edit_singleline(&mut self.config.server);
+            if ui.button("connect").clicked() {
+                event =
+                    Some(Event::Connect(Requester::new(&self.config.server)));
+            }
         });
 
         event
     }
+    fn reload(&mut self) {}
 }
 
 impl StartPane {
-    pub fn new(req: &Requester) -> Self {
-        let list = req.get_list().unwrap();
-        Self {
-            times: list,
-            title: "".to_string(),
-        }
+    pub fn new(config: Config) -> Self {
+        Self { config }
     }
 }

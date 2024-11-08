@@ -37,7 +37,7 @@ async fn get_times(ctx: web::Data<AppContext>) -> impl Responder {
             .await
             .unwrap();
 
-    //let times = all_times.into_iter().filter(|t| t.exists()).collect();
+    println!("/get_times");
 
     let resp = ResponseTimes {
         base: ResponseBase {

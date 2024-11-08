@@ -1,6 +1,6 @@
-use crate::app::{Event, Pane};
+use crate::app::Event;
 
-use super::pane_menu;
+use super::{pane_menu, Pane};
 
 pub struct ConfigPane {}
 
@@ -9,7 +9,6 @@ impl Pane for ConfigPane {
         &mut self,
         ctx: &egui::Context,
         _frame: &mut eframe::Frame,
-        _req: &crate::req::Requester,
     ) -> Option<Event> {
         let mut event = None;
         egui::TopBottomPanel::top("top").show(ctx, |ui| {
@@ -24,6 +23,8 @@ impl Pane for ConfigPane {
 
         event
     }
+
+    fn reload(&mut self) {}
 }
 
 impl ConfigPane {

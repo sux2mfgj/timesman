@@ -1,98 +1,90 @@
 use core::fmt;
-use std::sync::Arc;
-use std::sync::Mutex;
+use std::collections::VecDeque;
 use std::fs::File;
 use std::io::Read;
+use std::sync::Arc;
+use std::sync::Mutex;
 
+use crate::config::Config;
 use crate::log::LogRecord;
 use crate::pane::config::ConfigPane;
 use crate::pane::log::LogPane;
+use crate::pane::select_pane::SelectPane;
 use crate::pane::start::StartPane;
 use crate::pane::times::TimesPane;
+use crate::pane::Pane;
 use crate::req::{Requester, Times};
 use eframe;
 use egui::{FontData, FontDefinitions, FontFamily};
 
 pub enum Event {
-    ToStart,
-    ToConfig,
-    OpenTimes(Times),
+    Connect(Requester),
+    Select(Requester, Times),
+    Pop,
     Logs,
+    Config,
 }
 
 impl fmt::Display for Event {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Event::ToStart => {
-                write!(f, "ToStart")
+            Event::Connect(_) => {
+                write!(f, "Connect")
             }
-            Event::ToConfig => {
-                write!(f, "ToWrite")
+            Event::Select(_, _) => {
+                write!(f, "Disconnect")
             }
-            Event::OpenTimes(_t) => {
-                //TODO: show the times info
-                write!(f, "OpenTimes")
+            Event::Pop => {
+                write!(f, "Pop")
             }
             Event::Logs => {
                 write!(f, "Logs")
+            }
+            Event::Config => {
+                write!(f, "Config")
             }
         }
     }
 }
 
-pub trait Pane {
-    fn update(
-        &mut self,
-        ctx: &egui::Context,
-        _frame: &mut eframe::Frame,
-        req: &Requester,
-    ) -> Option<Event>;
-}
-
 pub struct App {
-    req: Requester,
-    pane: Box<dyn Pane>,
+    pane_stack: VecDeque<Box<dyn Pane>>,
     logs: Arc<Mutex<Vec<LogRecord>>>,
 }
 
 impl App {
     pub fn new(
         cc: &eframe::CreationContext<'_>,
+        config: Config,
         logs: Arc<Mutex<Vec<LogRecord>>>,
     ) -> Self {
-        Self::config_font(cc);
-        let req = Requester::new(&"http://localhost:8080".to_string());
+        Self::config_font(cc, &config);
+        let mut stack: VecDeque<Box<dyn Pane>> = VecDeque::new();
+        stack.push_front(Box::new(StartPane::new(config)));
         Self {
-            pane: Box::new(StartPane::new(&req)),
-            req,
+            pane_stack: stack,
             logs,
         }
     }
 
-    fn config_font(cc: &eframe::CreationContext<'_>) {
-
-        let font_file_path = "../fonts/ja/NotoSansJP-VariableFont_wght.ttf";
-        let mut font_file = match File::open(font_file_path) {
-            Ok(f) => f,
-            Err(e) => {
-                error!(format!("failed to open the font file({}): {}", font_file_path, e));
-                return;
-            }
-        };
-        let mut font_data = vec![];
-        let _ = font_file.read_to_end(&mut font_data);
-
+    fn config_font(cc: &eframe::CreationContext<'_>, config: &Config) {
         let mut fonts = FontDefinitions::default();
-        fonts.font_data.insert(
-            "ja".to_owned(),
-            FontData::from_owned(font_data),
-        );
 
-        fonts
-            .families
-            .entry(FontFamily::Proportional)
-            .or_default()
-            .insert(0, "ja".to_owned());
+        for font in &config.fonts {
+            let name = font.name.clone();
+            info!(format!("Loading font ({})", &name));
+
+            fonts.font_data.insert(
+                name.clone().to_owned(),
+                FontData::from_owned(font.data.clone()),
+            );
+
+            fonts
+                .families
+                .entry(FontFamily::Proportional)
+                .or_default()
+                .insert(0, name.to_owned());
+        }
 
         cc.egui_ctx.set_fonts(fonts);
     }
@@ -100,22 +92,44 @@ impl App {
 
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        if let Some(event) = self.pane.update(ctx, _frame, &self.req) {
-            debug!("Event: {}", event);
+        let pane: &mut Box<dyn Pane> = match self.pane_stack.front_mut() {
+            Some(pane) => pane,
+            None => {
+                unimplemented!("shoud close app");
+            }
+        };
 
-            match event {
-                Event::OpenTimes(times) => {
-                    self.pane = Box::new(TimesPane::new(times, &self.req));
-                }
-                Event::ToStart => {
-                    self.pane = Box::new(StartPane::new(&self.req));
-                }
-                Event::ToConfig => {
-                    self.pane = Box::new(ConfigPane::new());
-                }
-                Event::Logs => {
-                    self.pane = Box::new(LogPane::new(self.logs.clone()));
-                }
+        let event = match pane.update(ctx, _frame) {
+            Some(event) => event,
+            None => {
+                return;
+            }
+        };
+
+        match event {
+            Event::Connect(req) => {
+                self.pane_stack.push_front(Box::new(SelectPane::new(req)));
+            }
+            Event::Select(req, times) => self
+                .pane_stack
+                .push_front(Box::new(TimesPane::new(req, times))),
+            Event::Pop => {
+                self.pane_stack.pop_front();
+                let p: &mut Box<dyn Pane> = match self.pane_stack.front_mut() {
+                    Some(p) => p,
+                    None => {
+                        return;
+                    }
+                };
+
+                p.reload();
+            }
+            Event::Logs => {
+                self.pane_stack
+                    .push_front(Box::new(LogPane::new(self.logs.clone())));
+            }
+            Event::Config => {
+                self.pane_stack.push_front(Box::new(ConfigPane::new()));
             }
         }
     }

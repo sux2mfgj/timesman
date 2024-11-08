@@ -2,29 +2,33 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 
-use crate::app::{Event, Pane};
+use crate::app::Event;
 use crate::req::{Post, Requester, Times};
 use chrono::{DateTime, Local, TimeZone, Utc};
 use eframe::egui::ScrollArea;
 use egui::{Key, Modifiers, Ui};
 use egui_file_dialog::FileDialog;
 
-use super::pane_menu;
+use super::{pane_menu, Pane};
 
 pub struct TimesPane {
     times: Times,
     posts: Vec<Post>,
     post_text: String,
     file_dialog: FileDialog,
+    req: Requester,
 }
 
 impl TimesPane {
-    pub fn new(times: Times, req: &Requester) -> Self {
+    pub fn new(req: Requester, times: Times) -> Self {
+        let posts = req.get_posts(times.id).unwrap();
+
         Self {
-            posts: req.get_posts(times.id).unwrap(),
+            posts,
             times,
             post_text: "".to_string(),
             file_dialog: FileDialog::new(),
+            req,
         }
     }
 
@@ -79,7 +83,6 @@ impl Pane for TimesPane {
         &mut self,
         ctx: &egui::Context,
         _frame: &mut eframe::Frame,
-        req: &Requester,
     ) -> Option<Event> {
         let mut event = None;
         egui::TopBottomPanel::top("top").show(ctx, |ui| {
@@ -97,7 +100,7 @@ impl Pane for TimesPane {
                 ui.label(&self.times.title);
                 ui.spacing_mut();
                 if ui.button("back").clicked() {
-                    event = Some(Event::ToStart);
+                    event = Some(Event::Pop);
                 }
 
                 if ui.button("save").clicked() {
@@ -105,12 +108,12 @@ impl Pane for TimesPane {
                 }
 
                 if ui.button("delete").clicked() {
-                    match req.delete_times(self.times.id) {
+                    match self.req.delete_times(self.times.id) {
                         Err(e) => {
                             error!(e)
                         }
                         Ok(()) => {
-                            event = Some(Event::ToStart);
+                            event = Some(Event::Pop);
                         }
                     }
                 }
@@ -135,7 +138,7 @@ impl Pane for TimesPane {
 
                 let text = self.post_text.trim_end();
 
-                match req.post_post(self.times.id, &text.to_string()) {
+                match self.req.post_post(self.times.id, &text.to_string()) {
                     Err(_e) => {}
                     Ok(p) => {
                         self.posts.push(p);
@@ -155,4 +158,6 @@ impl Pane for TimesPane {
 
         event
     }
+
+    fn reload(&mut self) {}
 }
