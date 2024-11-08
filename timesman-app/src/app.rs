@@ -1,9 +1,10 @@
 use core::fmt;
-use std::sync::Arc;
-use std::sync::Mutex;
 use std::fs::File;
 use std::io::Read;
+use std::sync::Arc;
+use std::sync::Mutex;
 
+use crate::config::Config;
 use crate::log::LogRecord;
 use crate::pane::config::ConfigPane;
 use crate::pane::log::LogPane;
@@ -58,6 +59,7 @@ pub struct App {
 impl App {
     pub fn new(
         cc: &eframe::CreationContext<'_>,
+        config: Config,
         logs: Arc<Mutex<Vec<LogRecord>>>,
     ) -> Self {
         Self::config_font(cc);
@@ -75,7 +77,10 @@ impl App {
         let mut font_file = match File::open(font_file_path) {
             Ok(f) => f,
             Err(e) => {
-                error!(format!("failed to open the font file({}): {}", font_file_path, e));
+                error!(format!(
+                    "failed to open the font file({}): {}",
+                    font_file_path, e
+                ));
                 return;
             }
         };
@@ -83,10 +88,9 @@ impl App {
         let _ = font_file.read_to_end(&mut font_data);
 
         let mut fonts = FontDefinitions::default();
-        fonts.font_data.insert(
-            "ja".to_owned(),
-            FontData::from_owned(font_data),
-        );
+        fonts
+            .font_data
+            .insert("ja".to_owned(), FontData::from_owned(font_data));
 
         fonts
             .families
