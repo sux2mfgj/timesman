@@ -22,7 +22,6 @@ impl Pane for LogPane {
         &mut self,
         ctx: &egui::Context,
         _frame: &mut eframe::Frame,
-        _req: &Requester,
     ) -> Option<Event> {
         let mut event = None;
 

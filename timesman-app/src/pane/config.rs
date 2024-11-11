@@ -9,7 +9,6 @@ impl Pane for ConfigPane {
         &mut self,
         ctx: &egui::Context,
         _frame: &mut eframe::Frame,
-        _req: &crate::req::Requester,
     ) -> Option<Event> {
         let mut event = None;
         egui::TopBottomPanel::top("top").show(ctx, |ui| {

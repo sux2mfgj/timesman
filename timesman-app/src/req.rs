@@ -8,6 +8,7 @@ pub struct Times {
     pub title: String,
     pub created_at: chrono::NaiveDateTime,
     pub updated_at: Option<chrono::NaiveDateTime>,
+    pub flags: i64,
 }
 
 #[derive(Deserialize)]
@@ -25,6 +26,7 @@ struct ResponseBase {
     text: String,
 }
 
+#[derive(Clone)]
 pub struct Requester {
     pub server: String,
 }
@@ -167,5 +169,52 @@ impl Requester {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_test_get_times() {
+        let json = r#"{
+  "base": {
+    "status": 0,
+    "text": "Ok"
+  },
+  "times": [
+    {
+      "id": 3,
+      "title": "timed について",
+      "created_at": "2024-11-02T10:09:01",
+      "updated_at": null,
+      "flags": 0
+    },
+    {
+      "id": 7,
+      "title": "saa",
+      "created_at": "2024-11-06T02:42:48",
+      "updated_at": null,
+      "flags": 0
+    },
+    {
+      "id": 8,
+      "title": "サボテン見守りについて",
+      "created_at": "2024-11-06T06:30:43",
+      "updated_at": null,
+      "flags": 0
+    }
+  ]
+}
+"#;
+
+        #[derive(Deserialize)]
+        struct GetTimesResponse {
+            base: ResponseBase,
+            times: Vec<Times>,
+        }
+
+        let _data: GetTimesResponse = serde_json::from_str(json).unwrap();
     }
 }

@@ -1,5 +1,6 @@
 pub mod config;
 pub mod log;
+pub mod select_pane;
 pub mod start;
 pub mod times;
 
@@ -12,7 +13,6 @@ pub trait Pane {
         &mut self,
         ctx: &egui::Context,
         _frame: &mut eframe::Frame,
-        req: &Requester,
     ) -> Event;
 }
 
@@ -22,12 +22,12 @@ pub fn pane_menu(ui: &mut egui::Ui) -> Option<Event> {
         e = Some(Event::Logs);
     }
 
-    if ui.button("Config").clicked() {
-        e = Some(Event::ToConfig);
-    }
+    //if ui.button("Config").clicked() {
+    //    e = Some(Event::ToConfig);
+    //}
 
-    if ui.button("To start pane").clicked() {
-        e = Some(Event::ToStart);
+    if ui.button("Back").clicked() {
+        e = Some(Event::Pop);
     }
 
     if let Some(_) = &e {

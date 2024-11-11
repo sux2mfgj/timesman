@@ -21,10 +21,15 @@ fn main() -> Result<(), i64> {
     log::register(logs.clone());
     info!("Starting");
 
-    let config = Config::load_config().map_err(|e| {
+    let config = match Config::load_config().map_err(|e| {
         error!(format!("{}", e));
-        1
-    });
+        Err(1)
+    }) {
+        Ok(c) => c,
+        Err(e) => {
+            return e;
+        }
+    };
 
     let r = eframe::run_native(
         "TimesMan",
