@@ -21,8 +21,10 @@ pub struct TimesPane {
 
 impl TimesPane {
     pub fn new(req: Requester, times: Times) -> Self {
+        let posts = req.get_posts(times.id).unwrap();
+
         Self {
-            posts: vec![],
+            posts,
             times,
             post_text: "".to_string(),
             file_dialog: FileDialog::new(),
