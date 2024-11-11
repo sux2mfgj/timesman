@@ -1,11 +1,10 @@
-use crate::app::{Event, Pane};
+use crate::app::Event;
 use crate::log::LogRecord;
-use crate::req::Requester;
 use eframe::egui::ScrollArea;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use super::pane_menu;
+use super::{pane_menu, Pane};
 
 pub struct LogPane {
     logs: Arc<Mutex<Vec<LogRecord>>>,
@@ -52,4 +51,5 @@ impl Pane for LogPane {
 
         event
     }
+    fn reload(&mut self) {}
 }

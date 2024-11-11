@@ -1,8 +1,8 @@
-use crate::app::{Event, Pane};
+use crate::app::Event;
 use crate::config::Config;
 use crate::req::Requester;
 
-use super::pane_menu;
+use super::{pane_menu, Pane};
 
 pub struct StartPane {
     config: Config,
@@ -36,6 +36,7 @@ impl Pane for StartPane {
 
         event
     }
+    fn reload(&mut self) {}
 }
 
 impl StartPane {

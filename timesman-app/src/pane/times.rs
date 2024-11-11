@@ -2,14 +2,14 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 
-use crate::app::{Event, Pane};
+use crate::app::Event;
 use crate::req::{Post, Requester, Times};
 use chrono::{DateTime, Local, TimeZone, Utc};
 use eframe::egui::ScrollArea;
 use egui::{Key, Modifiers, Ui};
 use egui_file_dialog::FileDialog;
 
-use super::pane_menu;
+use super::{pane_menu, Pane};
 
 pub struct TimesPane {
     times: Times,
@@ -158,4 +158,6 @@ impl Pane for TimesPane {
 
         event
     }
+
+    fn reload(&mut self) {}
 }

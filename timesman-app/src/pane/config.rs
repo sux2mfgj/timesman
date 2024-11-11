@@ -1,6 +1,6 @@
-use crate::app::{Event, Pane};
+use crate::app::Event;
 
-use super::pane_menu;
+use super::{pane_menu, Pane};
 
 pub struct ConfigPane {}
 
@@ -23,6 +23,8 @@ impl Pane for ConfigPane {
 
         event
     }
+
+    fn reload(&mut self) {}
 }
 
 impl ConfigPane {

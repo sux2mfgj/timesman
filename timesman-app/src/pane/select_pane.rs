@@ -1,8 +1,9 @@
-use crate::app::{Event, Pane};
-use crate::pane::pane_menu;
+use crate::app::Event;
 use crate::req::{Requester, Times};
 use eframe::egui::ScrollArea;
 use egui::{Key, Modifiers};
+
+use super::{pane_menu, Pane};
 
 pub struct SelectPane {
     times: Vec<Times>,
@@ -62,6 +63,8 @@ impl Pane for SelectPane {
 
         event
     }
+
+    fn reload(&mut self) {}
 }
 
 impl SelectPane {

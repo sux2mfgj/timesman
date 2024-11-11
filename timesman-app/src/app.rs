@@ -12,6 +12,7 @@ use crate::pane::log::LogPane;
 use crate::pane::select_pane::SelectPane;
 use crate::pane::start::StartPane;
 use crate::pane::times::TimesPane;
+use crate::pane::Pane;
 use crate::req::{Requester, Times};
 use eframe;
 use egui::{FontData, FontDefinitions, FontFamily};
@@ -44,14 +45,6 @@ impl fmt::Display for Event {
             }
         }
     }
-}
-
-pub trait Pane {
-    fn update(
-        &mut self,
-        ctx: &egui::Context,
-        _frame: &mut eframe::Frame,
-    ) -> Option<Event>;
 }
 
 pub struct App {
@@ -122,26 +115,22 @@ impl eframe::App for App {
                 .push_front(Box::new(TimesPane::new(req, times))),
             Event::Pop => {
                 self.pane_stack.pop_front();
+                let p: &mut Box<dyn Pane> = match self.pane_stack.front_mut() {
+                    Some(p) => p,
+                    None => {
+                        return;
+                    }
+                };
+
+                p.reload();
             }
-            Event::Logs => {}
-            Event::Config => {}
-        }
-
-        /*
-        if let Some(event) = self.current_pane.update(ctx, _frame) {
-            debug!("Event: {}", event);
-
-            match event {
-                Event::Connect(req) => {
-                    let c = self.current_pane;
-                    self.pane_stack.push(c);
-                }
-                Event::Select(req, tid) => {}
-                Event::Pop => {}
-                Event::Logs => {}
-                Event::Config => {}
+            Event::Logs => {
+                self.pane_stack
+                    .push_front(Box::new(LogPane::new(self.logs.clone())));
+            }
+            Event::Config => {
+                self.pane_stack.push_front(Box::new(ConfigPane::new()));
             }
         }
-        */
     }
 }
