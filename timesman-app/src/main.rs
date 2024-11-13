@@ -3,12 +3,14 @@ mod log;
 mod app;
 mod config;
 mod pane;
+mod plugin;
 mod req;
 
 use std::sync::Arc;
 use std::sync::Mutex;
 
 use crate::config::Config;
+use crate::plugin::Plugin;
 
 fn main() -> Result<(), i64> {
     let options = eframe::NativeOptions {

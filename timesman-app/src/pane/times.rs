@@ -3,6 +3,7 @@ use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 
 use crate::app::Event;
+use crate::plugin::Plugin;
 use crate::req::{Post, Requester, Times};
 use chrono::{DateTime, Local, TimeZone, Utc};
 use eframe::egui::ScrollArea;
@@ -83,15 +84,18 @@ impl Pane for TimesPane {
         &mut self,
         ctx: &egui::Context,
         _frame: &mut eframe::Frame,
+        plugin: &mut Plugin,
     ) -> Option<Event> {
         let mut event = None;
         egui::TopBottomPanel::top("top").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("Times", |ui| {
-                    if let Some(e) = pane_menu(ui) {
+                    if let Some(e) = pane_menu(ui, plugin) {
                         event = Some(e);
                     }
                 });
+
+                plugin.update_bar(ui);
             });
 
             ui.horizontal(|ui| {

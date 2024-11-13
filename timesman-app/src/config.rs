@@ -16,14 +16,22 @@ pub struct FontFile {
 pub struct Config {
     #[serde(skip)]
     pub fonts: Vec<FontFile>,
+    #[serde(skip)]
+    pub config_path: PathBuf,
     pub server: String,
     //pub plugins: Option<Plugin>
 }
 
 impl Default for Config {
     fn default() -> Self {
+        let home = env::var("HOME").unwrap();
+        let config_dir = home + "/.config/timesman/";
+
+        let config_path = PathBuf::from(config_dir);
+
         Self {
             fonts: vec![],
+            config_path,
             server: "http://localhost:8080".to_string(),
         }
     }
@@ -91,6 +99,24 @@ impl Config {
                 data: font_data,
                 name: fname,
             });
+        }
+
+        Ok(())
+    }
+
+    fn load_plugin_files(&mut self, mut dir: PathBuf) -> Result<(), String> {
+        dir.push("plugins");
+
+        let entries = dir.read_dir().unwrap();
+
+        for entry in entries.into_iter() {
+            let entry = entry.unwrap();
+            let path = entry.path();
+
+            if path.is_dir() {
+                debug!("Found a directory. Ignored ");
+                continue;
+            }
         }
 
         Ok(())

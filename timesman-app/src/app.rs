@@ -13,9 +13,11 @@ use crate::pane::select_pane::SelectPane;
 use crate::pane::start::StartPane;
 use crate::pane::times::TimesPane;
 use crate::pane::Pane;
+use crate::plugin::Plugin;
 use crate::req::{Requester, Times};
 use eframe;
 use egui::{FontData, FontDefinitions, FontFamily};
+use wasmtime::Module;
 
 pub enum Event {
     Connect(Requester),
@@ -50,6 +52,7 @@ impl fmt::Display for Event {
 pub struct App {
     pane_stack: VecDeque<Box<dyn Pane>>,
     logs: Arc<Mutex<Vec<LogRecord>>>,
+    plugin: Plugin,
 }
 
 impl App {
@@ -59,11 +62,14 @@ impl App {
         logs: Arc<Mutex<Vec<LogRecord>>>,
     ) -> Self {
         Self::config_font(cc, &config);
+        let plugin = Plugin::setup(&config).unwrap();
+
         let mut stack: VecDeque<Box<dyn Pane>> = VecDeque::new();
         stack.push_front(Box::new(StartPane::new(config)));
         Self {
             pane_stack: stack,
             logs,
+            plugin,
         }
     }
 
@@ -99,7 +105,7 @@ impl eframe::App for App {
             }
         };
 
-        let event = match pane.update(ctx, _frame) {
+        let event = match pane.update(ctx, _frame, &mut self.plugin) {
             Some(event) => event,
             None => {
                 return;
@@ -110,9 +116,10 @@ impl eframe::App for App {
             Event::Connect(req) => {
                 self.pane_stack.push_front(Box::new(SelectPane::new(req)));
             }
-            Event::Select(req, times) => self
-                .pane_stack
-                .push_front(Box::new(TimesPane::new(req, times))),
+            Event::Select(req, times) => {
+                self.pane_stack
+                    .push_front(Box::new(TimesPane::new(req, times)));
+            }
             Event::Pop => {
                 self.pane_stack.pop_front();
                 let p: &mut Box<dyn Pane> = match self.pane_stack.front_mut() {
