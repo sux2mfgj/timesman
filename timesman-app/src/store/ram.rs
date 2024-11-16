@@ -1,4 +1,5 @@
 use super::{Post, Store, Times};
+use chrono::Local;
 
 struct LocalTimes {
     times: Times,
@@ -7,11 +8,15 @@ struct LocalTimes {
 
 pub struct RamStore {
     times: Vec<LocalTimes>,
+    next_tid: i64,
 }
 
 impl RamStore {
     pub fn new() -> Self {
-        Self { times: vec![] }
+        Self {
+            times: vec![],
+            next_tid: 0,
+        }
     }
 }
 
@@ -20,8 +25,26 @@ impl Store for RamStore {
         Ok(self.times.iter().map(|t| t.times.clone()).collect())
     }
 
-    fn create_times(&self, title: String) -> Result<super::Times, String> {
-        unimplemented!();
+    fn create_times(&mut self, title: String) -> Result<super::Times, String> {
+        let id = self.next_tid;
+        self.next_tid += 1;
+
+        let now = Local::now();
+
+        let times = Times {
+            id,
+            title,
+            created_at: now.naive_local(),
+            updated_at: None,
+        };
+
+        let ltimes = LocalTimes {
+            times: times.clone(),
+            posts: vec![],
+        };
+        self.times.push(ltimes);
+
+        Ok(times)
     }
 
     fn delete_times(&self, tid: i64) -> Result<(), String> {

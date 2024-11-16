@@ -2,6 +2,7 @@ use crate::app::Event;
 use crate::config::{Config, StoreType};
 use crate::store::ram::RamStore;
 use crate::store::Store;
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use super::{pane_menu, Pane};
@@ -32,7 +33,7 @@ impl Pane for StartPane {
             ui.text_edit_singleline(&mut self.config.store);
             if ui.button("connect").clicked() {
                 let store = match &self.config.store_type {
-                    StoreType::Memory => Rc::new(RamStore::new()),
+                    StoreType::Memory => Rc::new(RefCell::new(RamStore::new())),
                     StoreType::Remote(server) => {
                         unimplemented!();
                     }

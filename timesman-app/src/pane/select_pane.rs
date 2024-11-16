@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::app::Event;
@@ -10,7 +11,7 @@ use super::{pane_menu, Pane};
 pub struct SelectPane {
     times: Vec<Times>,
     new_title: String,
-    store: Rc<dyn Store>,
+    store: Rc<RefCell<dyn Store>>,
 }
 
 impl Pane for SelectPane {
@@ -37,7 +38,8 @@ impl Pane for SelectPane {
                 ui.text_edit_singleline(&mut self.new_title);
             });
             if ui.input_mut(|i| i.consume_key(Modifiers::COMMAND, Key::Enter)) {
-                match self.store.create_times(self.new_title.clone()) {
+                let mut store_ref = self.store.borrow_mut();
+                match store_ref.create_times(self.new_title.clone()) {
                     Ok(new_times) => {
                         event = Some(Event::Select(
                             self.store.clone(),
@@ -77,11 +79,12 @@ impl Pane for SelectPane {
 }
 
 impl SelectPane {
-    pub fn new(store: Rc<dyn Store>) -> Self {
-        let list = store.get_times().unwrap();
+    pub fn new(store: Rc<RefCell<dyn Store>>) -> Self {
+        let storeref = store.borrow();
+        let list = storeref.get_times().unwrap();
         Self {
             times: list,
-            store,
+            store: store.clone(),
             new_title: "".to_string(),
         }
     }

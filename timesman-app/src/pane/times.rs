@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::PathBuf;
@@ -17,19 +18,20 @@ pub struct TimesPane {
     posts: Vec<Post>,
     post_text: String,
     file_dialog: FileDialog,
-    store: Rc<dyn Store>,
+    store: Rc<RefCell<dyn Store>>,
 }
 
 impl TimesPane {
-    pub fn new(store: Rc<dyn Store>, times: Times) -> Self {
-        let posts = store.get_posts(times.id).unwrap();
+    pub fn new(store: Rc<RefCell<dyn Store>>, times: Times) -> Self {
+        let store_ref = store.borrow();
+        let posts = store_ref.get_posts(times.id).unwrap();
 
         Self {
             posts,
             times,
             post_text: "".to_string(),
             file_dialog: FileDialog::new(),
-            store,
+            store: store.clone(),
         }
     }
 
@@ -109,7 +111,8 @@ impl Pane for TimesPane {
                 }
 
                 if ui.button("delete").clicked() {
-                    match self.store.delete_times(self.times.id) {
+                    let mut store_ref = self.store.borrow_mut();
+                    match store_ref.delete_times(self.times.id) {
                         Err(e) => {
                             error!(e)
                         }
@@ -139,7 +142,8 @@ impl Pane for TimesPane {
 
                 let text = self.post_text.trim_end();
 
-                match self.store.create_post(self.times.id, text.to_string()) {
+                let mut store_ref = self.store.borrow_mut();
+                match store_ref.create_post(self.times.id, text.to_string()) {
                     Err(_e) => {}
                     Ok(p) => {
                         self.posts.push(p);

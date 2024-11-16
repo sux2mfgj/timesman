@@ -21,7 +21,7 @@ pub struct Post {
 pub trait Store {
     // for Times
     fn get_times(&self) -> Result<Vec<Times>, String>;
-    fn create_times(&self, title: String) -> Result<Times, String>;
+    fn create_times(&mut self, title: String) -> Result<Times, String>;
     fn delete_times(&self, tid: i64) -> Result<(), String>;
     fn update_times(&self, times: Times) -> Result<(), String>;
 

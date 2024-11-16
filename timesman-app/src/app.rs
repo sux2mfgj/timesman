@@ -1,4 +1,5 @@
 use core::fmt;
+use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::fs::File;
 use std::io::Read;
@@ -19,8 +20,8 @@ use eframe;
 use egui::{FontData, FontDefinitions, FontFamily};
 
 pub enum Event {
-    Connect(Rc<dyn Store>),
-    Select(Rc<dyn Store>, Times),
+    Connect(Rc<RefCell<dyn Store>>),
+    Select(Rc<RefCell<dyn Store>>, Times),
     Pop,
     Logs,
     Config,
