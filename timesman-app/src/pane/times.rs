@@ -1,9 +1,10 @@
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::PathBuf;
+use std::rc::Rc;
 
 use crate::app::Event;
-use crate::req::{Post, Requester, Times};
+use crate::store::{Post, Store, Times};
 use chrono::{DateTime, Local, TimeZone, Utc};
 use eframe::egui::ScrollArea;
 use egui::{Key, Modifiers, Ui};
@@ -16,19 +17,19 @@ pub struct TimesPane {
     posts: Vec<Post>,
     post_text: String,
     file_dialog: FileDialog,
-    req: Requester,
+    store: Rc<dyn Store>,
 }
 
 impl TimesPane {
-    pub fn new(req: Requester, times: Times) -> Self {
-        let posts = req.get_posts(times.id).unwrap();
+    pub fn new(store: Rc<dyn Store>, times: Times) -> Self {
+        let posts = store.get_posts(times.id).unwrap();
 
         Self {
             posts,
             times,
             post_text: "".to_string(),
             file_dialog: FileDialog::new(),
-            req,
+            store,
         }
     }
 
@@ -108,7 +109,7 @@ impl Pane for TimesPane {
                 }
 
                 if ui.button("delete").clicked() {
-                    match self.req.delete_times(self.times.id) {
+                    match self.store.delete_times(self.times.id) {
                         Err(e) => {
                             error!(e)
                         }
@@ -138,7 +139,7 @@ impl Pane for TimesPane {
 
                 let text = self.post_text.trim_end();
 
-                match self.req.post_post(self.times.id, &text.to_string()) {
+                match self.store.create_post(self.times.id, text.to_string()) {
                     Err(_e) => {}
                     Ok(p) => {
                         self.posts.push(p);

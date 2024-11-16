@@ -8,7 +8,7 @@ pub struct Times {
     pub title: String,
     pub created_at: chrono::NaiveDateTime,
     pub updated_at: Option<chrono::NaiveDateTime>,
-    pub flags: i64,
+    pub deleted: bool,
 }
 
 #[derive(Deserialize)]

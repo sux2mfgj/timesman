@@ -2,6 +2,7 @@ use core::fmt;
 use std::collections::VecDeque;
 use std::fs::File;
 use std::io::Read;
+use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -13,13 +14,13 @@ use crate::pane::select_pane::SelectPane;
 use crate::pane::start::StartPane;
 use crate::pane::times::TimesPane;
 use crate::pane::Pane;
-use crate::req::{Requester, Times};
+use crate::store::{Store, Times};
 use eframe;
 use egui::{FontData, FontDefinitions, FontFamily};
 
 pub enum Event {
-    Connect(Requester),
-    Select(Requester, Times),
+    Connect(Rc<dyn Store>),
+    Select(Rc<dyn Store>, Times),
     Pop,
     Logs,
     Config,
@@ -107,12 +108,12 @@ impl eframe::App for App {
         };
 
         match event {
-            Event::Connect(req) => {
-                self.pane_stack.push_front(Box::new(SelectPane::new(req)));
+            Event::Connect(store) => {
+                self.pane_stack.push_front(Box::new(SelectPane::new(store)));
             }
-            Event::Select(req, times) => self
+            Event::Select(store, times) => self
                 .pane_stack
-                .push_front(Box::new(TimesPane::new(req, times))),
+                .push_front(Box::new(TimesPane::new(store, times))),
             Event::Pop => {
                 self.pane_stack.pop_front();
                 let p: &mut Box<dyn Pane> = match self.pane_stack.front_mut() {

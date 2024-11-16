@@ -1,6 +1,8 @@
 use crate::app::Event;
-use crate::config::Config;
-use crate::req::Requester;
+use crate::config::{Config, StoreType};
+use crate::store::ram::RamStore;
+use crate::store::Store;
+use std::rc::Rc;
 
 use super::{pane_menu, Pane};
 
@@ -27,10 +29,15 @@ impl Pane for StartPane {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.label("server");
-            ui.text_edit_singleline(&mut self.config.server);
+            ui.text_edit_singleline(&mut self.config.store);
             if ui.button("connect").clicked() {
-                event =
-                    Some(Event::Connect(Requester::new(&self.config.server)));
+                let store = match &self.config.store_type {
+                    StoreType::Memory => Rc::new(RamStore::new()),
+                    StoreType::Remote(server) => {
+                        unimplemented!();
+                    }
+                };
+                event = Some(Event::Connect(store));
             }
         });
 

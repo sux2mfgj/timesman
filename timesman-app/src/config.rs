@@ -6,17 +6,32 @@ use std::{
     path::PathBuf,
 };
 use toml;
+use xdg;
 
 pub struct FontFile {
     pub data: Vec<u8>,
     pub name: String,
 }
 
+pub enum StoreType {
+    //Sqlite3(PathBuf),
+    Remote(String),
+    Memory,
+}
+
+impl Default for StoreType {
+    fn default() -> Self {
+        StoreType::Memory
+    }
+}
+
 #[derive(Deserialize, Serialize)]
 pub struct Config {
     #[serde(skip)]
     pub fonts: Vec<FontFile>,
-    pub server: String,
+    pub store: String,
+    #[serde(skip)]
+    pub store_type: StoreType,
     //pub plugins: Option<Plugin>
 }
 
@@ -24,7 +39,9 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             fonts: vec![],
-            server: "http://localhost:8080".to_string(),
+            //store: "http://localhost:8080".to_string(),
+            store: "sqlite3:database.db".to_string(),
+            store_type: StoreType::default(),
         }
     }
 }
@@ -59,9 +76,25 @@ impl Config {
 
         let mut config = Self::from_reader(file);
 
+        config.detect_store_type()?;
+
         config.load_font_files(dir_path).unwrap();
 
         Ok(config)
+    }
+
+    fn detect_store_type(&mut self) -> Result<(), String> {
+        match &*self.store {
+            "memory" => {
+                self.store_type = StoreType::Memory;
+            }
+            _ => {
+                unimplemented!();
+                // Err("Found the unknown store type".to_string())
+            }
+        }
+
+        Ok(())
     }
 
     fn load_font_files(&mut self, mut dir: PathBuf) -> Result<(), String> {

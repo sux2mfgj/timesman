@@ -3,7 +3,7 @@ mod log;
 mod app;
 mod config;
 mod pane;
-mod req;
+mod store;
 
 use std::sync::Arc;
 use std::sync::Mutex;

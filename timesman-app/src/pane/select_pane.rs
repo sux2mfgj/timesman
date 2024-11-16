@@ -1,5 +1,7 @@
+use std::rc::Rc;
+
 use crate::app::Event;
-use crate::req::{Requester, Times};
+use crate::store::{Post, Store, Times};
 use eframe::egui::ScrollArea;
 use egui::{Key, Modifiers};
 
@@ -8,7 +10,7 @@ use super::{pane_menu, Pane};
 pub struct SelectPane {
     times: Vec<Times>,
     new_title: String,
-    req: Requester,
+    store: Rc<dyn Store>,
 }
 
 impl Pane for SelectPane {
@@ -35,9 +37,16 @@ impl Pane for SelectPane {
                 ui.text_edit_singleline(&mut self.new_title);
             });
             if ui.input_mut(|i| i.consume_key(Modifiers::COMMAND, Key::Enter)) {
-                if let Some(newt) = self.req.create_times(&self.new_title) {
-                    event = Some(Event::Select(self.req.clone(), newt.clone()));
+                match self.store.create_times(self.new_title.clone()) {
+                    Ok(new_times) => {
+                        event = Some(Event::Select(
+                            self.store.clone(),
+                            new_times.clone(),
+                        ));
+                    }
+                    Err(e) => {}
                 }
+                // if let Some(newt) = self.store.create_times(&self.new_title) { }
             }
         });
 
@@ -52,7 +61,7 @@ impl Pane for SelectPane {
                         ui.separator();
                         if ui.button(&t.title).clicked() {
                             event = Some(Event::Select(
-                                self.req.clone(),
+                                self.store.clone(),
                                 t.clone(),
                             ));
                         }
@@ -68,11 +77,11 @@ impl Pane for SelectPane {
 }
 
 impl SelectPane {
-    pub fn new(req: Requester) -> Self {
-        let list = req.get_list().unwrap();
+    pub fn new(store: Rc<dyn Store>) -> Self {
+        let list = store.get_times().unwrap();
         Self {
             times: list,
-            req,
+            store,
             new_title: "".to_string(),
         }
     }
