@@ -1,20 +1,22 @@
 use super::{Post, Store, Times};
 use chrono::Local;
+use std::collections::HashMap;
 
 struct LocalTimes {
     times: Times,
     posts: Vec<Post>,
+    next_pid: i64,
 }
 
 pub struct RamStore {
-    times: Vec<LocalTimes>,
+    times: HashMap<i64, LocalTimes>,
     next_tid: i64,
 }
 
 impl RamStore {
     pub fn new() -> Self {
         Self {
-            times: vec![],
+            times: HashMap::new(),
             next_tid: 0,
         }
     }
@@ -22,7 +24,7 @@ impl RamStore {
 
 impl Store for RamStore {
     fn get_times(&self) -> Result<Vec<super::Times>, String> {
-        Ok(self.times.iter().map(|t| t.times.clone()).collect())
+        Ok(self.times.iter().map(|t| t.1.times.clone()).collect())
     }
 
     fn create_times(&mut self, title: String) -> Result<super::Times, String> {
@@ -41,41 +43,57 @@ impl Store for RamStore {
         let ltimes = LocalTimes {
             times: times.clone(),
             posts: vec![],
+            next_pid: 0,
         };
-        self.times.push(ltimes);
+
+        self.times.insert(id, ltimes);
 
         Ok(times)
     }
 
-    fn delete_times(&self, tid: i64) -> Result<(), String> {
+    fn delete_times(&mut self, _tid: i64) -> Result<(), String> {
         unimplemented!();
     }
 
-    fn update_times(&self, times: super::Times) -> Result<(), String> {
+    fn update_times(&mut self, _times: super::Times) -> Result<(), String> {
         unimplemented!();
     }
 
     fn get_posts(&self, tid: i64) -> Result<Vec<super::Post>, String> {
-        unimplemented!();
+        let ltimes = self.times.get(&tid).ok_or("invalid tid")?;
+
+        Ok(ltimes.posts.clone())
     }
 
     fn create_post(
-        &self,
+        &mut self,
         tid: i64,
         post: String,
     ) -> Result<super::Post, String> {
-        unimplemented!();
+        let ltimes = self.times.get_mut(&tid).ok_or("invalid tid")?;
+
+        let post = Post {
+            id: ltimes.next_pid,
+            times_id: tid,
+            post,
+            created_at: Local::now().naive_local(),
+            updated_at: None,
+        };
+
+        ltimes.posts.push(post.clone());
+
+        Ok(post)
     }
 
     fn update_post(
-        &self,
-        tid: i64,
-        post: super::Post,
+        &mut self,
+        _tid: i64,
+        _post: super::Post,
     ) -> Result<super::Post, String> {
         unimplemented!();
     }
 
-    fn delete_post(&self, tid: i64, pid: i64) -> Result<(), String> {
+    fn delete_post(&mut self, _tid: i64, _pid: i64) -> Result<(), String> {
         unimplemented!();
     }
 }
