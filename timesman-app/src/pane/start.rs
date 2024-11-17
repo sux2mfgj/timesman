@@ -1,7 +1,6 @@
 use crate::app::Event;
 use crate::config::{Config, StoreType};
 use crate::store::ram::RamStore;
-use crate::store::Store;
 use std::cell::RefCell;
 use std::rc::Rc;
 

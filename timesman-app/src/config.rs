@@ -6,7 +6,7 @@ use std::{
     path::PathBuf,
 };
 use toml;
-use xdg;
+// use xdg;
 
 pub struct FontFile {
     pub data: Vec<u8>,
