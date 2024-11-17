@@ -19,19 +19,11 @@ pub enum StoreType {
     Memory,
 }
 
-impl Default for StoreType {
-    fn default() -> Self {
-        StoreType::Memory
-    }
-}
-
 #[derive(Deserialize, Serialize)]
 pub struct Config {
     #[serde(skip)]
     pub fonts: Vec<FontFile>,
     pub store: String,
-    #[serde(skip)]
-    pub store_type: StoreType,
     //pub plugins: Option<Plugin>
 }
 
@@ -41,7 +33,6 @@ impl Default for Config {
             fonts: vec![],
             //store: "http://localhost:8080".to_string(),
             store: "sqlite3:database.db".to_string(),
-            store_type: StoreType::default(),
         }
     }
 }
@@ -76,25 +67,27 @@ impl Config {
 
         let mut config = Self::from_reader(file);
 
-        config.detect_store_type()?;
-
         config.load_font_files(dir_path).unwrap();
 
         Ok(config)
     }
 
-    fn detect_store_type(&mut self) -> Result<(), String> {
-        match &*self.store {
-            "memory" => {
-                self.store_type = StoreType::Memory;
-            }
-            _ => {
-                unimplemented!();
-                // Err("Found the unknown store type".to_string())
-            }
+    pub fn detect_store_type(&self) -> Result<StoreType, String> {
+        let split = self.store.split(":").collect::<Vec<&str>>();
+
+        if split.len() == 0 {
+            error!(format!("invalid store type: {}", self.store));
+            return Err("invalid store type".to_string());
         }
 
-        Ok(())
+        let protocol = split[0];
+
+        let stype = match protocol {
+            "memory" => StoreType::Memory,
+            _ => return Err("Found the unknown store type".to_string()),
+        };
+
+        Ok(stype)
     }
 
     fn load_font_files(&mut self, mut dir: PathBuf) -> Result<(), String> {

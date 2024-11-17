@@ -8,6 +8,34 @@ use super::{pane_menu, Pane};
 
 pub struct StartPane {
     config: Config,
+    errmsg: Option<String>,
+}
+
+impl StartPane {
+    pub fn new(config: Config) -> Self {
+        Self {
+            config,
+            errmsg: None,
+        }
+    }
+
+    fn connect(&mut self, target: String) -> Result<Event, String> {
+        let stype = match self.config.detect_store_type() {
+            Ok(t) => t,
+            Err(e) => {
+                return Err(e);
+            }
+        };
+
+        let store = match stype {
+            StoreType::Memory => Rc::new(RefCell::new(RamStore::new())),
+            _ => {
+                unimplemented!();
+            }
+        };
+
+        Ok(Event::Connect(store))
+    }
 }
 
 impl Pane for StartPane {
@@ -31,23 +59,21 @@ impl Pane for StartPane {
             ui.label("server");
             ui.text_edit_singleline(&mut self.config.store);
             if ui.button("connect").clicked() {
-                let store = match &self.config.store_type {
-                    StoreType::Memory => Rc::new(RefCell::new(RamStore::new())),
-                    StoreType::Remote(server) => {
-                        unimplemented!();
+                match self.connect(self.config.store.clone()) {
+                    Ok(e) => {
+                        event = Some(e);
                     }
-                };
-                event = Some(Event::Connect(store));
+                    Err(e) => {
+                        self.errmsg = Some(e);
+                    }
+                }
+            }
+            if let Some(e) = &self.errmsg {
+                ui.label(format!("error: {e}"));
             }
         });
 
         event
     }
     fn reload(&mut self) {}
-}
-
-impl StartPane {
-    pub fn new(config: Config) -> Self {
-        Self { config }
-    }
 }
