@@ -45,10 +45,10 @@ impl Pane for SelectPane {
                             self.store.clone(),
                             new_times.clone(),
                         ));
+                        self.new_title.clear();
                     }
                     Err(e) => {}
                 }
-                // if let Some(newt) = self.store.create_times(&self.new_title) { }
             }
         });
 
@@ -75,17 +75,22 @@ impl Pane for SelectPane {
         event
     }
 
-    fn reload(&mut self) {}
+    fn reload(&mut self) {
+        let storeref = self.store.borrow();
+        self.times = storeref.get_times().unwrap();
+    }
 }
 
 impl SelectPane {
     pub fn new(store: Rc<RefCell<dyn Store>>) -> Self {
-        let storeref = store.borrow();
-        let list = storeref.get_times().unwrap();
-        Self {
-            times: list,
+        let mut pane = Self {
+            times: vec![],
             store: store.clone(),
             new_title: "".to_string(),
-        }
+        };
+
+        pane.reload();
+
+        pane
     }
 }
