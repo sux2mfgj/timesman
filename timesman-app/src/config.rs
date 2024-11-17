@@ -72,18 +72,27 @@ impl Config {
         Ok(config)
     }
 
-    pub fn detect_store_type(&self) -> Result<StoreType, String> {
-        let split = self.store.split(":").collect::<Vec<&str>>();
-
-        if split.len() == 0 {
-            error!(format!("invalid store type: {}", self.store));
-            return Err("invalid store type".to_string());
-        }
+    pub fn detect_store_type(text: String) -> Result<StoreType, String> {
+        let split = text.splitn(2, ":").collect::<Vec<&str>>();
 
         let protocol = split[0];
 
-        let stype = match protocol {
+        let param = if split.len() == 2 {
+            Some(split[1])
+        } else {
+            None
+        };
+
+        let stype = match &*protocol {
             "memory" => StoreType::Memory,
+            "remote" => {
+                if let Some(server) = param {
+                    StoreType::Remote(server.to_string())
+                } else {
+                    error!("invalid target(remote)".to_string());
+                    return Err("invalid target(remote)".to_string());
+                }
+            }
             _ => return Err("Found the unknown store type".to_string()),
         };
 

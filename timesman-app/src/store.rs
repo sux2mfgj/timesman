@@ -1,4 +1,4 @@
-// pub mod remote;
+pub mod remote;
 // pub mod sqlite3;
 pub mod ram;
 

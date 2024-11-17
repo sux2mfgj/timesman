@@ -1,6 +1,8 @@
 use crate::app::Event;
 use crate::config::{Config, StoreType};
 use crate::store::ram::RamStore;
+use crate::store::remote::RemoteStore;
+use crate::store::Store;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -20,15 +22,18 @@ impl StartPane {
     }
 
     fn connect(&mut self, target: String) -> Result<Event, String> {
-        let stype = match self.config.detect_store_type() {
+        let stype = match Config::detect_store_type(target) {
             Ok(t) => t,
             Err(e) => {
                 return Err(e);
             }
         };
 
-        let store = match stype {
+        let store: Rc<RefCell<dyn Store>> = match stype {
             StoreType::Memory => Rc::new(RefCell::new(RamStore::new())),
+            StoreType::Remote(server) => {
+                Rc::new(RefCell::new(RemoteStore::new(server)))
+            }
             _ => {
                 unimplemented!();
             }
