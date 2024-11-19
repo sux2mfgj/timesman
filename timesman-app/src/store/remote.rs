@@ -1,23 +1,45 @@
-use chrono;
-use reqwest;
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Clone)]
-pub struct Times {
-    pub id: i64,
-    pub title: String,
-    pub created_at: chrono::NaiveDateTime,
-    pub updated_at: Option<chrono::NaiveDateTime>,
-    pub deleted: bool,
-}
+use super::{Post, Store, Times};
 
-#[derive(Deserialize)]
-pub struct Post {
+#[derive(Deserialize, Clone)]
+struct RemPost {
     pub id: i64,
     pub times_id: i64,
     pub post: String,
     pub created_at: chrono::NaiveDateTime,
     pub updated_at: Option<chrono::NaiveDateTime>,
+}
+
+#[derive(Deserialize, Clone)]
+struct RemTimes {
+    pub id: i64,
+    pub title: String,
+    pub created_at: chrono::NaiveDateTime,
+    pub updated_at: Option<chrono::NaiveDateTime>,
+}
+
+impl From<RemTimes> for Times {
+    fn from(value: RemTimes) -> Self {
+        Self {
+            id: value.id,
+            title: value.title,
+            created_at: value.created_at,
+            updated_at: value.updated_at,
+        }
+    }
+}
+
+impl From<RemPost> for Post {
+    fn from(value: RemPost) -> Self {
+        Self {
+            id: value.id,
+            times_id: value.times_id,
+            post: value.post,
+            created_at: value.created_at,
+            updated_at: value.updated_at,
+        }
+    }
 }
 
 #[derive(Deserialize)]
@@ -26,42 +48,54 @@ struct ResponseBase {
     text: String,
 }
 
-#[derive(Clone)]
-pub struct Requester {
-    pub server: String,
+pub struct RemoteStore {
+    server: String,
 }
 
-impl Requester {
-    pub fn new(server: &String) -> Self {
-        Requester {
-            server: server.clone(),
-        }
-    }
+impl RemoteStore {
+    pub fn new(mut server: String) -> Self {
+        let server = if server.ends_with('/') {
+            server.pop();
+            server
+        } else {
+            server
+        };
 
-    pub fn get_list(&self) -> Option<Vec<Times>> {
+        Self { server }
+    }
+}
+
+impl Store for RemoteStore {
+    fn get_times(&self) -> Result<Vec<Times>, String> {
         let url = self.server.clone() + "/times";
 
         debug!("Request HTTP Get to {}", url);
 
         #[derive(Deserialize)]
-        struct GetTimesResponse {
+        struct Response {
             base: ResponseBase,
-            times: Vec<Times>,
+            times: Vec<RemTimes>,
         }
 
         let resp = reqwest::blocking::get(url)
             .unwrap()
-            .json::<GetTimesResponse>()
+            .json::<Response>()
             .unwrap();
 
+        let times = resp
+            .times
+            .iter()
+            .map(|rt| Times::from(rt.clone()))
+            .collect();
+
         if resp.base.status != 0 {
-            None
+            Err(resp.base.text)
         } else {
-            Some(resp.times)
+            Ok(times)
         }
     }
 
-    pub fn create_times(&self, title: &String) -> Option<Times> {
+    fn create_times(&mut self, title: String) -> Result<Times, String> {
         let url = self.server.clone() + "/times";
 
         debug!("Request HTTP Post to {}", url);
@@ -74,7 +108,7 @@ impl Requester {
         #[derive(Deserialize)]
         struct CreateTimesResponse {
             base: ResponseBase,
-            times: Times,
+            times: RemTimes,
         }
 
         let data = CreateTimesRequest {
@@ -87,13 +121,34 @@ impl Requester {
         let resp = result.json::<CreateTimesResponse>().unwrap();
 
         if resp.base.status != 0 {
-            None
+            Err(resp.base.text)
         } else {
-            Some(resp.times)
+            Ok(Times::from(resp.times))
         }
     }
 
-    pub fn get_posts(&self, tid: i64) -> Option<Vec<Post>> {
+    fn delete_times(&mut self, tid: i64) -> Result<(), String> {
+        let url = format!("{}/times/{}", self.server, tid);
+
+        debug!("Request HTTP Delete to {}", self.server);
+
+        let client = reqwest::blocking::Client::new();
+        let result = client.delete(url).send().unwrap();
+
+        let resp = result.json::<ResponseBase>().unwrap();
+
+        if resp.status != 0 {
+            return Err(format!("request error: {}", resp.text));
+        }
+
+        Ok(())
+    }
+
+    fn update_times(&mut self, _times: Times) -> Result<(), String> {
+        unimplemented!();
+    }
+
+    fn get_posts(&self, tid: i64) -> Result<Vec<Post>, String> {
         let url = format!("{}/times/{}", self.server, tid);
 
         debug!("Request HTTP Get to {}", url);
@@ -101,7 +156,7 @@ impl Requester {
         #[derive(Deserialize)]
         struct Response {
             base: ResponseBase,
-            posts: Vec<Post>,
+            posts: Vec<RemPost>,
         }
 
         let resp: Response = reqwest::blocking::get(url)
@@ -109,14 +164,17 @@ impl Requester {
             .json::<Response>()
             .unwrap();
 
+        let posts =
+            resp.posts.iter().map(|rp| Post::from(rp.clone())).collect();
+
         if resp.base.status != 0 {
-            None
+            Err(resp.base.text)
         } else {
-            Some(resp.posts)
+            Ok(posts)
         }
     }
 
-    pub fn post_post(&self, tid: i64, post: &String) -> Result<Post, String> {
+    fn create_post(&mut self, tid: i64, post: String) -> Result<Post, String> {
         let url = format!("{}/times/{}", self.server, tid);
 
         debug!("Request HTTP Post to {}", self.server);
@@ -154,67 +212,11 @@ impl Requester {
         })
     }
 
-    pub fn delete_times(&self, tid: i64) -> Result<(), String> {
-        let url = format!("{}/times/{}", self.server, tid);
-
-        debug!("Request HTTP Delete to {}", self.server);
-
-        let client = reqwest::blocking::Client::new();
-        let result = client.delete(url).send().unwrap();
-
-        let resp = result.json::<ResponseBase>().unwrap();
-
-        if resp.status != 0 {
-            return Err(format!("request error: {}", resp.text));
-        }
-
-        Ok(())
+    fn delete_post(&mut self, _tid: i64, _pid: i64) -> Result<(), String> {
+        unimplemented!();
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parse_test_get_times() {
-        let json = r#"{
-  "base": {
-    "status": 0,
-    "text": "Ok"
-  },
-  "times": [
-    {
-      "id": 3,
-      "title": "timed について",
-      "created_at": "2024-11-02T10:09:01",
-      "updated_at": null,
-      "flags": 0
-    },
-    {
-      "id": 7,
-      "title": "saa",
-      "created_at": "2024-11-06T02:42:48",
-      "updated_at": null,
-      "flags": 0
-    },
-    {
-      "id": 8,
-      "title": "サボテン見守りについて",
-      "created_at": "2024-11-06T06:30:43",
-      "updated_at": null,
-      "flags": 0
-    }
-  ]
-}
-"#;
-
-        #[derive(Deserialize)]
-        struct GetTimesResponse {
-            base: ResponseBase,
-            times: Vec<Times>,
-        }
-
-        let _data: GetTimesResponse = serde_json::from_str(json).unwrap();
+    fn update_post(&mut self, _tid: i64, _post: Post) -> Result<Post, String> {
+        unimplemented!();
     }
 }
