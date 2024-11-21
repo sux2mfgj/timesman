@@ -19,6 +19,7 @@ pub struct TimesPane {
     post_text: String,
     file_dialog: FileDialog,
     store: Rc<RefCell<dyn Store>>,
+    edit: bool,
 }
 
 impl TimesPane {
@@ -32,6 +33,7 @@ impl TimesPane {
             post_text: "".to_string(),
             file_dialog: FileDialog::new(),
             store: store.clone(),
+            edit: false,
         }
     }
 
@@ -100,7 +102,11 @@ impl Pane for TimesPane {
             ui.horizontal(|ui| {
                 ui.label("times");
                 ui.separator();
-                ui.label(&self.times.title);
+                if self.edit {
+                    ui.text_edit_singleline(&mut self.times.title);
+                } else {
+                    ui.label(&self.times.title);
+                }
                 ui.spacing_mut();
                 if ui.button("back").clicked() {
                     event = Some(Event::Pop);
@@ -119,6 +125,23 @@ impl Pane for TimesPane {
                         Ok(()) => {
                             event = Some(Event::Pop);
                         }
+                    }
+                }
+
+                if self.edit {
+                    if ui.button("done").clicked() {
+                        let mut store = self.store.borrow_mut();
+                        match store.update_times(self.times.clone()) {
+                            Ok(_) => {}
+                            Err(e) => {
+                                error!(e);
+                            }
+                        }
+                        self.edit = false;
+                    }
+                } else {
+                    if ui.button("edit").clicked() {
+                        self.edit = true;
                     }
                 }
 
