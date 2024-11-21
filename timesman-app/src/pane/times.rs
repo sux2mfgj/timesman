@@ -19,7 +19,8 @@ pub struct TimesPane {
     post_text: String,
     file_dialog: FileDialog,
     store: Rc<RefCell<dyn Store>>,
-    edit: bool,
+    edit_title: bool,
+    edit_post: Option<i64>,
 }
 
 impl TimesPane {
@@ -33,13 +34,14 @@ impl TimesPane {
             post_text: "".to_string(),
             file_dialog: FileDialog::new(),
             store: store.clone(),
-            edit: false,
+            edit_title: false,
+            edit_post: None,
         }
     }
 
-    fn show_times(&self, scroll_area: ScrollArea, ui: &mut Ui) {
+    fn show_times(&mut self, scroll_area: ScrollArea, ui: &mut Ui) {
         scroll_area.show(ui, |ui| {
-            for p in &self.posts {
+            for p in &mut self.posts {
                 ui.horizontal(|ui| {
                     let utc_time = Utc.from_utc_datetime(&p.created_at);
                     let local_time: DateTime<Local> = DateTime::from(utc_time);
@@ -50,14 +52,45 @@ impl TimesPane {
                             .to_string(),
                     );
                     ui.separator();
-                    ui.label(&p.post).on_hover_ui(|ui| {
-                        ui.horizontal(|ui| {
-                            ui.label(format!("id: {}", p.id));
-                            if ui.button("delete").clicked() {
-                                println!("TODO: do delete the post!");
+
+                    if let Some(edit_pid) = self.edit_post {
+                        if p.id == edit_pid {
+                            ui.text_edit_singleline(&mut p.post);
+                            if ui.button("done").clicked() {
+                                let mut store = self.store.borrow_mut();
+                                self.edit_post = None;
+                                match store
+                                    .update_post(self.times.id, p.clone())
+                                {
+                                    Ok(_) => {
+                                        //TODO: should update the post.updated_at.
+                                    }
+                                    Err(e) => {
+                                        error!(e);
+                                    }
+                                };
                             }
+                        } else {
+                            ui.label(&p.post);
+                        }
+                    } else {
+                        ui.label(&p.post).on_hover_ui(|ui| {
+                            ui.horizontal(|ui| {
+                                ui.label(format!("id: {}", p.id));
+                                if ui.button("delete").clicked() {
+                                    let mut store = self.store.borrow_mut();
+                                    match store.delete_post(self.times.id, p.id)
+                                    {
+                                        Ok(_) => {}
+                                        Err(e) => error!(e),
+                                    };
+                                }
+                                if ui.button("edit").clicked() {
+                                    self.edit_post = Some(p.id);
+                                }
+                            });
                         });
-                    });
+                    }
                 });
             }
         });
@@ -102,7 +135,7 @@ impl Pane for TimesPane {
             ui.horizontal(|ui| {
                 ui.label("times");
                 ui.separator();
-                if self.edit {
+                if self.edit_title {
                     ui.text_edit_singleline(&mut self.times.title);
                 } else {
                     ui.label(&self.times.title);
@@ -128,7 +161,7 @@ impl Pane for TimesPane {
                     }
                 }
 
-                if self.edit {
+                if self.edit_title {
                     if ui.button("done").clicked() {
                         let mut store = self.store.borrow_mut();
                         match store.update_times(self.times.clone()) {
@@ -137,11 +170,11 @@ impl Pane for TimesPane {
                                 error!(e);
                             }
                         }
-                        self.edit = false;
+                        self.edit_title = false;
                     }
                 } else {
                     if ui.button("edit").clicked() {
-                        self.edit = true;
+                        self.edit_title = true;
                     }
                 }
 
