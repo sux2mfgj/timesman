@@ -13,6 +13,7 @@ pub struct FontFile {
     pub name: String,
 }
 
+#[derive(PartialEq)]
 pub enum StoreType {
     //Sqlite3(PathBuf),
     Remote(String),

@@ -20,6 +20,8 @@ pub struct Post {
 }
 
 pub trait Store {
+    fn check(&self) -> Result<(), String>;
+
     // for Times
     fn get_times(&self) -> Result<Vec<Times>, String>;
     fn create_times(&mut self, title: String) -> Result<Times, String>;

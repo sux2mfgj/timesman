@@ -1,5 +1,5 @@
 use crate::app::Event;
-use crate::config::{Config, StoreType};
+use crate::config::Config;
 use crate::store::ram::RamStore;
 use crate::store::remote::RemoteStore;
 use crate::store::Store;
@@ -8,9 +8,18 @@ use std::rc::Rc;
 
 use super::{pane_menu, Pane};
 
+#[derive(PartialEq)]
+enum BackingStore {
+    Remote,
+    Memory,
+    Sqlite3,
+    Json,
+}
+
 pub struct StartPane {
     config: Config,
     errmsg: Option<String>,
+    store: BackingStore,
 }
 
 impl StartPane {
@@ -18,26 +27,28 @@ impl StartPane {
         Self {
             config,
             errmsg: None,
+            store: BackingStore::Remote,
         }
     }
 
-    fn connect(&mut self, target: String) -> Result<Event, String> {
-        let stype = match Config::detect_store_type(target) {
-            Ok(t) => t,
-            Err(e) => {
-                return Err(e);
+    fn start(&self) -> Result<Event, String> {
+        let store: Rc<RefCell<dyn Store>> = match self.store {
+            BackingStore::Remote => Rc::new(RefCell::new(RemoteStore::new(
+                self.config.store.clone(),
+            ))),
+            BackingStore::Memory => Rc::new(RefCell::new(RamStore::new())),
+            BackingStore::Json => {
+                return Err("Not yet iplemented".to_string());
+            }
+            BackingStore::Sqlite3 => {
+                return Err("Not yet iplemented".to_string());
             }
         };
 
-        let store: Rc<RefCell<dyn Store>> = match stype {
-            StoreType::Memory => Rc::new(RefCell::new(RamStore::new())),
-            StoreType::Remote(server) => {
-                Rc::new(RefCell::new(RemoteStore::new(server)))
-            }
-            _ => {
-                unimplemented!();
-            }
-        };
+        {
+            let store_ref = store.borrow();
+            store_ref.check()?;
+        }
 
         Ok(Event::Connect(store))
     }
@@ -61,18 +72,37 @@ impl Pane for StartPane {
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.label("server");
-            ui.text_edit_singleline(&mut self.config.store);
-            if ui.button("connect").clicked() {
-                match self.connect(self.config.store.clone()) {
+            ui.radio_value(&mut self.store, BackingStore::Remote, "Server");
+            ui.label("Local");
+            ui.radio_value(&mut self.store, BackingStore::Memory, "Temporay");
+            ui.radio_value(&mut self.store, BackingStore::Json, "Json");
+            ui.radio_value(&mut self.store, BackingStore::Sqlite3, "Sqlite");
+
+            ui.separator();
+            ui.label("Configurations:");
+
+            match self.store {
+                BackingStore::Memory => {}
+                BackingStore::Remote => {
+                    ui.label("Server");
+                    ui.text_edit_singleline(&mut self.config.store);
+                }
+                BackingStore::Json => {}
+                BackingStore::Sqlite3 => {}
+            }
+
+            ui.separator();
+            if ui.button("Start").clicked() {
+                match self.start() {
                     Ok(e) => {
                         event = Some(e);
                     }
                     Err(e) => {
                         self.errmsg = Some(e);
                     }
-                }
+                };
             }
+
             if let Some(e) = &self.errmsg {
                 ui.label(format!("error: {e}"));
             }

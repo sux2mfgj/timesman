@@ -66,6 +66,13 @@ impl RemoteStore {
 }
 
 impl Store for RemoteStore {
+    fn check(&self) -> Result<(), String> {
+        match self.get_times() {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
+        }
+    }
+
     fn get_times(&self) -> Result<Vec<Times>, String> {
         let url = self.server.clone() + "/times";
 

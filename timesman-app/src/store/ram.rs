@@ -23,6 +23,10 @@ impl RamStore {
 }
 
 impl Store for RamStore {
+    fn check(&self) -> Result<(), String> {
+        Ok(())
+    }
+
     fn get_times(&self) -> Result<Vec<super::Times>, String> {
         Ok(self.times.iter().map(|t| t.1.times.clone()).collect())
     }
