@@ -13,7 +13,6 @@ pub struct Times {
 #[derive(Clone)]
 pub struct Post {
     pub id: i64,
-    pub times_id: i64,
     pub post: String,
     pub created_at: chrono::NaiveDateTime,
     pub updated_at: Option<chrono::NaiveDateTime>,

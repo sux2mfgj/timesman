@@ -5,7 +5,6 @@ use super::{Post, Store, Times};
 #[derive(Deserialize, Clone)]
 struct RemPost {
     pub id: i64,
-    pub times_id: i64,
     pub post: String,
     pub created_at: chrono::NaiveDateTime,
     pub updated_at: Option<chrono::NaiveDateTime>,
@@ -34,7 +33,6 @@ impl From<RemPost> for Post {
     fn from(value: RemPost) -> Self {
         Self {
             id: value.id,
-            times_id: value.times_id,
             post: value.post,
             created_at: value.created_at,
             updated_at: value.updated_at,
@@ -211,7 +209,6 @@ impl Store for RemoteStore {
         }
 
         Ok(Post {
-            times_id: tid,
             id: resp.pid,
             post: post.to_string(),
             created_at: chrono::Utc::now().naive_utc(),

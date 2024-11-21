@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::app::Event;
-use crate::store::{Post, Store, Times};
+use crate::store::{Store, Times};
 use eframe::egui::ScrollArea;
 use egui::{Key, Modifiers};
 
@@ -47,7 +47,9 @@ impl Pane for SelectPane {
                         ));
                         self.new_title.clear();
                     }
-                    Err(e) => {}
+                    Err(e) => {
+                        error!(e);
+                    }
                 }
             }
         });
@@ -59,7 +61,10 @@ impl Pane for SelectPane {
             scroll_area.show(ui, |ui| {
                 for t in &self.times {
                     ui.horizontal(|ui| {
-                        ui.label(format!("{}", t.created_at));
+                        ui.label(
+                            t.created_at.format("%Y-%m-%d %H:%M").to_string(),
+                        );
+
                         ui.separator();
                         if ui.button(&t.title).clicked() {
                             event = Some(Event::Select(

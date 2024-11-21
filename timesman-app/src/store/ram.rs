@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 struct LocalTimes {
     times: Times,
-    posts: Vec<Post>,
+    posts: HashMap<i64, Post>,
     next_pid: i64,
 }
 
@@ -46,7 +46,7 @@ impl Store for RamStore {
 
         let ltimes = LocalTimes {
             times: times.clone(),
-            posts: vec![],
+            posts: HashMap::new(),
             next_pid: 0,
         };
 
@@ -59,14 +59,28 @@ impl Store for RamStore {
         unimplemented!();
     }
 
-    fn update_times(&mut self, _times: super::Times) -> Result<(), String> {
-        unimplemented!();
+    fn update_times(&mut self, times: super::Times) -> Result<(), String> {
+        if let Some(t) = self.times.get_mut(&times.id) {
+            t.times = times;
+            let now = Local::now();
+            t.times.updated_at = Some(now.naive_local());
+        } else {
+            return Err("times id is invalid".to_string());
+        }
+
+        Ok(())
     }
 
     fn get_posts(&self, tid: i64) -> Result<Vec<super::Post>, String> {
         let ltimes = self.times.get(&tid).ok_or("invalid tid")?;
 
-        Ok(ltimes.posts.clone())
+        let mut pairs: Vec<(&i64, &Post)> = ltimes.posts.iter().collect();
+
+        pairs.sort_by(|a, b| a.0.cmp(&b.0));
+
+        let posts = pairs.iter().map(|x| x.1.clone()).collect();
+
+        Ok(posts)
     }
 
     fn create_post(
@@ -78,23 +92,39 @@ impl Store for RamStore {
 
         let post = Post {
             id: ltimes.next_pid,
-            times_id: tid,
             post,
             created_at: Local::now().naive_local(),
             updated_at: None,
         };
 
-        ltimes.posts.push(post.clone());
+        ltimes.posts.insert(post.id, post.clone());
+        ltimes.next_pid += 1;
 
         Ok(post)
     }
 
     fn update_post(
         &mut self,
-        _tid: i64,
-        _post: super::Post,
+        tid: i64,
+        mut post: super::Post,
     ) -> Result<super::Post, String> {
-        unimplemented!();
+        let times = match self.times.get_mut(&tid) {
+            Some(t) => t,
+            None => {
+                return Err("Invalid tid".to_string());
+            }
+        };
+
+        let oldpost = match times.posts.get_mut(&post.id) {
+            Some(p) => p,
+            None => return Err("Invalid pid".to_string()),
+        };
+
+        post.updated_at = Some(Local::now().naive_local());
+
+        *oldpost = post.clone();
+
+        Ok(post)
     }
 
     fn delete_post(&mut self, _tid: i64, _pid: i64) -> Result<(), String> {

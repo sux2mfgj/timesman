@@ -13,13 +13,6 @@ pub struct FontFile {
     pub name: String,
 }
 
-#[derive(PartialEq)]
-pub enum StoreType {
-    //Sqlite3(PathBuf),
-    Remote(String),
-    Memory,
-}
-
 #[derive(Deserialize, Serialize)]
 pub struct Config {
     #[serde(skip)]
@@ -71,33 +64,6 @@ impl Config {
         config.load_font_files(dir_path).unwrap();
 
         Ok(config)
-    }
-
-    pub fn detect_store_type(text: String) -> Result<StoreType, String> {
-        let split = text.splitn(2, ":").collect::<Vec<&str>>();
-
-        let protocol = split[0];
-
-        let param = if split.len() == 2 {
-            Some(split[1])
-        } else {
-            None
-        };
-
-        let stype = match &*protocol {
-            "memory" => StoreType::Memory,
-            "remote" => {
-                if let Some(server) = param {
-                    StoreType::Remote(server.to_string())
-                } else {
-                    error!("invalid target(remote)".to_string());
-                    return Err("invalid target(remote)".to_string());
-                }
-            }
-            _ => return Err("Found the unknown store type".to_string()),
-        };
-
-        Ok(stype)
     }
 
     fn load_font_files(&mut self, mut dir: PathBuf) -> Result<(), String> {
