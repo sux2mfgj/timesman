@@ -1,0 +1,7 @@
+[workspace]
+
+members = [
+  "store",
+  "timesman-app",
+  "timesd",
+]
