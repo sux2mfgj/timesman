@@ -61,7 +61,12 @@ impl Config {
 
         let mut config = Self::from_reader(file);
 
-        config.load_font_files(dir_path).unwrap();
+        match config.load_font_files(dir_path) {
+            Ok(_) => {}
+            Err(e) => {
+                error!(e);
+            }
+        }
 
         Ok(config)
     }
@@ -69,7 +74,8 @@ impl Config {
     fn load_font_files(&mut self, mut dir: PathBuf) -> Result<(), String> {
         dir.push("fonts");
 
-        let entries = dir.read_dir().unwrap(); //map_err(|e| Error(format!("{}", e)))?;
+        let entries = dir.read_dir()
+            .map_err(|e| format!("fonts dir: {}", e))?;
 
         for entry in entries.into_iter() {
             let entry = entry.unwrap();
