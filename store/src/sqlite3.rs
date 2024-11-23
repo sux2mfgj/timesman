@@ -25,6 +25,26 @@ impl From<SqliteTimes> for Times {
     }
 }
 
+#[derive(Clone)]
+struct SqlitePost {
+    pub id: i64,
+    pub tid: i64,
+    pub post: String,
+    pub created_at: chrono::NaiveDateTime,
+    pub updated_at: Option<chrono::NaiveDateTime>,
+}
+
+impl From<SqlitePost> for Post {
+    fn from(value: SqlitePost) -> Self {
+        Self {
+            id: value.id,
+            post: value.post,
+            created_at: value.created_at,
+            updated_at: value.updated_at,
+        }
+    }
+}
+
 pub struct SqliteStore {
     db: Result<SqlitePool, String>,
     rt: Runtime,
@@ -69,8 +89,19 @@ impl Store for SqliteStore {
         Ok(result)
     }
 
-    fn create_times(&mut self, _title: String) -> Result<Times, String> {
-        unimplemented!();
+    fn create_times(&mut self, title: String) -> Result<Times, String> {
+        let db = self.db.clone()?;
+
+        let sql = sqlx::query_as!(
+            SqliteTimes,
+            r#"insert into times("title") values ($1) returning *"#,
+            title
+        )
+        .fetch_one(&db);
+
+        let times = self.rt.block_on(sql).map_err(|e| format!("{}", e))?;
+
+        Ok(Times::from(times))
     }
 
     fn update_times(&mut self, _times: Times) -> Result<(), String> {
@@ -81,15 +112,22 @@ impl Store for SqliteStore {
         unimplemented!();
     }
 
-    fn get_posts(&self, _tid: i64) -> Result<Vec<Post>, String> {
-        unimplemented!();
+    fn get_posts(&self, tid: i64) -> Result<Vec<Post>, String> {
+        let db = self.db.clone()?;
+        let sql = sqlx::query_as!(
+            SqlitePost,
+            r#"select * from posts where tid = $1"#,
+            tid
+        )
+        .fetch_all(&db);
+
+        let posts = self.rt.block_on(sql).map_err(|e| format!("{}", e))?;
+        let result = posts.iter().map(|sp| Post::from(sp.clone())).collect();
+
+        Ok(result)
     }
 
-    fn create_post(
-        &mut self,
-        _tid: i64,
-        _post: String,
-    ) -> Result<Post, String> {
+    fn create_post(&mut self, tid: i64, post: String) -> Result<Post, String> {
         unimplemented!();
     }
 
