@@ -8,6 +8,7 @@ use super::{pane_menu, Pane};
 
 use store::ram::RamStore;
 use store::remote::RemoteStore;
+use store::sqlite3::SqliteStore;
 use store::Store;
 
 #[derive(PartialEq)]
@@ -42,9 +43,9 @@ impl StartPane {
             BackingStore::Json => {
                 return Err("Not yet iplemented".to_string());
             }
-            BackingStore::Sqlite3 => {
-                return Err("Not yet iplemented".to_string());
-            }
+            BackingStore::Sqlite3 => Rc::new(RefCell::new(SqliteStore::new(
+                &self.config.store.clone(),
+            ))),
         };
 
         {
@@ -90,7 +91,10 @@ impl Pane for StartPane {
                     ui.text_edit_singleline(&mut self.config.store);
                 }
                 BackingStore::Json => {}
-                BackingStore::Sqlite3 => {}
+                BackingStore::Sqlite3 => {
+                    ui.label("database file");
+                    ui.text_edit_singleline(&mut self.config.store);
+                }
             }
 
             ui.separator();
