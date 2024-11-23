@@ -4094,6 +4094,8 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "sqlx",
+ "tokio",
 ]
 
 [[package]]

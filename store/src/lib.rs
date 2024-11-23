@@ -1,5 +1,6 @@
 pub mod ram;
 pub mod remote;
+pub mod sqlite3;
 
 use chrono;
 
