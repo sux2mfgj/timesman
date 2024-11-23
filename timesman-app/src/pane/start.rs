@@ -1,12 +1,14 @@
-use crate::app::Event;
-use crate::config::Config;
-use crate::store::ram::RamStore;
-use crate::store::remote::RemoteStore;
-use crate::store::Store;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use crate::app::Event;
+use crate::config::Config;
+
 use super::{pane_menu, Pane};
+
+use store::ram::RamStore;
+use store::remote::RemoteStore;
+use store::Store;
 
 #[derive(PartialEq)]
 enum BackingStore {

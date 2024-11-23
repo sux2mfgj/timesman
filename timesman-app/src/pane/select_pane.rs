@@ -2,9 +2,10 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::app::Event;
-use crate::store::{Store, Times};
+
 use eframe::egui::ScrollArea;
 use egui::{Key, Modifiers};
+use store::{Store, Times};
 
 use super::{pane_menu, Pane};
 

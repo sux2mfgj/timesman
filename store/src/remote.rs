@@ -74,7 +74,7 @@ impl Store for RemoteStore {
     fn get_times(&self) -> Result<Vec<Times>, String> {
         let url = self.server.clone() + "/times";
 
-        debug!("Request HTTP Get to {}", url);
+        // debug!("Request HTTP Get to {}", url);
 
         #[derive(Deserialize)]
         struct Response {
@@ -103,7 +103,7 @@ impl Store for RemoteStore {
     fn create_times(&mut self, title: String) -> Result<Times, String> {
         let url = self.server.clone() + "/times";
 
-        debug!("Request HTTP Post to {}", url);
+        // debug!("Request HTTP Post to {}", url);
 
         #[derive(Serialize)]
         struct CreateTimesRequest {
@@ -135,7 +135,7 @@ impl Store for RemoteStore {
     fn delete_times(&mut self, tid: i64) -> Result<(), String> {
         let url = format!("{}/times/{}", self.server, tid);
 
-        debug!("Request HTTP Delete to {}", self.server);
+        // debug!("Request HTTP Delete to {}", self.server);
 
         let client = reqwest::blocking::Client::new();
         let result = client.delete(url).send().unwrap();
@@ -156,7 +156,7 @@ impl Store for RemoteStore {
     fn get_posts(&self, tid: i64) -> Result<Vec<Post>, String> {
         let url = format!("{}/times/{}", self.server, tid);
 
-        debug!("Request HTTP Get to {}", url);
+        // debug!("Request HTTP Get to {}", url);
 
         #[derive(Deserialize)]
         struct Response {
@@ -182,7 +182,7 @@ impl Store for RemoteStore {
     fn create_post(&mut self, tid: i64, post: String) -> Result<Post, String> {
         let url = format!("{}/times/{}", self.server, tid);
 
-        debug!("Request HTTP Post to {}", self.server);
+        // debug!("Request HTTP Post to {}", self.server);
 
         #[derive(Serialize)]
         struct Request {

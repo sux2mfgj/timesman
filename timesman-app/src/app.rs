@@ -13,9 +13,10 @@ use crate::pane::select_pane::SelectPane;
 use crate::pane::start::StartPane;
 use crate::pane::times::TimesPane;
 use crate::pane::Pane;
-use crate::store::{Store, Times};
+
 use eframe;
 use egui::{FontData, FontDefinitions, FontFamily};
+use store::{Store, Times};
 
 pub enum Event {
     Connect(Rc<RefCell<dyn Store>>),

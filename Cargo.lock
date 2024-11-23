@@ -4089,6 +4089,12 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 [[package]]
 name = "store"
 version = "0.1.0"
+dependencies = [
+ "chrono",
+ "reqwest",
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "strict-num"
@@ -4286,6 +4292,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "store",
  "toml",
  "xdg",
 ]

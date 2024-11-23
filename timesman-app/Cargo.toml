@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+store = {path = "../store"}
 chrono = { version = "0.4.38", features = ["serde"] }
 eframe = "0.29.1"
 egui = "0.29.1"
