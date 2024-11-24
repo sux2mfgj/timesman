@@ -128,7 +128,21 @@ impl Store for SqliteStore {
     }
 
     fn create_post(&mut self, tid: i64, post: String) -> Result<Post, String> {
-        unimplemented!();
+        let db = self.db.clone()?;
+
+        let sql = sqlx::query_as!(
+            Post,
+            r#"insert into posts(tid, post)
+                    values ($1, $2)
+                    returning id as "id!", post, created_at, updated_at"#,
+            tid,
+            post
+        )
+        .fetch_one(&db);
+
+        let post = self.rt.block_on(sql).map_err(|e| format!("{}", e))?;
+
+        Ok(post)
     }
 
     fn delete_post(&mut self, _tid: i64, _pid: i64) -> Result<(), String> {
