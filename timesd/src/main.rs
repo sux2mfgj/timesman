@@ -27,12 +27,12 @@ struct Times {
     title: String,
     created_at: chrono::NaiveDateTime,
     updated_at: Option<chrono::NaiveDateTime>,
-    flags: i64,
+    deleted: i64,
 }
 
 async fn get_times(ctx: web::Data<AppContext>) -> impl Responder {
     let times =
-        sqlx::query_as!(Times, r#"select * from times where flags = 0"#)
+        sqlx::query_as!(Times, r#"select * from times where deleted = 0"#)
             .fetch_all(&ctx.db)
             .await
             .unwrap();
@@ -91,7 +91,7 @@ async fn delete_times(
 ) -> impl Responder {
     let tid = path.into_inner();
 
-    sqlx::query!(r#"update times set flags = 1 where id = $1"#, tid)
+    sqlx::query!(r#"update times set deleted = 1 where id = $1"#, tid)
         .execute(&ctx.db)
         .await
         .unwrap();
@@ -114,7 +114,7 @@ async fn delete_times(
 #[derive(Serialize)]
 struct Post {
     id: i64,
-    times_id: i64,
+    tid: i64,
     post: String,
     created_at: chrono::NaiveDateTime,
     updated_at: Option<chrono::NaiveDateTime>,
@@ -131,14 +131,11 @@ async fn get_posts(
     path: web::Path<i64>,
 ) -> impl Responder {
     let tid = path.into_inner();
-    let posts = sqlx::query_as!(
-        Post,
-        r#"select * from posts where times_id = $1"#,
-        tid
-    )
-    .fetch_all(&ctx.db)
-    .await
-    .unwrap();
+    let posts =
+        sqlx::query_as!(Post, r#"select * from posts where tid = $1"#, tid)
+            .fetch_all(&ctx.db)
+            .await
+            .unwrap();
 
     let resp = GetPostResponse {
         base: ResponseBase {
@@ -171,7 +168,7 @@ async fn post_post(
     //TODO: use query_as, but I have to fix an issue related the following link:
     // https://docs.rs/sqlx/latest/sqlx/macro.query_as.html#troubleshooting-error-mismatched-types
     let pid = sqlx::query!(
-        r#"insert into posts(times_id, post) values ($1, $2) returning id"#,
+        r#"insert into posts(tid, post) values ($1, $2) returning id"#,
         tid,
         req.post
     )
