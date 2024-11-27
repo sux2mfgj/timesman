@@ -1,14 +1,16 @@
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::app::Event;
 use crate::config::Config;
 
 use super::{pane_menu, Pane};
 
+// use std::sync::Mutex;
 use store::ram::RamStore;
-use store::remote::RemoteStore;
-use store::sqlite3::SqliteStore;
+use tokio::runtime;
+use tokio::sync::Mutex;
+// use store::remote::RemoteStore;
+// use store::sqlite3::SqliteStore;
 use store::Store;
 
 #[derive(PartialEq)]
@@ -35,22 +37,29 @@ impl StartPane {
     }
 
     fn start(&self) -> Result<Event, String> {
-        let store: Rc<RefCell<dyn Store>> = match self.store {
-            BackingStore::Remote => Rc::new(RefCell::new(RemoteStore::new(
-                self.config.store.clone(),
-            ))),
-            BackingStore::Memory => Rc::new(RefCell::new(RamStore::new())),
-            BackingStore::Json => {
-                return Err("Not yet iplemented".to_string());
-            }
-            BackingStore::Sqlite3 => Rc::new(RefCell::new(SqliteStore::new(
-                &self.config.store.clone(),
-            ))),
-        };
+        let store: Arc<Mutex<Box<dyn Store + Send + Sync + 'static>>> =
+            match self.store {
+                BackingStore::Remote => unimplemented!(),
+                //     Rc::new(RefCell::new(RemoteStore::new(
+                //     self.config.store.clone(),
+                // ))),
+                BackingStore::Memory => {
+                    Arc::new(Mutex::new(Box::new(RamStore::new())))
+                }
+                BackingStore::Json => {
+                    return Err("Not yet iplemented".to_string());
+                }
+                BackingStore::Sqlite3 => unimplemented!(),
+                // Rc::new(RefCell::new(SqliteStore::new(
+                //     &self.config.store.clone(),
+                // ))),
+            };
 
         {
-            let store_ref = store.borrow();
-            store_ref.check()?;
+            // let store_ref = store.borrow_mut();
+            // store_ref.check()?;
+
+            // store.check()?;
         }
 
         Ok(Event::Connect(store))
@@ -62,6 +71,7 @@ impl Pane for StartPane {
         &mut self,
         ctx: &egui::Context,
         _frame: &mut eframe::Frame,
+        rt: &runtime::Runtime,
     ) -> Option<Event> {
         let mut event = None;
         egui::TopBottomPanel::top("top").show(ctx, |ui| {
@@ -116,5 +126,5 @@ impl Pane for StartPane {
 
         event
     }
-    fn reload(&mut self) {}
+    fn reload(&mut self, rt: &runtime::Runtime) {}
 }

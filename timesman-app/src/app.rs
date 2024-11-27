@@ -1,14 +1,14 @@
 use core::fmt;
-use std::cell::RefCell;
 use std::collections::VecDeque;
-use std::rc::Rc;
 use std::sync::Arc;
-use std::sync::Mutex;
+// use std::sync::Mutex;
+use tokio::runtime;
+use tokio::sync::Mutex;
 
 use crate::config::Config;
 use crate::log::LogRecord;
-use crate::pane::config::ConfigPane;
-use crate::pane::log::LogPane;
+// use crate::pane::config::ConfigPane;
+// use crate::pane::log::LogPane;
 use crate::pane::select_pane::SelectPane;
 use crate::pane::start::StartPane;
 use crate::pane::times::TimesPane;
@@ -19,8 +19,8 @@ use egui::{FontData, FontDefinitions, FontFamily};
 use store::{Store, Times};
 
 pub enum Event {
-    Connect(Rc<RefCell<dyn Store>>),
-    Select(Rc<RefCell<dyn Store>>, Times),
+    Connect(Arc<Mutex<Box<dyn Store + Send + Sync + 'static>>>),
+    Select(Arc<Mutex<Box<dyn Store + Send + Sync + 'static>>>, Times),
     Pop,
     Logs,
     Config,
@@ -50,14 +50,15 @@ impl fmt::Display for Event {
 
 pub struct App {
     pane_stack: VecDeque<Box<dyn Pane>>,
-    logs: Arc<Mutex<Vec<LogRecord>>>,
+    logs: Arc<std::sync::Mutex<Vec<LogRecord>>>,
+    rt: runtime::Runtime,
 }
 
 impl App {
     pub fn new(
         cc: &eframe::CreationContext<'_>,
         config: Config,
-        logs: Arc<Mutex<Vec<LogRecord>>>,
+        logs: Arc<std::sync::Mutex<Vec<LogRecord>>>,
     ) -> Self {
         Self::config_font(cc, &config);
         let mut stack: VecDeque<Box<dyn Pane>> = VecDeque::new();
@@ -65,6 +66,10 @@ impl App {
         Self {
             pane_stack: stack,
             logs,
+            rt: runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()
+                .unwrap(),
         }
     }
 
@@ -100,7 +105,7 @@ impl eframe::App for App {
             }
         };
 
-        let event = match pane.update(ctx, _frame) {
+        let event = match pane.update(ctx, _frame, &self.rt) {
             Some(event) => event,
             None => {
                 return;
@@ -109,11 +114,12 @@ impl eframe::App for App {
 
         match event {
             Event::Connect(store) => {
-                self.pane_stack.push_front(Box::new(SelectPane::new(store)));
+                self.pane_stack
+                    .push_front(Box::new(SelectPane::new(store, &self.rt)));
             }
             Event::Select(store, times) => self
                 .pane_stack
-                .push_front(Box::new(TimesPane::new(store, times))),
+                .push_front(Box::new(TimesPane::new(store, times, &self.rt))),
             Event::Pop => {
                 self.pane_stack.pop_front();
                 let p: &mut Box<dyn Pane> = match self.pane_stack.front_mut() {
@@ -123,14 +129,14 @@ impl eframe::App for App {
                     }
                 };
 
-                p.reload();
+                p.reload(&self.rt);
             }
             Event::Logs => {
-                self.pane_stack
-                    .push_front(Box::new(LogPane::new(self.logs.clone())));
+                // self.pane_stack
+                //     .push_front(Box::new(LogPane::new(self.logs.clone())));
             }
             Event::Config => {
-                self.pane_stack.push_front(Box::new(ConfigPane::new()));
+                // self.pane_stack.push_front(Box::new(ConfigPane::new()));
             }
         }
     }
