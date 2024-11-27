@@ -1,4 +1,5 @@
 use super::{Post, Store, Times};
+use async_trait::async_trait;
 use chrono::Local;
 use std::collections::HashMap;
 
@@ -22,16 +23,20 @@ impl RamStore {
     }
 }
 
+#[async_trait]
 impl Store for RamStore {
     fn check(&self) -> Result<(), String> {
         Ok(())
     }
 
-    fn get_times(&self) -> Result<Vec<super::Times>, String> {
+    async fn get_times(&self) -> Result<Vec<super::Times>, String> {
         Ok(self.times.iter().map(|t| t.1.times.clone()).collect())
     }
 
-    fn create_times(&mut self, title: String) -> Result<super::Times, String> {
+    async fn create_times(
+        &mut self,
+        title: String,
+    ) -> Result<super::Times, String> {
         let id = self.next_tid;
         self.next_tid += 1;
 
@@ -55,11 +60,14 @@ impl Store for RamStore {
         Ok(times)
     }
 
-    fn delete_times(&mut self, _tid: i64) -> Result<(), String> {
+    async fn delete_times(&mut self, _tid: i64) -> Result<(), String> {
         unimplemented!();
     }
 
-    fn update_times(&mut self, times: super::Times) -> Result<(), String> {
+    async fn update_times(
+        &mut self,
+        times: super::Times,
+    ) -> Result<(), String> {
         if let Some(t) = self.times.get_mut(&times.id) {
             t.times = times;
             let now = Local::now();
@@ -71,7 +79,7 @@ impl Store for RamStore {
         Ok(())
     }
 
-    fn get_posts(&self, tid: i64) -> Result<Vec<super::Post>, String> {
+    async fn get_posts(&self, tid: i64) -> Result<Vec<super::Post>, String> {
         let ltimes = self.times.get(&tid).ok_or("invalid tid")?;
 
         let mut pairs: Vec<(&i64, &Post)> = ltimes.posts.iter().collect();
@@ -83,7 +91,7 @@ impl Store for RamStore {
         Ok(posts)
     }
 
-    fn create_post(
+    async fn create_post(
         &mut self,
         tid: i64,
         post: String,
@@ -103,7 +111,7 @@ impl Store for RamStore {
         Ok(post)
     }
 
-    fn update_post(
+    async fn update_post(
         &mut self,
         tid: i64,
         mut post: super::Post,
@@ -127,7 +135,11 @@ impl Store for RamStore {
         Ok(post)
     }
 
-    fn delete_post(&mut self, _tid: i64, _pid: i64) -> Result<(), String> {
+    async fn delete_post(
+        &mut self,
+        _tid: i64,
+        _pid: i64,
+    ) -> Result<(), String> {
         unimplemented!();
     }
 }
