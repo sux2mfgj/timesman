@@ -25,7 +25,7 @@ impl RamStore {
 
 #[async_trait]
 impl Store for RamStore {
-    fn check(&self) -> Result<(), String> {
+    async fn check(&self) -> Result<(), String> {
         Ok(())
     }
 
