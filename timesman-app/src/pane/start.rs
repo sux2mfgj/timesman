@@ -69,7 +69,7 @@ impl Pane for StartPane {
         &mut self,
         ctx: &egui::Context,
         _frame: &mut eframe::Frame,
-        rt: &runtime::Runtime,
+        _rt: &runtime::Runtime,
     ) -> Option<Event> {
         let mut event = None;
         egui::TopBottomPanel::top("top").show(ctx, |ui| {
@@ -124,5 +124,5 @@ impl Pane for StartPane {
 
         event
     }
-    fn reload(&mut self, rt: &runtime::Runtime) {}
+    fn reload(&mut self, _rt: &runtime::Runtime) {}
 }

@@ -321,5 +321,5 @@ impl Pane for TimesPane {
         event
     }
 
-    fn reload(&mut self, rt: &runtime::Runtime) {}
+    fn reload(&mut self, _rt: &runtime::Runtime) {}
 }
