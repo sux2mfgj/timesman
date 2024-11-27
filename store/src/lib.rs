@@ -23,7 +23,7 @@ pub struct Post {
 
 #[async_trait]
 pub trait Store: Send + Sync + 'static {
-    fn check(&self) -> Result<(), String>;
+    async fn check(&self) -> Result<(), String>;
 
     // for Times
     async fn get_times(&self) -> Result<Vec<Times>, String>;
