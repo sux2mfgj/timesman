@@ -3,6 +3,7 @@ use crate::log::LogRecord;
 use eframe::egui::ScrollArea;
 use std::sync::Arc;
 use std::sync::Mutex;
+use tokio::runtime;
 
 use super::{pane_menu, Pane};
 
@@ -21,6 +22,7 @@ impl Pane for LogPane {
         &mut self,
         ctx: &egui::Context,
         _frame: &mut eframe::Frame,
+        _rt: &runtime::Runtime,
     ) -> Option<Event> {
         let mut event = None;
 
@@ -51,5 +53,5 @@ impl Pane for LogPane {
 
         event
     }
-    fn reload(&mut self) {}
+    fn reload(&mut self, rt: &runtime::Runtime) {}
 }

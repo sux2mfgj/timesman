@@ -8,7 +8,7 @@ use tokio::sync::Mutex;
 use crate::config::Config;
 use crate::log::LogRecord;
 // use crate::pane::config::ConfigPane;
-// use crate::pane::log::LogPane;
+use crate::pane::log::LogPane;
 use crate::pane::select_pane::SelectPane;
 use crate::pane::start::StartPane;
 use crate::pane::times::TimesPane;
@@ -132,8 +132,8 @@ impl eframe::App for App {
                 p.reload(&self.rt);
             }
             Event::Logs => {
-                // self.pane_stack
-                //     .push_front(Box::new(LogPane::new(self.logs.clone())));
+                self.pane_stack
+                    .push_front(Box::new(LogPane::new(self.logs.clone())));
             }
             Event::Config => {
                 // self.pane_stack.push_front(Box::new(ConfigPane::new()));
