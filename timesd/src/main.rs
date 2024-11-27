@@ -91,18 +91,18 @@ async fn delete_times(
     path: web::Path<i64>,
 ) -> impl Responder {
     let tid = path.into_inner();
+    let mut store = ctx.store.lock().unwrap();
 
-    sqlx::query!(r#"update times set deleted = 1 where id = $1"#, tid)
-        .execute(&ctx.db)
-        .await
-        .unwrap();
+    match store.delete_times(tid).await {
+        Ok(()) => {}
+        Err(e) => {
+            let resp = ResponseBase { status: 1, text: e };
 
-    /* TODO: asynchronous delete
-    sqlx::query!(r#"delete from posts where times_id = $1"#, tid)
-        .execute(&ctx.db)
-        .await
-        .unwrap();
-    */
+            return HttpResponse::Ok()
+                .body(serde_json::to_string(&resp).unwrap());
+        }
+    }
+    /* TODO: asynchronous delete */
 
     let resp = ResponseBase {
         status: 0,
@@ -123,18 +123,24 @@ async fn get_posts(
     path: web::Path<i64>,
 ) -> impl Responder {
     let tid = path.into_inner();
-    let posts =
-        sqlx::query_as!(Post, r#"select * from posts where tid = $1"#, tid)
-            .fetch_all(&ctx.db)
-            .await
-            .unwrap();
+
+    let store = ctx.store.lock().unwrap();
+    let posts = match store.get_posts(tid).await {
+        Ok(posts) => posts,
+        Err(e) => {
+            let resp = ResponseBase { status: 1, text: e };
+
+            return HttpResponse::Ok()
+                .body(serde_json::to_string(&resp).unwrap());
+        }
+    };
 
     let resp = GetPostResponse {
         base: ResponseBase {
             status: 0,
             text: "Ok".to_string(),
         },
-        posts: posts,
+        posts,
     };
 
     HttpResponse::Ok().body(serde_json::to_string(&resp).unwrap())
@@ -157,23 +163,25 @@ async fn post_post(
     req: web::Json<PostPostRequest>,
 ) -> impl Responder {
     let tid = path.into_inner();
-    //TODO: use query_as, but I have to fix an issue related the following link:
-    // https://docs.rs/sqlx/latest/sqlx/macro.query_as.html#troubleshooting-error-mismatched-types
-    let pid = sqlx::query!(
-        r#"insert into posts(tid, post) values ($1, $2) returning id"#,
-        tid,
-        req.post
-    )
-    .fetch_one(&ctx.db)
-    .await
-    .unwrap();
+    let post = req.post.clone();
+
+    let mut store = ctx.store.lock().unwrap();
+    let post = match store.create_post(tid, post).await {
+        Ok(post) => post,
+        Err(e) => {
+            let resp = ResponseBase { status: 1, text: e };
+
+            return HttpResponse::Ok()
+                .body(serde_json::to_string(&resp).unwrap());
+        }
+    };
 
     let resp = PostPostResponse {
         base: ResponseBase {
             status: 0,
             text: "Ok".to_string(),
         },
-        pid: pid.id.unwrap(),
+        pid: post.id,
     };
 
     HttpResponse::Ok().body(serde_json::to_string(&resp).unwrap())
@@ -181,10 +189,8 @@ async fn post_post(
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    // let pool = SqlitePool::connect("./database.db").await.unwrap();
-
     let ctx = Context {
-        store: Arc::new(SqliteStore::new("./database.db")),
+        store: Arc::new(Mutex::new(SqliteStore::new("./database.db"))),
     };
 
     HttpServer::new(move || {
