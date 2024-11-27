@@ -5,7 +5,9 @@ pub mod sqlite3;
 use async_trait::async_trait;
 use chrono;
 
-#[derive(Clone)]
+use serde::Serialize;
+
+#[derive(Clone, Serialize)]
 pub struct Times {
     pub id: i64,
     pub title: String,
@@ -13,7 +15,7 @@ pub struct Times {
     pub updated_at: Option<chrono::NaiveDateTime>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize)]
 pub struct Post {
     pub id: i64,
     pub post: String,
