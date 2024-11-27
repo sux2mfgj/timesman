@@ -1,13 +1,12 @@
 use core::fmt;
 use std::collections::VecDeque;
 use std::sync::Arc;
-// use std::sync::Mutex;
 use tokio::runtime;
 use tokio::sync::Mutex;
 
 use crate::config::Config;
 use crate::log::LogRecord;
-// use crate::pane::config::ConfigPane;
+use crate::pane::config::ConfigPane;
 use crate::pane::log::LogPane;
 use crate::pane::select_pane::SelectPane;
 use crate::pane::start::StartPane;
@@ -136,7 +135,7 @@ impl eframe::App for App {
                     .push_front(Box::new(LogPane::new(self.logs.clone())));
             }
             Event::Config => {
-                // self.pane_stack.push_front(Box::new(ConfigPane::new()));
+                self.pane_stack.push_front(Box::new(ConfigPane::new()));
             }
         }
     }

@@ -2,6 +2,8 @@ use crate::app::Event;
 
 use super::{pane_menu, Pane};
 
+use tokio::runtime;
+
 pub struct ConfigPane {}
 
 impl Pane for ConfigPane {
@@ -9,6 +11,7 @@ impl Pane for ConfigPane {
         &mut self,
         ctx: &egui::Context,
         _frame: &mut eframe::Frame,
+        _rt: &runtime::Runtime,
     ) -> Option<Event> {
         let mut event = None;
         egui::TopBottomPanel::top("top").show(ctx, |ui| {
@@ -24,7 +27,7 @@ impl Pane for ConfigPane {
         event
     }
 
-    fn reload(&mut self) {}
+    fn reload(&mut self, _rt: &runtime::Runtime) {}
 }
 
 impl ConfigPane {

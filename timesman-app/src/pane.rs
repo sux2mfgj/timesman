@@ -1,4 +1,4 @@
-// pub mod config;
+pub mod config;
 pub mod log;
 pub mod select_pane;
 pub mod start;
