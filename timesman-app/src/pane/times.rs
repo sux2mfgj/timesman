@@ -1,8 +1,7 @@
-use std::cell::RefCell;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::PathBuf;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::app::Event;
 
@@ -11,6 +10,10 @@ use eframe::egui::ScrollArea;
 use egui::{Key, Modifiers, Ui};
 use egui_file_dialog::FileDialog;
 use store::{Post, Store, Times};
+use tokio::runtime;
+use tokio::sync::mpsc;
+use tokio::sync::mpsc::{Receiver, Sender};
+use tokio::sync::Mutex;
 
 use super::{pane_menu, Pane};
 
@@ -19,24 +22,54 @@ pub struct TimesPane {
     posts: Vec<Post>,
     post_text: String,
     file_dialog: FileDialog,
-    store: Rc<RefCell<dyn Store>>,
+    store: Arc<Mutex<Box<dyn Store + Send + Sync + 'static>>>,
     edit_title: bool,
     edit_post: Option<i64>,
+    tx: Sender<Message>,
+    rx: Receiver<Message>,
+}
+
+enum Message {
+    Refresh(Vec<Post>),
 }
 
 impl TimesPane {
-    pub fn new(store: Rc<RefCell<dyn Store>>, times: Times) -> Self {
-        let store_ref = store.borrow();
-        let posts = store_ref.get_posts(times.id).unwrap();
+    pub fn new(
+        store: Arc<Mutex<Box<dyn Store + Send + Sync + 'static>>>,
+        times: Times,
+        rt: &runtime::Runtime,
+    ) -> Self {
+        let (tx, rx) = mpsc::channel::<Message>(32);
+
+        {
+            let tid = times.id;
+            let store2 = store.clone();
+            let msg_tx = tx.clone();
+            rt.spawn(async move {
+                let store = store2.lock().await;
+                match store.get_posts(tid).await {
+                    Ok(posts) => {
+                        msg_tx.send(Message::Refresh(posts)).await.unwrap();
+                    }
+                    Err(_e) => {}
+                }
+            });
+        }
+
+        //TODO
+        // let store_ref = store.borrow();
+        // let posts = store_ref.get_posts(times.id).unwrap();
 
         Self {
-            posts,
+            posts: vec![],
             times,
             post_text: "".to_string(),
             file_dialog: FileDialog::new(),
             store: store.clone(),
             edit_title: false,
             edit_post: None,
+            tx,
+            rx,
         }
     }
 
@@ -58,18 +91,19 @@ impl TimesPane {
                         if p.id == edit_pid {
                             ui.text_edit_singleline(&mut p.post);
                             if ui.button("done").clicked() {
-                                let mut store = self.store.borrow_mut();
-                                self.edit_post = None;
-                                match store
-                                    .update_post(self.times.id, p.clone())
-                                {
-                                    Ok(_) => {
-                                        //TODO: should update the post.updated_at.
-                                    }
-                                    Err(e) => {
-                                        error!(e);
-                                    }
-                                };
+
+                                //let mut store = self.store.borrow_mut();
+                                //self.edit_post = None;
+                                //match store
+                                //    .update_post(self.times.id, p.clone())
+                                //{
+                                //    Ok(_) => {
+                                //        //TODO: should update the post.updated_at.
+                                //    }
+                                //    Err(e) => {
+                                //        error!(e);
+                                //    }
+                                //};
                             }
                         } else {
                             ui.label(&p.post);
@@ -79,12 +113,12 @@ impl TimesPane {
                             ui.horizontal(|ui| {
                                 ui.label(format!("id: {}", p.id));
                                 if ui.button("delete").clicked() {
-                                    let mut store = self.store.borrow_mut();
-                                    match store.delete_post(self.times.id, p.id)
-                                    {
-                                        Ok(_) => {}
-                                        Err(e) => error!(e),
-                                    };
+                                    //let mut store = self.store.borrow_mut();
+                                    //match store.delete_post(self.times.id, p.id)
+                                    //{
+                                    //    Ok(_) => {}
+                                    //    Err(e) => error!(e),
+                                    //};
                                 }
                                 if ui.button("edit").clicked() {
                                     self.edit_post = Some(p.id);
@@ -115,6 +149,25 @@ impl TimesPane {
 
         bw.flush().unwrap();
     }
+
+    fn handle_message(&mut self) -> Option<Event> {
+        if self.rx.is_empty() {
+            return None;
+        }
+
+        match self.rx.try_recv() {
+            Ok(msg) => match msg {
+                Message::Refresh(posts) => {
+                    self.posts = posts;
+                }
+            },
+            Err(e) => {
+                error!(e);
+            }
+        }
+
+        None
+    }
 }
 
 impl Pane for TimesPane {
@@ -122,8 +175,12 @@ impl Pane for TimesPane {
         &mut self,
         ctx: &egui::Context,
         _frame: &mut eframe::Frame,
+        rt: &runtime::Runtime,
     ) -> Option<Event> {
         let mut event = None;
+
+        event = self.handle_message();
+
         egui::TopBottomPanel::top("top").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("Times", |ui| {
@@ -151,26 +208,26 @@ impl Pane for TimesPane {
                 }
 
                 if ui.button("delete").clicked() {
-                    let mut store_ref = self.store.borrow_mut();
-                    match store_ref.delete_times(self.times.id) {
-                        Err(e) => {
-                            error!(e)
-                        }
-                        Ok(()) => {
-                            event = Some(Event::Pop);
-                        }
-                    }
+                    //let mut store_ref = self.store.borrow_mut();
+                    //match store_ref.delete_times(self.times.id) {
+                    //    Err(e) => {
+                    //        error!(e)
+                    //    }
+                    //    Ok(()) => {
+                    //        event = Some(Event::Pop);
+                    //    }
+                    //}
                 }
 
                 if self.edit_title {
                     if ui.button("done").clicked() {
-                        let mut store = self.store.borrow_mut();
-                        match store.update_times(self.times.clone()) {
-                            Ok(_) => {}
-                            Err(e) => {
-                                error!(e);
-                            }
-                        }
+                        //let mut store = self.store.borrow_mut();
+                        //match store.update_times(self.times.clone()) {
+                        //    Ok(_) => {}
+                        //    Err(e) => {
+                        //        error!(e);
+                        //    }
+                        //}
                         self.edit_title = false;
                     }
                 } else {
@@ -199,14 +256,14 @@ impl Pane for TimesPane {
 
                 let text = self.post_text.trim_end();
 
-                let mut store_ref = self.store.borrow_mut();
-                match store_ref.create_post(self.times.id, text.to_string()) {
-                    Err(_e) => {}
-                    Ok(p) => {
-                        self.posts.push(p);
-                        self.post_text.clear();
-                    }
-                }
+                //let mut store_ref = self.store.borrow_mut();
+                //match store_ref.create_post(self.times.id, text.to_string()) {
+                //    Err(_e) => {}
+                //    Ok(p) => {
+                //        self.posts.push(p);
+                //        self.post_text.clear();
+                //    }
+                //}
             }
         });
 
@@ -221,5 +278,5 @@ impl Pane for TimesPane {
         event
     }
 
-    fn reload(&mut self) {}
+    fn reload(&mut self, rt: &runtime::Runtime) {}
 }
