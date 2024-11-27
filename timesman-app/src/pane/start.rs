@@ -5,11 +5,10 @@ use crate::config::Config;
 
 use super::{pane_menu, Pane};
 
-// use std::sync::Mutex;
 use store::ram::RamStore;
+use store::remote::RemoteStore;
 use tokio::runtime;
 use tokio::sync::Mutex;
-// use store::remote::RemoteStore;
 // use store::sqlite3::SqliteStore;
 use store::Store;
 
@@ -39,10 +38,9 @@ impl StartPane {
     fn start(&self) -> Result<Event, String> {
         let store: Arc<Mutex<Box<dyn Store + Send + Sync + 'static>>> =
             match self.store {
-                BackingStore::Remote => unimplemented!(),
-                //     Rc::new(RefCell::new(RemoteStore::new(
-                //     self.config.store.clone(),
-                // ))),
+                BackingStore::Remote => Arc::new(Mutex::new(Box::new(
+                    RemoteStore::new(self.config.store.clone()),
+                ))),
                 BackingStore::Memory => {
                     Arc::new(Mutex::new(Box::new(RamStore::new())))
                 }
