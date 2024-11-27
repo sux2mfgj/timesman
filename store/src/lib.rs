@@ -1,6 +1,6 @@
 pub mod ram;
 pub mod remote;
-// pub mod sqlite3;
+pub mod sqlite3;
 
 use async_trait::async_trait;
 use chrono;

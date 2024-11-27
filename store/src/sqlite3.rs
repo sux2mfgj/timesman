@@ -3,6 +3,7 @@ use super::{Post, Store, Times};
 use sqlx;
 use sqlx::sqlite::SqlitePool;
 
+use async_trait::async_trait;
 use tokio::runtime::Runtime;
 
 #[derive(Clone)]
@@ -62,8 +63,9 @@ impl SqliteStore {
     }
 }
 
+#[async_trait]
 impl Store for SqliteStore {
-    fn check(&self) -> Result<(), String> {
+    async fn check(&self) -> Result<(), String> {
         let db = self.db.clone()?;
 
         if !db.is_closed() {
@@ -73,7 +75,7 @@ impl Store for SqliteStore {
         }
     }
 
-    fn get_times(&self) -> Result<Vec<Times>, String> {
+    async fn get_times(&self) -> Result<Vec<Times>, String> {
         let db = self.db.clone()?;
 
         let sql = sqlx::query_as!(
@@ -89,7 +91,7 @@ impl Store for SqliteStore {
         Ok(result)
     }
 
-    fn create_times(&mut self, title: String) -> Result<Times, String> {
+    async fn create_times(&mut self, title: String) -> Result<Times, String> {
         let db = self.db.clone()?;
 
         let sql = sqlx::query_as!(
@@ -104,15 +106,15 @@ impl Store for SqliteStore {
         Ok(Times::from(times))
     }
 
-    fn update_times(&mut self, _times: Times) -> Result<(), String> {
+    async fn update_times(&mut self, _times: Times) -> Result<Times, String> {
         unimplemented!();
     }
 
-    fn delete_times(&mut self, _tid: i64) -> Result<(), String> {
+    async fn delete_times(&mut self, _tid: i64) -> Result<(), String> {
         unimplemented!();
     }
 
-    fn get_posts(&self, tid: i64) -> Result<Vec<Post>, String> {
+    async fn get_posts(&self, tid: i64) -> Result<Vec<Post>, String> {
         let db = self.db.clone()?;
         let sql = sqlx::query_as!(
             SqlitePost,
@@ -127,7 +129,11 @@ impl Store for SqliteStore {
         Ok(result)
     }
 
-    fn create_post(&mut self, tid: i64, post: String) -> Result<Post, String> {
+    async fn create_post(
+        &mut self,
+        tid: i64,
+        post: String,
+    ) -> Result<Post, String> {
         let db = self.db.clone()?;
 
         let sql = sqlx::query_as!(
@@ -145,11 +151,19 @@ impl Store for SqliteStore {
         Ok(post)
     }
 
-    fn delete_post(&mut self, _tid: i64, _pid: i64) -> Result<(), String> {
+    async fn delete_post(
+        &mut self,
+        _tid: i64,
+        _pid: i64,
+    ) -> Result<(), String> {
         unimplemented!();
     }
 
-    fn update_post(&mut self, _tid: i64, _post: Post) -> Result<Post, String> {
+    async fn update_post(
+        &mut self,
+        _tid: i64,
+        _post: Post,
+    ) -> Result<Post, String> {
         unimplemented!();
     }
 }
