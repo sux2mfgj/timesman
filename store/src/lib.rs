@@ -1,5 +1,5 @@
 pub mod ram;
-// pub mod remote;
+pub mod remote;
 // pub mod sqlite3;
 
 use async_trait::async_trait;

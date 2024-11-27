@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::{Post, Store, Times};
+use async_trait::async_trait;
 
 #[derive(Deserialize, Clone)]
 struct RemPost {
@@ -63,15 +64,16 @@ impl RemoteStore {
     }
 }
 
+#[async_trait]
 impl Store for RemoteStore {
-    fn check(&self) -> Result<(), String> {
-        match self.get_times() {
+    async fn check(&self) -> Result<(), String> {
+        match self.get_times().await {
             Ok(_) => Ok(()),
             Err(e) => Err(e),
         }
     }
 
-    fn get_times(&self) -> Result<Vec<Times>, String> {
+    async fn get_times(&self) -> Result<Vec<Times>, String> {
         let url = self.server.clone() + "/times";
 
         // debug!("Request HTTP Get to {}", url);
@@ -82,9 +84,11 @@ impl Store for RemoteStore {
             times: Vec<RemTimes>,
         }
 
-        let resp = reqwest::blocking::get(url)
+        let resp = reqwest::get(url)
+            .await
             .unwrap()
             .json::<Response>()
+            .await
             .unwrap();
 
         let times = resp
@@ -100,7 +104,7 @@ impl Store for RemoteStore {
         }
     }
 
-    fn create_times(&mut self, title: String) -> Result<Times, String> {
+    async fn create_times(&mut self, title: String) -> Result<Times, String> {
         let url = self.server.clone() + "/times";
 
         // debug!("Request HTTP Post to {}", url);
@@ -120,10 +124,10 @@ impl Store for RemoteStore {
             title: title.to_string(),
         };
 
-        let client = reqwest::blocking::Client::new();
-        let result = client.post(url).json(&data).send().unwrap();
+        let client = reqwest::Client::new();
+        let result = client.post(url).json(&data).send().await.unwrap();
 
-        let resp = result.json::<CreateTimesResponse>().unwrap();
+        let resp = result.json::<CreateTimesResponse>().await.unwrap();
 
         if resp.base.status != 0 {
             Err(resp.base.text)
@@ -132,15 +136,15 @@ impl Store for RemoteStore {
         }
     }
 
-    fn delete_times(&mut self, tid: i64) -> Result<(), String> {
+    async fn delete_times(&mut self, tid: i64) -> Result<(), String> {
         let url = format!("{}/times/{}", self.server, tid);
 
         // debug!("Request HTTP Delete to {}", self.server);
 
-        let client = reqwest::blocking::Client::new();
-        let result = client.delete(url).send().unwrap();
+        let client = reqwest::Client::new();
+        let result = client.delete(url).send().await.unwrap();
 
-        let resp = result.json::<ResponseBase>().unwrap();
+        let resp = result.json::<ResponseBase>().await.unwrap();
 
         if resp.status != 0 {
             return Err(format!("request error: {}", resp.text));
@@ -149,11 +153,11 @@ impl Store for RemoteStore {
         Ok(())
     }
 
-    fn update_times(&mut self, _times: Times) -> Result<(), String> {
+    async fn update_times(&mut self, _times: Times) -> Result<(), String> {
         unimplemented!();
     }
 
-    fn get_posts(&self, tid: i64) -> Result<Vec<Post>, String> {
+    async fn get_posts(&self, tid: i64) -> Result<Vec<Post>, String> {
         let url = format!("{}/times/{}", self.server, tid);
 
         // debug!("Request HTTP Get to {}", url);
@@ -164,9 +168,11 @@ impl Store for RemoteStore {
             posts: Vec<RemPost>,
         }
 
-        let resp: Response = reqwest::blocking::get(url)
+        let resp = reqwest::get(url)
+            .await
             .unwrap()
             .json::<Response>()
+            .await
             .unwrap();
 
         let posts =
@@ -179,7 +185,11 @@ impl Store for RemoteStore {
         }
     }
 
-    fn create_post(&mut self, tid: i64, post: String) -> Result<Post, String> {
+    async fn create_post(
+        &mut self,
+        tid: i64,
+        post: String,
+    ) -> Result<Post, String> {
         let url = format!("{}/times/{}", self.server, tid);
 
         // debug!("Request HTTP Post to {}", self.server);
@@ -199,10 +209,10 @@ impl Store for RemoteStore {
             post: post.to_string(),
         };
 
-        let client = reqwest::blocking::Client::new();
-        let result = client.post(url).json(&data).send().unwrap();
+        let client = reqwest::Client::new();
+        let result = client.post(url).json(&data).send().await.unwrap();
 
-        let resp = result.json::<Response>().unwrap();
+        let resp = result.json::<Response>().await.unwrap();
 
         if resp.base.status != 0 {
             return Err(format!("request error: {}", resp.base.text));
@@ -216,11 +226,19 @@ impl Store for RemoteStore {
         })
     }
 
-    fn delete_post(&mut self, _tid: i64, _pid: i64) -> Result<(), String> {
+    async fn delete_post(
+        &mut self,
+        _tid: i64,
+        _pid: i64,
+    ) -> Result<(), String> {
         unimplemented!();
     }
 
-    fn update_post(&mut self, _tid: i64, _post: Post) -> Result<Post, String> {
+    async fn update_post(
+        &mut self,
+        _tid: i64,
+        _post: Post,
+    ) -> Result<Post, String> {
         unimplemented!();
     }
 }
