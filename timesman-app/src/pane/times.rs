@@ -31,6 +31,7 @@ pub struct TimesPane {
 
 enum Message {
     Refresh(Vec<Post>),
+    Create(Post),
 }
 
 impl TimesPane {
@@ -160,6 +161,10 @@ impl TimesPane {
                 Message::Refresh(posts) => {
                     self.posts = posts;
                 }
+                Message::Create(post) => {
+                    self.posts.push(post);
+                    self.post_text.clear();
+                }
             },
             Err(e) => {
                 error!(e);
@@ -244,6 +249,7 @@ impl Pane for TimesPane {
             });
         });
         egui::TopBottomPanel::bottom("bottom").show(ctx, |ui| {
+            let text = self.post_text.clone();
             egui::TextEdit::multiline(&mut self.post_text)
                 .hint_text("write here")
                 .desired_width(f32::INFINITY)
@@ -254,8 +260,22 @@ impl Pane for TimesPane {
                     return;
                 }
 
-                let text = self.post_text.trim_end();
+                let text = text.trim_end().to_string();
+                let store = self.store.clone();
+                let tid = self.times.id;
+                let tx = self.tx.clone();
 
+                rt.spawn(async move {
+                    let mut store = store.lock().await;
+                    match store.create_post(tid, text).await {
+                        Ok(post) => {
+                            tx.send(Message::Create(post)).await.unwrap();
+                        }
+                        Err(e) => {
+                            error!(e);
+                        }
+                    }
+                });
                 //let mut store_ref = self.store.borrow_mut();
                 //match store_ref.create_post(self.times.id, text.to_string()) {
                 //    Err(_e) => {}
