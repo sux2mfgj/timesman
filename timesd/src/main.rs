@@ -2,11 +2,14 @@ use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use serde::{Deserialize, Serialize};
 use serde_json;
 
-use sqlx::sqlite::SqlitePool;
+use std::sync::Arc;
+use std::sync::Mutex;
+use store::sqlite3::SqliteStore;
+use store::{Post, Store, Times};
 
 #[derive(Clone)]
-struct AppContext {
-    db: SqlitePool,
+struct Context {
+    store: Arc<Mutex<dyn Store>>,
 }
 
 #[derive(Serialize)]
@@ -21,21 +24,17 @@ struct ResponseTimes {
     times: Vec<Times>,
 }
 
-#[derive(Serialize)]
-struct Times {
-    id: i64,
-    title: String,
-    created_at: chrono::NaiveDateTime,
-    updated_at: Option<chrono::NaiveDateTime>,
-    deleted: i64,
-}
+async fn get_times(ctx: web::Data<Context>) -> impl Responder {
+    let store = ctx.store.lock().unwrap();
+    let times = match store.get_times().await {
+        Ok(times) => times,
+        Err(e) => {
+            let resp = ResponseBase { status: 1, text: e };
 
-async fn get_times(ctx: web::Data<AppContext>) -> impl Responder {
-    let times =
-        sqlx::query_as!(Times, r#"select * from times where deleted = 0"#)
-            .fetch_all(&ctx.db)
-            .await
-            .unwrap();
+            return HttpResponse::Ok()
+                .body(serde_json::to_string(&resp).unwrap());
+        }
+    };
 
     println!("/get_times");
 
@@ -56,25 +55,27 @@ struct CreateTimesRequest {
 }
 
 async fn create_times(
-    ctx: web::Data<AppContext>,
+    ctx: web::Data<Context>,
     req: web::Json<CreateTimesRequest>,
 ) -> impl Responder {
-    let times = sqlx::query_as!(
-        Times,
-        r#"insert into times("title") values ($1) returning *"#,
-        req.title
-    )
-    .fetch_one(&ctx.db)
-    .await
-    .unwrap();
+    let mut store = ctx.store.lock().unwrap();
+    let times = match store.create_times(req.title.clone()).await {
+        Ok(times) => times,
+        Err(e) => {
+            let resp = ResponseBase { status: 1, text: e };
+
+            return HttpResponse::Ok()
+                .body(serde_json::to_string(&resp).unwrap());
+        }
+    };
 
     #[derive(Serialize)]
-    struct ResponseOneTimes {
+    struct Response {
         base: ResponseBase,
         times: Times,
     }
 
-    let resp = ResponseOneTimes {
+    let resp = Response {
         base: ResponseBase {
             status: 0,
             text: "Ok".to_string(),
@@ -86,7 +87,7 @@ async fn create_times(
 }
 
 async fn delete_times(
-    ctx: web::Data<AppContext>,
+    ctx: web::Data<Context>,
     path: web::Path<i64>,
 ) -> impl Responder {
     let tid = path.into_inner();
@@ -112,22 +113,13 @@ async fn delete_times(
 }
 
 #[derive(Serialize)]
-struct Post {
-    id: i64,
-    tid: i64,
-    post: String,
-    created_at: chrono::NaiveDateTime,
-    updated_at: Option<chrono::NaiveDateTime>,
-}
-
-#[derive(Serialize)]
 struct GetPostResponse {
     base: ResponseBase,
     posts: Vec<Post>,
 }
 
 async fn get_posts(
-    ctx: web::Data<AppContext>,
+    ctx: web::Data<Context>,
     path: web::Path<i64>,
 ) -> impl Responder {
     let tid = path.into_inner();
@@ -160,7 +152,7 @@ struct PostPostRequest {
 }
 
 async fn post_post(
-    ctx: web::Data<AppContext>,
+    ctx: web::Data<Context>,
     path: web::Path<i64>,
     req: web::Json<PostPostRequest>,
 ) -> impl Responder {
@@ -189,9 +181,11 @@ async fn post_post(
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let pool = SqlitePool::connect("./database.db").await.unwrap();
+    // let pool = SqlitePool::connect("./database.db").await.unwrap();
 
-    let ctx = AppContext { db: pool.clone() };
+    let ctx = Context {
+        store: Arc::new(SqliteStore::new("./database.db")),
+    };
 
     HttpServer::new(move || {
         App::new()
