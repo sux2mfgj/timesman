@@ -67,16 +67,15 @@ impl Store for RamStore {
     async fn update_times(
         &mut self,
         times: super::Times,
-    ) -> Result<(), String> {
+    ) -> Result<Times, String> {
         if let Some(t) = self.times.get_mut(&times.id) {
             t.times = times;
             let now = Local::now();
             t.times.updated_at = Some(now.naive_local());
+            Ok(t.times.clone())
         } else {
             return Err("times id is invalid".to_string());
         }
-
-        Ok(())
     }
 
     async fn get_posts(&self, tid: i64) -> Result<Vec<super::Post>, String> {

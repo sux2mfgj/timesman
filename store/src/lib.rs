@@ -29,7 +29,7 @@ pub trait Store: Send + Sync + 'static {
     async fn get_times(&self) -> Result<Vec<Times>, String>;
     async fn create_times(&mut self, title: String) -> Result<Times, String>;
     async fn delete_times(&mut self, tid: i64) -> Result<(), String>;
-    async fn update_times(&mut self, times: Times) -> Result<(), String>;
+    async fn update_times(&mut self, times: Times) -> Result<Times, String>;
 
     // for Post
     async fn get_posts(&self, tid: i64) -> Result<Vec<Post>, String>;

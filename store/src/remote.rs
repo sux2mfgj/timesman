@@ -153,7 +153,7 @@ impl Store for RemoteStore {
         Ok(())
     }
 
-    async fn update_times(&mut self, _times: Times) -> Result<(), String> {
+    async fn update_times(&mut self, _times: Times) -> Result<Times, String> {
         unimplemented!();
     }
 
