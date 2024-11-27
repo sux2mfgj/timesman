@@ -32,6 +32,8 @@ pub struct TimesPane {
 enum Message {
     Refresh(Vec<Post>),
     Create(Post),
+    Update(Times),
+    Pop,
 }
 
 impl TimesPane {
@@ -165,6 +167,13 @@ impl TimesPane {
                     self.posts.push(post);
                     self.post_text.clear();
                 }
+                Message::Update(times) => {
+                    self.times = times;
+                    self.edit_title = false;
+                }
+                Message::Pop => {
+                    return Some(Event::Pop);
+                }
             },
             Err(e) => {
                 error!(e);
@@ -213,27 +222,41 @@ impl Pane for TimesPane {
                 }
 
                 if ui.button("delete").clicked() {
-                    //let mut store_ref = self.store.borrow_mut();
-                    //match store_ref.delete_times(self.times.id) {
-                    //    Err(e) => {
-                    //        error!(e)
-                    //    }
-                    //    Ok(()) => {
-                    //        event = Some(Event::Pop);
-                    //    }
-                    //}
+                    let store = self.store.clone();
+                    let tid = self.times.id;
+                    let tx = self.tx.clone();
+                    rt.spawn(async move {
+                        let mut store = store.lock().await;
+                        match store.delete_times(tid).await {
+                            Ok(()) => {
+                                tx.send(Message::Pop).await.unwrap();
+                            }
+                            Err(e) => {
+                                error!(e);
+                            }
+                        }
+                    });
                 }
 
                 if self.edit_title {
                     if ui.button("done").clicked() {
-                        //let mut store = self.store.borrow_mut();
-                        //match store.update_times(self.times.clone()) {
-                        //    Ok(_) => {}
-                        //    Err(e) => {
-                        //        error!(e);
-                        //    }
-                        //}
-                        self.edit_title = false;
+                        let store = self.store.clone();
+                        let times = self.times.clone();
+                        let tx = self.tx.clone();
+
+                        rt.spawn(async move {
+                            let mut store = store.lock().await;
+                            match store.update_times(times).await {
+                                Ok(times) => {
+                                    tx.send(Message::Update(times))
+                                        .await
+                                        .unwrap();
+                                }
+                                Err(e) => {
+                                    error!(e);
+                                }
+                            }
+                        });
                     }
                 } else {
                     if ui.button("edit").clicked() {
