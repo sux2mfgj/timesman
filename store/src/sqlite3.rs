@@ -47,28 +47,33 @@ impl From<SqlitePost> for Post {
 }
 
 pub struct SqliteStore {
-    db: Result<SqlitePool, String>,
-    rt: Runtime,
+    db: SqlitePool,
 }
 
-impl SqliteStore {
+pub struct SqliteStoreBuilder {
+    dbfile: String,
+}
+
+impl SqliteStoreBuilder {
     pub fn new(dbfile: &str) -> Self {
-        let rt = Runtime::new().unwrap();
+        Self {
+            dbfile: dbfile.to_string(),
+        }
+    }
 
-        let db = SqlitePool::connect(dbfile);
+    pub async fn build(&self) -> Result<SqliteStore, String> {
+        let db = SqlitePool::connect(&self.dbfile)
+            .await
+            .map_err(|e| format!("{e}"))?;
 
-        let db = rt.block_on(db).map_err(|e| format!("{e}"));
-
-        Self { db, rt }
+        Ok(SqliteStore { db })
     }
 }
 
 #[async_trait]
 impl Store for SqliteStore {
     async fn check(&self) -> Result<(), String> {
-        let db = self.db.clone()?;
-
-        if !db.is_closed() {
+        if !self.db.is_closed() {
             Ok(())
         } else {
             Err("Closed".to_string())
@@ -76,15 +81,13 @@ impl Store for SqliteStore {
     }
 
     async fn get_times(&self) -> Result<Vec<Times>, String> {
-        let db = self.db.clone()?;
-
         let sql = sqlx::query_as!(
             SqliteTimes,
             r#"select * from times where deleted = 0"#
         )
-        .fetch_all(&db);
+        .fetch_all(&self.db);
 
-        let times = self.rt.block_on(sql).map_err(|e| format!("{}", e))?;
+        let times = sql.await.map_err(|e| format!("{e}"))?;
 
         let result = times.iter().map(|st| Times::from(st.clone())).collect();
 
@@ -92,16 +95,14 @@ impl Store for SqliteStore {
     }
 
     async fn create_times(&mut self, title: String) -> Result<Times, String> {
-        let db = self.db.clone()?;
-
         let sql = sqlx::query_as!(
             SqliteTimes,
             r#"insert into times("title") values ($1) returning *"#,
             title
         )
-        .fetch_one(&db);
+        .fetch_one(&self.db);
 
-        let times = self.rt.block_on(sql).map_err(|e| format!("{}", e))?;
+        let times = sql.await.map_err(|e| format!("{}", e))?;
 
         Ok(Times::from(times))
     }
@@ -115,15 +116,14 @@ impl Store for SqliteStore {
     }
 
     async fn get_posts(&self, tid: i64) -> Result<Vec<Post>, String> {
-        let db = self.db.clone()?;
         let sql = sqlx::query_as!(
             SqlitePost,
             r#"select * from posts where tid = $1"#,
             tid
         )
-        .fetch_all(&db);
+        .fetch_all(&self.db);
 
-        let posts = self.rt.block_on(sql).map_err(|e| format!("{}", e))?;
+        let posts = sql.await.map_err(|e| format!("{}", e))?;
         let result = posts.iter().map(|sp| Post::from(sp.clone())).collect();
 
         Ok(result)
@@ -134,8 +134,6 @@ impl Store for SqliteStore {
         tid: i64,
         post: String,
     ) -> Result<Post, String> {
-        let db = self.db.clone()?;
-
         let sql = sqlx::query_as!(
             Post,
             r#"insert into posts(tid, post)
@@ -144,9 +142,9 @@ impl Store for SqliteStore {
             tid,
             post
         )
-        .fetch_one(&db);
+        .fetch_one(&self.db);
 
-        let post = self.rt.block_on(sql).map_err(|e| format!("{}", e))?;
+        let post = sql.await.map_err(|e| format!("{}", e))?;
 
         Ok(post)
     }
