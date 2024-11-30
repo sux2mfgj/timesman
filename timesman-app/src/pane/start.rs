@@ -7,10 +7,11 @@ use super::{pane_menu, Pane};
 
 use store::ram::RamStore;
 use store::remote::RemoteStore;
-use tokio::runtime;
-use tokio::sync::Mutex;
-// use store::sqlite3::SqliteStore;
+use store::sqlite3::{SqliteStore, SqliteStoreBuilder};
 use store::Store;
+use tokio::runtime;
+use tokio::sync::mpsc::{self, Receiver, Sender};
+use tokio::sync::Mutex;
 
 #[derive(PartialEq)]
 enum BackingStore {
@@ -35,30 +36,39 @@ impl StartPane {
         }
     }
 
-    fn start(&self) -> Result<Event, String> {
+    fn start(&self, rt: &runtime::Runtime) -> Result<Event, String> {
         let store: Arc<Mutex<Box<dyn Store + Send + Sync + 'static>>> =
             match self.store {
-                BackingStore::Remote => Arc::new(Mutex::new(Box::new(
-                    RemoteStore::new(self.config.store.clone()),
-                ))),
+                BackingStore::Remote => {
+                    let server = self.config.params.remote.server.clone();
+                    Arc::new(Mutex::new(Box::new(RemoteStore::new(server))))
+                }
                 BackingStore::Memory => {
                     Arc::new(Mutex::new(Box::new(RamStore::new())))
                 }
                 BackingStore::Json => {
                     return Err("Not yet iplemented".to_string());
                 }
-                BackingStore::Sqlite3 => unimplemented!(),
-                // Rc::new(RefCell::new(SqliteStore::new(
-                //     &self.config.store.clone(),
-                // ))),
+                BackingStore::Sqlite3 => {
+                    let path = self.config.params.sqlite.db.clone();
+                    let store = SqliteStoreBuilder::new(&path);
+                    let store =
+                        rt.block_on(async move { store.build().await })?;
+                    Arc::new(Mutex::new(Box::new(store)))
+                }
             };
 
         {
-            // let store_ref = store.borrow_mut();
-            // store_ref.check()?;
+            let store = store.clone();
+            let (tx, mut rx) = mpsc::channel::<Result<(), String>>(8);
 
-            // store.check()?;
-        }
+            rt.block_on(async move {
+                let store = store.lock().await;
+                tx.send(store.check().await).await.unwrap();
+            });
+
+            rx.blocking_recv().ok_or("failed to setup backing store")?
+        }?;
 
         Ok(Event::Connect(store))
     }
@@ -69,7 +79,7 @@ impl Pane for StartPane {
         &mut self,
         ctx: &egui::Context,
         _frame: &mut eframe::Frame,
-        _rt: &runtime::Runtime,
+        rt: &runtime::Runtime,
     ) -> Option<Event> {
         let mut event = None;
         egui::TopBottomPanel::top("top").show(ctx, |ui| {
@@ -96,18 +106,20 @@ impl Pane for StartPane {
                 BackingStore::Memory => {}
                 BackingStore::Remote => {
                     ui.label("Server");
-                    ui.text_edit_singleline(&mut self.config.store);
+                    let server = &mut self.config.params.remote.server;
+                    ui.text_edit_singleline(server);
                 }
                 BackingStore::Json => {}
                 BackingStore::Sqlite3 => {
                     ui.label("database file");
-                    ui.text_edit_singleline(&mut self.config.store);
+                    let path = &mut self.config.params.sqlite.db;
+                    ui.text_edit_singleline(path);
                 }
             }
 
             ui.separator();
             if ui.button("Start").clicked() {
-                match self.start() {
+                match self.start(rt) {
                     Ok(e) => {
                         event = Some(e);
                     }
