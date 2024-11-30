@@ -111,4 +111,19 @@ impl Config {
             fonts,
         })
     }
+
+    pub fn store_config(&self) -> Result<(), String> {
+        let config_file_name = "config.toml";
+        let path = self
+            .base
+            .find_config_file(config_file_name)
+            .ok_or("Can't found config file")?;
+        let mut file = File::open(path).map_err(|e| format!("{e}"))?;
+
+        let param_str =
+            toml::to_string(&self.params).map_err(|e| format!("{e}"))?;
+        write!(file, "{}", param_str).map_err(|e| format!("{e}"))?;
+
+        Ok(())
+    }
 }

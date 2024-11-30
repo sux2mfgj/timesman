@@ -22,6 +22,7 @@ pub enum Event {
     Pop,
     Logs,
     Config,
+    UpdateConfig(Config),
 }
 
 impl fmt::Display for Event {
@@ -41,6 +42,9 @@ impl fmt::Display for Event {
             }
             Event::Config => {
                 write!(f, "Config")
+            }
+            Event::UpdateConfig(_) => {
+                write!(f, "Update config")
             }
         }
     }
@@ -116,7 +120,18 @@ impl eframe::App for App {
                     .push_front(Box::new(LogPane::new(self.logs.clone())));
             }
             Event::Config => {
-                self.pane_stack.push_front(Box::new(ConfigPane::new()));
+                self.pane_stack
+                    .push_front(Box::new(ConfigPane::new(self.config.clone())));
+            }
+            Event::UpdateConfig(config) => {
+                self.config = config;
+                self.config
+                    .store_config()
+                    .map_err(|e| {
+                        error!("{e}");
+                        format!("{e}")
+                    })
+                    .unwrap();
             }
         }
     }

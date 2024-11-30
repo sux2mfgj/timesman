@@ -6,14 +6,14 @@ use xdg;
 use egui::{FontData, FontDefinitions, FontFamily};
 
 #[derive(Clone)]
-struct FontFile {
-    name: String,
-    data: Vec<u8>,
+pub struct FontFile {
+    pub name: String,
+    pub data: Vec<u8>,
 }
 
 #[derive(Clone)]
 pub struct Fonts {
-    fonts: Vec<FontFile>,
+    pub fonts: Vec<FontFile>,
 }
 
 impl Fonts {
