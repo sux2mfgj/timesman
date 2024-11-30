@@ -1,119 +1,114 @@
 use serde::{Deserialize, Serialize};
-use std::env;
+use std::default::Default;
+use std::fs::File;
 use std::io::{Read, Write};
-use std::{
-    fs::{self, File},
-    path::PathBuf,
-};
 use toml;
-// use xdg;
+use xdg;
 
-pub struct FontFile {
-    pub data: Vec<u8>,
-    pub name: String,
-}
+use crate::fonts::Fonts;
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone)]
 pub struct Config {
-    #[serde(skip)]
-    pub fonts: Vec<FontFile>,
-    pub store: String,
-    //pub plugins: Option<Plugin>
+    pub base: xdg::BaseDirectories,
+    pub params: ConfigParam,
+    pub fonts: Fonts,
 }
 
-impl Default for Config {
+#[derive(Deserialize, Serialize, Clone)]
+pub struct ConfigParam {
+    pub store: String,
+    pub sqlite: SqliteConfig,
+    pub remote: RemoteConfig,
+}
+
+impl Default for ConfigParam {
     fn default() -> Self {
         Self {
-            fonts: vec![],
-            //store: "http://localhost:8080".to_string(),
-            store: "sqlite3:database.db".to_string(),
+            store: "sqlite".to_string(),
+            sqlite: SqliteConfig::default(),
+            remote: RemoteConfig::default(),
+        }
+    }
+}
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct SqliteConfig {
+    pub db: String,
+}
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct RemoteConfig {
+    pub server: String,
+}
+
+impl Default for SqliteConfig {
+    fn default() -> Self {
+        let base = xdg::BaseDirectories::with_prefix("timesman").unwrap();
+        let dbname = "database.db";
+        let db = if let Some(db) = base.find_data_file(dbname) {
+            db
+        } else {
+            base.place_data_file(dbname).unwrap()
+        };
+
+        Self {
+            db: db.to_string_lossy().to_string(),
+        }
+    }
+}
+
+impl Default for RemoteConfig {
+    fn default() -> Self {
+        Self {
+            server: "http://localhost:8080".to_string(),
         }
     }
 }
 
 impl Config {
     pub fn load_config() -> Result<Self, String> {
-        let home = env::var("HOME").unwrap();
-        let config_dir = home + "/.config/timesman/";
-        let dir_path = PathBuf::from(config_dir.clone());
+        let base = xdg::BaseDirectories::with_prefix("timesman").unwrap();
 
-        if !dir_path.exists() {
-            match fs::create_dir(config_dir.clone()) {
-                Ok(_) => {}
-                Err(e) => {
-                    return Err(format!(
-                        "failed to create {} {}",
-                        config_dir, e
-                    ));
-                }
-            }
-        }
+        let config_file_name = "config.toml";
+        let config = base.get_config_file(config_file_name);
 
-        let config_file_path = dir_path.join("config.toml");
-        let file = if !config_file_path.exists() {
-            let config_str = toml::to_string(&Config::default()).unwrap();
-            let mut file = File::create(config_file_path).unwrap();
-            write!(file, "{}", config_str).unwrap();
-            file
+        let params = if !config.exists() {
+            let path = base
+                .place_config_file(config_file_name)
+                .map_err(|e| format!("{e}"))?;
+
+            let param = ConfigParam::default();
+            let param_str =
+                toml::to_string(&param).map_err(|e| format!("{e}"))?;
+            let mut file = File::create(path.clone()).map_err(|e| {
+                format!(
+                    "failed to open the config file: {} {}",
+                    path.to_string_lossy(),
+                    e
+                )
+            })?;
+            write!(file, "{}", param_str).unwrap();
+
+            param
         } else {
-            File::open(config_file_path).unwrap()
+            let path = base
+                .find_config_file(config_file_name)
+                .ok_or("can't found config file")?;
+
+            let mut buf = String::new();
+
+            let mut file = File::open(path).map_err(|e| format!("{e}"))?;
+            file.read_to_string(&mut buf).map_err(|e| format!("{e}"))?;
+
+            toml::from_str(&buf).map_err(|e| format!("{e}"))?
         };
 
-        let mut config = Self::from_reader(file);
+        let fonts = Fonts::new(base.clone())?;
 
-        match config.load_font_files(dir_path) {
-            Ok(_) => {}
-            Err(e) => {
-                error!(e);
-            }
-        }
-
-        Ok(config)
+        Ok(Self {
+            base,
+            params,
+            fonts,
+        })
     }
-
-    fn load_font_files(&mut self, mut dir: PathBuf) -> Result<(), String> {
-        dir.push("fonts");
-
-        let entries = dir.read_dir()
-            .map_err(|e| format!("fonts dir: {}", e))?;
-
-        for entry in entries.into_iter() {
-            let entry = entry.unwrap();
-            let path = entry.path();
-
-            if path.is_dir() {
-                continue;
-            }
-
-            let mut file = File::open(path.clone()).unwrap();
-
-            let mut font_data = vec![];
-            let _ = file.read_to_end(&mut font_data);
-
-            let fname: String =
-                path.file_stem().unwrap().to_string_lossy().into_owned();
-
-            info!(format!("find font file: {}", &fname));
-
-            self.fonts.push(FontFile {
-                data: font_data,
-                name: fname,
-            });
-        }
-
-        Ok(())
-    }
-
-    fn from_reader(mut reader: impl Read) -> Self {
-        let mut buf = String::new();
-
-        reader.read_to_string(&mut buf).unwrap();
-
-        toml::from_str(&buf).unwrap()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
 }

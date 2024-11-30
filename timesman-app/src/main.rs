@@ -2,6 +2,7 @@
 mod log;
 mod app;
 mod config;
+mod fonts;
 mod pane;
 
 use std::sync::Arc;
@@ -20,21 +21,17 @@ fn main() -> Result<(), i64> {
     log::register(logs.clone());
     info!("Starting");
 
-    let config = match Config::load_config().map_err(|e| {
-        error!(format!("{}", e));
-        Err(1)
-    }) {
-        Ok(c) => c,
-        Err(e) => {
-            return e;
-        }
-    };
+    let config = Config::load_config().map_err(|e| {
+        error!(format!("{e}"));
+        1
+    })?;
 
     let r = eframe::run_native(
         "TimesMan",
         options,
         Box::new(|cc| {
-            Ok(Box::<app::App>::new(app::App::new(cc, config, logs)))
+            let app = app::App::new(cc, config, logs)?;
+            Ok(Box::new(app))
         }),
     );
 

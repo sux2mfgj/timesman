@@ -14,7 +14,6 @@ use crate::pane::times::TimesPane;
 use crate::pane::Pane;
 
 use eframe;
-use egui::{FontData, FontDefinitions, FontFamily};
 use store::{Store, Times};
 
 pub enum Event {
@@ -50,6 +49,7 @@ impl fmt::Display for Event {
 pub struct App {
     pane_stack: VecDeque<Box<dyn Pane>>,
     logs: Arc<std::sync::Mutex<Vec<LogRecord>>>,
+    config: Config,
     rt: runtime::Runtime,
 }
 
@@ -58,40 +58,21 @@ impl App {
         cc: &eframe::CreationContext<'_>,
         config: Config,
         logs: Arc<std::sync::Mutex<Vec<LogRecord>>>,
-    ) -> Self {
-        Self::config_font(cc, &config);
+    ) -> Result<Self, String> {
         let mut stack: VecDeque<Box<dyn Pane>> = VecDeque::new();
-        stack.push_front(Box::new(StartPane::new(config)));
-        Self {
+        stack.push_front(Box::new(StartPane::new(config.clone())));
+
+        config.fonts.load_fonts(cc);
+
+        Ok(Self {
             pane_stack: stack,
             logs,
+            config,
             rt: runtime::Builder::new_multi_thread()
                 .enable_all()
                 .build()
                 .unwrap(),
-        }
-    }
-
-    fn config_font(cc: &eframe::CreationContext<'_>, config: &Config) {
-        let mut fonts = FontDefinitions::default();
-
-        for font in &config.fonts {
-            let name = font.name.clone();
-            info!(format!("Loading font ({})", &name));
-
-            fonts.font_data.insert(
-                name.clone().to_owned(),
-                FontData::from_owned(font.data.clone()),
-            );
-
-            fonts
-                .families
-                .entry(FontFamily::Proportional)
-                .or_default()
-                .insert(0, name.to_owned());
-        }
-
-        cc.egui_ctx.set_fonts(fonts);
+        })
     }
 }
 
