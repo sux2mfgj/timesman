@@ -15,6 +15,8 @@ use tokio::sync::mpsc;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::Mutex;
 
+use store::json::JsonStore;
+
 use super::{pane_menu, Pane};
 
 pub struct TimesPane {
@@ -134,23 +136,12 @@ impl TimesPane {
         });
     }
 
-    fn save_file(&self, path: &PathBuf) {
-        let file = File::create(path).unwrap();
+    fn save_file(&self, path: &PathBuf) -> Result<(), String> {
+        let json_store = JsonStore::new(self.times.clone(), self.posts.clone());
 
-        let mut bw = BufWriter::new(file);
+        json_store.save_to_file(path)?;
 
-        for post in &self.posts {
-            writeln!(
-                bw,
-                "{} {} {}",
-                post.id,
-                post.created_at.format("%Y-%m-%d %H:%M").to_string(),
-                post.post
-            )
-            .unwrap();
-        }
-
-        bw.flush().unwrap();
+        Ok(())
     }
 
     fn handle_message(&mut self) -> Option<Event> {
@@ -218,6 +209,7 @@ impl Pane for TimesPane {
                 }
 
                 if ui.button("save").clicked() {
+                    //TODO: use the result
                     self.file_dialog.save_file();
                 }
 

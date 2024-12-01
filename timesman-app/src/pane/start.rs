@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::app::Event;
@@ -5,9 +6,11 @@ use crate::config::Config;
 
 use super::{pane_menu, Pane};
 
+use egui_file_dialog::FileDialog;
+use store::json::JsonStore;
 use store::ram::RamStore;
 use store::remote::RemoteStore;
-use store::sqlite3::{SqliteStore, SqliteStoreBuilder};
+use store::sqlite3::SqliteStoreBuilder;
 use store::Store;
 use tokio::runtime;
 use tokio::sync::mpsc::{self, Receiver, Sender};
@@ -25,6 +28,8 @@ pub struct StartPane {
     config: Config,
     errmsg: Option<String>,
     store: BackingStore,
+    file_dialog: FileDialog,
+    json_file: Option<PathBuf>,
 }
 
 impl StartPane {
@@ -33,6 +38,8 @@ impl StartPane {
             config,
             errmsg: None,
             store: BackingStore::Remote,
+            file_dialog: FileDialog::new(),
+            json_file: None,
         }
     }
 
@@ -47,7 +54,12 @@ impl StartPane {
                     Arc::new(Mutex::new(Box::new(RamStore::new())))
                 }
                 BackingStore::Json => {
-                    return Err("Not yet iplemented".to_string());
+                    if let Some(path) = &self.json_file {
+                        let store = JsonStore::build(path.clone())?;
+                        Arc::new(Mutex::new(Box::new(store)))
+                    } else {
+                        return Err(format!("You should select the json file"));
+                    }
                 }
                 BackingStore::Sqlite3 => {
                     let path = self.config.params.sqlite.db.clone();
@@ -109,7 +121,21 @@ impl Pane for StartPane {
                     let server = &mut self.config.params.remote.server;
                     ui.text_edit_singleline(server);
                 }
-                BackingStore::Json => {}
+                BackingStore::Json => {
+                    ui.label("File");
+                    if ui.button("Select").clicked() {
+                        self.file_dialog.select_file();
+                    }
+
+                    if let Some(path) = self.file_dialog.update(ctx).selected()
+                    {
+                        self.json_file = Some(path.to_path_buf());
+                    }
+
+                    if let Some(path) = &self.json_file {
+                        ui.label(format!("{:?}", path));
+                    }
+                }
                 BackingStore::Sqlite3 => {
                     ui.label("database file");
                     let path = &mut self.config.params.sqlite.db;
