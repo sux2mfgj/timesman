@@ -241,4 +241,8 @@ impl Store for RemoteStore {
     ) -> Result<Post, String> {
         unimplemented!();
     }
+
+    async fn get_latest_post(&self, tid: i64) -> Option<Post> {
+        None
+    }
 }

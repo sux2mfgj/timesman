@@ -47,6 +47,8 @@ pub trait Store: Send + Sync + 'static {
         tid: i64,
         post: Post,
     ) -> Result<Post, String>;
+
+    async fn get_latest_post(&self, tid: i64) -> Option<Post>;
 }
 
 #[cfg(test)]
