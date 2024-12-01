@@ -9,7 +9,7 @@ use crate::config::Config;
 use crate::log::LogRecord;
 use crate::pane::config::ConfigPane;
 use crate::pane::log::LogPane;
-use crate::pane::select_pane::SelectPane;
+use crate::pane::select::SelectPane;
 use crate::pane::start::StartPane;
 use crate::pane::times::TimesPane;
 use crate::pane::Pane;
