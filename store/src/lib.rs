@@ -1,3 +1,4 @@
+pub mod json;
 pub mod ram;
 pub mod remote;
 pub mod sqlite3;
@@ -5,9 +6,9 @@ pub mod sqlite3;
 use async_trait::async_trait;
 use chrono;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Times {
     pub id: i64,
     pub title: String,
@@ -15,7 +16,7 @@ pub struct Times {
     pub updated_at: Option<chrono::NaiveDateTime>,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Post {
     pub id: i64,
     pub post: String,
