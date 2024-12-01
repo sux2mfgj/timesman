@@ -5,7 +5,8 @@ use crate::app::Event;
 
 use eframe::egui::ScrollArea;
 use egui::{Key, Modifiers};
-use store::{Store, Times};
+use std::collections::HashMap;
+use store::{Post, Store, Times};
 use tokio;
 use tokio::sync::Mutex;
 
@@ -14,8 +15,13 @@ use tokio::runtime;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{Receiver, Sender};
 
+struct TimesData {
+    times: Times,
+    latest: Option<Post>,
+}
+
 pub struct SelectPane {
-    times: Vec<Times>,
+    times: HashMap<i64, TimesData>,
     new_title: String,
     store: Arc<Mutex<Box<dyn Store + Send + Sync + 'static>>>,
     tx: Sender<Message>,
@@ -24,7 +30,8 @@ pub struct SelectPane {
 
 enum Message {
     Create(Times),
-    Refresh(Vec<Times>),
+    Refresh(HashMap<i64, TimesData>),
+    UpdateLatest(i64, Post),
     Error(String),
 }
 
@@ -82,18 +89,33 @@ impl Pane for SelectPane {
                 .auto_shrink(false)
                 .max_height(ui.available_height());
             scroll_area.show(ui, |ui| {
-                for t in &self.times {
+                for (_tid, tdata) in &self.times {
                     ui.horizontal(|ui| {
                         ui.label(
-                            t.created_at.format("%Y-%m-%d %H:%M").to_string(),
+                            tdata
+                                .times
+                                .created_at
+                                .format("%Y-%m-%d %H:%M")
+                                .to_string(),
                         );
 
                         ui.separator();
-                        if ui.button(&t.title).clicked() {
+                        if ui.button(&tdata.times.title).clicked() {
                             event = Some(Event::Select(
                                 self.store.clone(),
-                                t.clone(),
+                                tdata.times.clone(),
                             ));
+                        }
+
+                        if let Some(latest) = &tdata.latest {
+                            ui.separator();
+                            ui.label(format!("{}", latest.post));
+                            ui.label(
+                                latest
+                                    .created_at
+                                    .format("%Y-%m-%d %H:%M")
+                                    .to_string(),
+                            );
                         }
                     });
                 }
@@ -110,10 +132,34 @@ impl Pane for SelectPane {
             {
                 let store = store.lock().await;
                 let times = store.get_times().await.unwrap();
-                match tx.send(Message::Refresh(times)).await {
+
+                let mut map: HashMap<i64, TimesData> = HashMap::new();
+                for t in &times {
+                    map.insert(
+                        t.id,
+                        TimesData {
+                            times: t.clone(),
+                            latest: None,
+                        },
+                    );
+                }
+
+                match tx.send(Message::Refresh(map)).await {
                     Ok(_) => {}
                     Err(e) => {
                         error!(format!("failed to sent message: {}", e));
+                    }
+                }
+
+                for t in &times {
+                    if let Some(latest) = store.get_latest_post(t.id).await {
+                        match tx.send(Message::UpdateLatest(t.id, latest)).await
+                        {
+                            Ok(_) => {}
+                            Err(e) => {
+                                error!(format!("failed to send message: {e}"));
+                            }
+                        }
                     }
                 }
             }
@@ -129,7 +175,7 @@ impl SelectPane {
         let (tx, rx) = mpsc::channel::<Message>(32);
 
         let mut pane = Self {
-            times: vec![],
+            times: HashMap::new(),
             store: store.clone(),
             new_title: "".to_string(),
             tx,
@@ -149,9 +195,15 @@ impl SelectPane {
                     self.new_title.clear();
                     return Some(Event::Select(self.store.clone(), times));
                 }
-                Message::Refresh(timeses) => {
+                Message::Refresh(map) => {
                     debug!("found message which referesh");
-                    self.times = timeses;
+                    self.times = map;
+                }
+                Message::UpdateLatest(tid, post) => {
+                    debug!("found message which update latest");
+                    if let Some(tdata) = self.times.get_mut(&tid) {
+                        tdata.latest = Some(post);
+                    }
                 }
                 Message::Error(err) => {
                     error!(err);
