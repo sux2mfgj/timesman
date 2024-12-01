@@ -1,4 +1,5 @@
 use eframe;
+use egui::Vec2;
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::default::Default;
@@ -47,8 +48,15 @@ pub struct RemoteConfig {
 }
 
 #[derive(Deserialize, Serialize, Clone)]
+pub struct WindowConfig {
+    height: f32,
+    width: f32,
+}
+
+#[derive(Deserialize, Serialize, Clone)]
 pub struct UIConfig {
     pub scale: f32,
+    pub window_size: WindowConfig,
 }
 
 impl Default for SqliteConfig {
@@ -77,7 +85,13 @@ impl Default for RemoteConfig {
 
 impl Default for UIConfig {
     fn default() -> Self {
-        Self { scale: 1.0 }
+        Self {
+            scale: 1.0,
+            window_size: WindowConfig {
+                height: 600.0,
+                width: 400.0,
+            },
+        }
     }
 }
 
@@ -144,6 +158,10 @@ impl Config {
     }
 
     pub fn append_init_events(&self, queue: &mut VecDeque<Event>) {
+        queue.push_back(Event::ChangeUI(UIOperation::ChangeWindowSize(
+            self.params.ui.window_size.width,
+            self.params.ui.window_size.height,
+        )));
         queue.push_back(Event::ChangeUI(UIOperation::ChangeScale(
             self.params.ui.scale,
         )));

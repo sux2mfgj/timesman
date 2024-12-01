@@ -1,4 +1,5 @@
 use core::fmt;
+use egui::Vec2;
 use std::collections::VecDeque;
 use std::sync::Arc;
 use tokio::runtime;
@@ -18,7 +19,7 @@ use store::{Store, Times};
 
 pub enum UIOperation {
     ChangeScale(f32),
-    // ChangeWindowSize(f32, f32)
+    ChangeWindowSize(f32, f32),
 }
 
 pub enum Event {
@@ -141,6 +142,11 @@ impl App {
         match op {
             UIOperation::ChangeScale(scale) => {
                 ctx.set_zoom_factor(scale);
+            }
+
+            UIOperation::ChangeWindowSize(h, w) => {
+                let size = Vec2::new(h, w);
+                ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(size));
             }
         }
     }
