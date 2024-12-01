@@ -1,5 +1,6 @@
 use super::{pane_menu, Pane};
 use crate::app::Event;
+use crate::app::UIOperation;
 use crate::config::Config;
 
 use tokio::runtime;
@@ -7,6 +8,7 @@ use tokio::runtime;
 pub struct ConfigPane {
     config: Config,
     edit_mode: bool,
+    scale_text: String,
 }
 
 impl Pane for ConfigPane {
@@ -28,6 +30,7 @@ impl Pane for ConfigPane {
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
+            ui.label("Backing Store");
             ui.horizontal(|ui| {
                 ui.label("Default Store Type");
                 ui.separator();
@@ -66,6 +69,25 @@ impl Pane for ConfigPane {
             for (i, font) in self.config.fonts.fonts.iter().enumerate() {
                 ui.label(format!("{}: {}", i, font.name));
             }
+            ui.separator();
+            ui.horizontal(|ui| {
+                ui.label("GUI Scale");
+                ui.text_edit_singleline(&mut self.scale_text);
+                if ui.button("change").clicked() {
+                    match self.scale_text.parse::<f32>() {
+                        Ok(val) => {
+                            self.config.params.ui.scale = val;
+                            event = Some(Event::ChangeUI(
+                                UIOperation::ChangeScale(val),
+                            ));
+                        }
+                        Err(e) => {
+                            error!(format!("invalid parameter: {e}"));
+                            ui.label(format!("invalid value: {e}"));
+                        }
+                    }
+                }
+            });
         });
 
         egui::TopBottomPanel::bottom("bottom").show(ctx, |ui| {
@@ -90,6 +112,7 @@ impl Pane for ConfigPane {
 impl ConfigPane {
     pub fn new(config: Config) -> Self {
         Self {
+            scale_text: format!("{}", &config.params.ui.scale),
             config,
             edit_mode: false,
         }

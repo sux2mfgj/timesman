@@ -1,10 +1,13 @@
+use eframe;
 use serde::{Deserialize, Serialize};
+use std::collections::VecDeque;
 use std::default::Default;
 use std::fs::File;
 use std::io::{Read, Write};
 use toml;
 use xdg;
 
+use crate::app::{Event, UIOperation};
 use crate::fonts::Fonts;
 
 #[derive(Clone)]
@@ -19,6 +22,7 @@ pub struct ConfigParam {
     pub store: String,
     pub sqlite: SqliteConfig,
     pub remote: RemoteConfig,
+    pub ui: UIConfig,
 }
 
 impl Default for ConfigParam {
@@ -27,6 +31,7 @@ impl Default for ConfigParam {
             store: "sqlite".to_string(),
             sqlite: SqliteConfig::default(),
             remote: RemoteConfig::default(),
+            ui: UIConfig::default(),
         }
     }
 }
@@ -39,6 +44,11 @@ pub struct SqliteConfig {
 #[derive(Deserialize, Serialize, Clone)]
 pub struct RemoteConfig {
     pub server: String,
+}
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct UIConfig {
+    pub scale: f32,
 }
 
 impl Default for SqliteConfig {
@@ -62,6 +72,12 @@ impl Default for RemoteConfig {
         Self {
             server: "http://localhost:8080".to_string(),
         }
+    }
+}
+
+impl Default for UIConfig {
+    fn default() -> Self {
+        Self { scale: 1.0 }
     }
 }
 
@@ -125,5 +141,11 @@ impl Config {
         write!(file, "{}", param_str).map_err(|e| format!("{e}"))?;
 
         Ok(())
+    }
+
+    pub fn append_init_events(&self, queue: &mut VecDeque<Event>) {
+        queue.push_back(Event::ChangeUI(UIOperation::ChangeScale(
+            self.params.ui.scale,
+        )));
     }
 }

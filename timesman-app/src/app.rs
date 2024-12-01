@@ -16,6 +16,11 @@ use crate::pane::Pane;
 use eframe;
 use store::{Store, Times};
 
+pub enum UIOperation {
+    ChangeScale(f32),
+    // ChangeWindowSize(f32, f32)
+}
+
 pub enum Event {
     Connect(Arc<Mutex<Box<dyn Store + Send + Sync + 'static>>>),
     Select(Arc<Mutex<Box<dyn Store + Send + Sync + 'static>>>, Times),
@@ -23,6 +28,7 @@ pub enum Event {
     Logs,
     Config,
     UpdateConfig(Config),
+    ChangeUI(UIOperation),
 }
 
 impl fmt::Display for Event {
@@ -46,6 +52,9 @@ impl fmt::Display for Event {
             Event::UpdateConfig(_) => {
                 write!(f, "Update config")
             }
+            Event::ChangeUI(_op) => {
+                write!(f, "change ui: WIP")
+            }
         }
     }
 }
@@ -55,6 +64,7 @@ pub struct App {
     logs: Arc<std::sync::Mutex<Vec<LogRecord>>>,
     config: Config,
     rt: runtime::Runtime,
+    event_queue: VecDeque<Event>,
 }
 
 impl App {
@@ -68,6 +78,9 @@ impl App {
 
         config.fonts.load_fonts(cc);
 
+        let mut event_queue = VecDeque::new();
+        config.append_init_events(&mut event_queue);
+
         Ok(Self {
             pane_stack: stack,
             logs,
@@ -76,26 +89,11 @@ impl App {
                 .enable_all()
                 .build()
                 .unwrap(),
+            event_queue,
         })
     }
-}
 
-impl eframe::App for App {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        let pane: &mut Box<dyn Pane> = match self.pane_stack.front_mut() {
-            Some(pane) => pane,
-            None => {
-                unimplemented!("shoud close app");
-            }
-        };
-
-        let event = match pane.update(ctx, _frame, &self.rt) {
-            Some(event) => event,
-            None => {
-                return;
-            }
-        };
-
+    fn handle_events(&mut self, event: Event, ctx: &egui::Context) {
         match event {
             Event::Connect(store) => {
                 self.pane_stack
@@ -132,6 +130,44 @@ impl eframe::App for App {
                         format!("{e}")
                     })
                     .unwrap();
+            }
+            Event::ChangeUI(op) => {
+                self.change_ui(ctx, op);
+            }
+        }
+    }
+
+    fn change_ui(&self, ctx: &egui::Context, op: UIOperation) {
+        match op {
+            UIOperation::ChangeScale(scale) => {
+                ctx.set_zoom_factor(scale);
+            }
+        }
+    }
+}
+
+impl eframe::App for App {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        let pane: &mut Box<dyn Pane> = match self.pane_stack.front_mut() {
+            Some(pane) => pane,
+            None => {
+                unimplemented!("shoud close app");
+            }
+        };
+
+        match pane.update(ctx, _frame, &self.rt) {
+            Some(event) => {
+                self.event_queue.push_back(event);
+            }
+            None => {}
+        };
+
+        loop {
+            if let Some(event) = self.event_queue.pop_front() {
+                debug!("Handle Event: {}", event);
+                self.handle_events(event, ctx);
+            } else {
+                break;
             }
         }
     }
