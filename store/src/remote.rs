@@ -242,7 +242,13 @@ impl Store for RemoteStore {
         unimplemented!();
     }
 
-    async fn get_latest_post(&self, tid: i64) -> Option<Post> {
-        None
+    async fn get_latest_post(&self, tid: i64) -> Result<Option<Post>, String> {
+        let posts = self.get_posts(tid).await?;
+
+        if let Some(p) = posts.iter().max_by_key(|p| p.id) {
+            return Ok(Some(p.clone()));
+        }
+
+        Ok(None)
     }
 }

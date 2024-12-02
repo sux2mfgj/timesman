@@ -84,8 +84,8 @@ impl Store for JsonStore {
         Err("not supported to delete post".to_string())
     }
 
-    async fn get_latest_post(&self, tid: i64) -> Option<Post> {
-        None
+    async fn get_latest_post(&self, _tid: i64) -> Result<Option<Post>, String> {
+        Ok(None)
     }
 }
 

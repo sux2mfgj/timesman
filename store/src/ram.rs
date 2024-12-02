@@ -142,16 +142,16 @@ impl Store for RamStore {
         unimplemented!();
     }
 
-    async fn get_latest_post(&self, tid: i64) -> Option<Post> {
+    async fn get_latest_post(&self, tid: i64) -> Result<Option<Post>, String> {
         if let Some(ltimes) = self.times.get(&tid) {
             let keys: Vec<i64> = ltimes.posts.clone().into_keys().collect();
             if let Some(latest_pid) = keys.iter().max() {
                 if let Some(post) = ltimes.posts.get(latest_pid) {
-                    return Some(post.clone());
+                    return Ok(Some(post.clone()));
                 }
             }
         }
 
-        None
+        Ok(None)
     }
 }

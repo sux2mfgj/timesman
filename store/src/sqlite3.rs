@@ -165,7 +165,7 @@ impl Store for SqliteStore {
         unimplemented!();
     }
 
-    async fn get_latest_post(&self, tid: i64) -> Option<Post> {
-        None
+    async fn get_latest_post(&self, tid: i64) -> Result<Option<Post>, String> {
+        Ok(None)
     }
 }
