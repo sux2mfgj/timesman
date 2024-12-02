@@ -6,6 +6,8 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use store::sqlite3::SqliteStoreBuilder;
 use store::{Post, Store, Times};
+use tracing;
+use tracing_actix_web::TracingLogger;
 
 #[derive(Clone)]
 struct Context {
@@ -29,6 +31,7 @@ async fn get_times(ctx: web::Data<Context>) -> impl Responder {
     let times = match store.get_times().await {
         Ok(times) => times,
         Err(e) => {
+            tracing::info!("failed to get times from store {e}");
             let resp = ResponseBase { status: 1, text: e };
 
             return HttpResponse::Ok()
@@ -36,7 +39,7 @@ async fn get_times(ctx: web::Data<Context>) -> impl Responder {
         }
     };
 
-    println!("/get_times");
+    tracing::info!("get times. num: {}", times.iter().len());
 
     let resp = ResponseTimes {
         base: ResponseBase {
@@ -62,6 +65,7 @@ async fn create_times(
     let times = match store.create_times(req.title.clone()).await {
         Ok(times) => times,
         Err(e) => {
+            tracing::info!("failed to create title: {e}");
             let resp = ResponseBase { status: 1, text: e };
 
             return HttpResponse::Ok()
@@ -69,6 +73,11 @@ async fn create_times(
         }
     };
 
+    tracing::info!(
+        "create times with title: {}, id: {}",
+        &req.title,
+        &times.id
+    );
     #[derive(Serialize)]
     struct Response {
         base: ResponseBase,
@@ -96,6 +105,7 @@ async fn delete_times(
     match store.delete_times(tid).await {
         Ok(()) => {}
         Err(e) => {
+            tracing::info!("failed to delete times: {e}");
             let resp = ResponseBase { status: 1, text: e };
 
             return HttpResponse::Ok()
@@ -104,6 +114,7 @@ async fn delete_times(
     }
     /* TODO: asynchronous delete */
 
+    tracing::info!("mark as delete the times {}", tid);
     let resp = ResponseBase {
         status: 0,
         text: "Ok".to_string(),
@@ -128,12 +139,15 @@ async fn get_posts(
     let posts = match store.get_posts(tid).await {
         Ok(posts) => posts,
         Err(e) => {
+            tracing::info!("failed to get posts for times {}: {}", tid, &e);
             let resp = ResponseBase { status: 1, text: e };
 
             return HttpResponse::Ok()
                 .body(serde_json::to_string(&resp).unwrap());
         }
     };
+
+    tracing::info!("get posts ({}) for times {}", posts.iter().len(), tid);
 
     let resp = GetPostResponse {
         base: ResponseBase {
@@ -169,12 +183,20 @@ async fn post_post(
     let post = match store.create_post(tid, post).await {
         Ok(post) => post,
         Err(e) => {
+            tracing::info!("failed to create a post for times {}: {}", tid, &e);
             let resp = ResponseBase { status: 1, text: e };
 
             return HttpResponse::Ok()
                 .body(serde_json::to_string(&resp).unwrap());
         }
     };
+
+    tracing::info!(
+        "create a post ({}, {}) for times {}",
+        post.id,
+        post.post,
+        tid
+    );
 
     let resp = PostPostResponse {
         base: ResponseBase {
@@ -189,6 +211,10 @@ async fn post_post(
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::INFO)
+        .init();
+
     let store = SqliteStoreBuilder::new("./database.db");
     let store = store.build().await.unwrap();
 
@@ -198,6 +224,7 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         App::new()
+            .wrap(TracingLogger::default())
             .app_data(web::Data::new(ctx.clone()))
             .route("/times", web::get().to(get_times))
             .route("/times", web::post().to(create_times))
