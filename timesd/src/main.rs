@@ -4,7 +4,7 @@ use serde_json;
 
 use std::sync::Arc;
 use std::sync::Mutex;
-use store::sqlite3::SqliteStore;
+use store::sqlite3::SqliteStoreBuilder;
 use store::{Post, Store, Times};
 
 #[derive(Clone)]
@@ -189,8 +189,11 @@ async fn post_post(
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    let store = SqliteStoreBuilder::new("./database.db");
+    let store = store.build().await.unwrap();
+
     let ctx = Context {
-        store: Arc::new(Mutex::new(SqliteStore::new("./database.db"))),
+        store: Arc::new(Mutex::new(store)),
     };
 
     HttpServer::new(move || {
