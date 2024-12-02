@@ -152,7 +152,9 @@ impl Pane for SelectPane {
                 }
 
                 for t in &times {
-                    if let Some(latest) = store.get_latest_post(t.id).await {
+                    if let Some(latest) =
+                        store.get_latest_post(t.id).await.unwrap()
+                    {
                         match tx.send(Message::UpdateLatest(t.id, latest)).await
                         {
                             Ok(_) => {}
