@@ -138,8 +138,17 @@ impl Pane for StartPane {
                 }
                 BackingStore::Sqlite3 => {
                     ui.label("database file");
-                    let path = &mut self.config.params.sqlite.db;
-                    ui.text_edit_singleline(path);
+
+                    if ui.button("Select").clicked() {
+                        self.file_dialog.select_file();
+                    }
+
+                    if let Some(path) = self.file_dialog.update(ctx).selected()
+                    {
+                        self.config.params.sqlite.db =
+                            path.to_string_lossy().to_string();
+                    }
+                    ui.label(&self.config.params.sqlite.db);
                 }
             }
 
