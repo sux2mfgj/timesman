@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::default::Default;
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::{BufWriter, Read, Write};
 use toml;
 use xdg;
 
@@ -148,11 +148,15 @@ impl Config {
             .base
             .find_config_file(config_file_name)
             .ok_or("Can't found config file")?;
-        let mut file = File::open(path).map_err(|e| format!("{e}"))?;
+        let mut file =
+            File::open(&path).map_err(|e| format!("{e}: {:?}", path))?;
 
+        let mut bw = BufWriter::new(file);
         let param_str =
             toml::to_string(&self.params).map_err(|e| format!("{e}"))?;
-        write!(file, "{}", param_str).map_err(|e| format!("{e}"))?;
+
+        write!(bw, "{}", param_str)
+            .map_err(|e| format!("Error on try writing config. {e}"))?;
 
         Ok(())
     }
