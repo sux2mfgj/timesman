@@ -127,7 +127,7 @@ impl App {
                 self.config
                     .store_config()
                     .map_err(|e| {
-                        error!("{e}");
+                        error!(format!("{}", e));
                         format!("{e}")
                     })
                     .unwrap();
