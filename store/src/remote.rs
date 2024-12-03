@@ -86,10 +86,10 @@ impl Store for RemoteStore {
 
         let resp = reqwest::get(url)
             .await
-            .unwrap()
+            .map_err(|e| format!("{e}"))?
             .json::<Response>()
             .await
-            .unwrap();
+            .map_err(|e| format!("{e}"))?;
 
         let times = resp
             .times
@@ -125,9 +125,17 @@ impl Store for RemoteStore {
         };
 
         let client = reqwest::Client::new();
-        let result = client.post(url).json(&data).send().await.unwrap();
+        let result = client
+            .post(url)
+            .json(&data)
+            .send()
+            .await
+            .map_err(|e| format!("{e}"))?;
 
-        let resp = result.json::<CreateTimesResponse>().await.unwrap();
+        let resp = result
+            .json::<CreateTimesResponse>()
+            .await
+            .map_err(|e| format!("{e}"))?;
 
         if resp.base.status != 0 {
             Err(resp.base.text)
@@ -142,9 +150,16 @@ impl Store for RemoteStore {
         // debug!("Request HTTP Delete to {}", self.server);
 
         let client = reqwest::Client::new();
-        let result = client.delete(url).send().await.unwrap();
+        let result = client
+            .delete(url)
+            .send()
+            .await
+            .map_err(|e| format!("{e}"))?;
 
-        let resp = result.json::<ResponseBase>().await.unwrap();
+        let resp = result
+            .json::<ResponseBase>()
+            .await
+            .map_err(|e| format!("{e}"))?;
 
         if resp.status != 0 {
             return Err(format!("request error: {}", resp.text));
@@ -170,10 +185,10 @@ impl Store for RemoteStore {
 
         let resp = reqwest::get(url)
             .await
-            .unwrap()
+            .map_err(|e| format!("{e}"))?
             .json::<Response>()
             .await
-            .unwrap();
+            .map_err(|e| format!("{e}"))?;
 
         let posts =
             resp.posts.iter().map(|rp| Post::from(rp.clone())).collect();
@@ -210,9 +225,17 @@ impl Store for RemoteStore {
         };
 
         let client = reqwest::Client::new();
-        let result = client.post(url).json(&data).send().await.unwrap();
+        let result = client
+            .post(url)
+            .json(&data)
+            .send()
+            .await
+            .map_err(|e| format!("{e}"))?;
 
-        let resp = result.json::<Response>().await.unwrap();
+        let resp = result
+            .json::<Response>()
+            .await
+            .map_err(|e| format!("{e}"))?;
 
         if resp.base.status != 0 {
             return Err(format!("request error: {}", resp.base.text));
