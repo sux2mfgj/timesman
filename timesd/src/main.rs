@@ -1,7 +1,10 @@
+mod config;
+
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use serde::{Deserialize, Serialize};
 use serde_json;
 
+use clap::Parser;
 use std::sync::Arc;
 use std::sync::Mutex;
 use store::sqlite3::SqliteStoreBuilder;
@@ -209,14 +212,33 @@ async fn post_post(
     HttpResponse::Ok().body(serde_json::to_string(&resp).unwrap())
 }
 
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    #[arg(short, long)]
+    config: String,
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::INFO)
         .init();
 
-    let store = SqliteStoreBuilder::new("./database.db");
-    let store = store.build().await.unwrap();
+    let args = Args::parse();
+
+    let config = config::Config::load(args.config.into()).unwrap();
+
+    let store = match &*config.store_type {
+        "sqlite" => SqliteStoreBuilder::new(&config.store_param)
+            .build()
+            .await
+            .unwrap(),
+        default => {
+            tracing::error!("invalid config: store_type");
+            return Ok(());
+        }
+    };
 
     let ctx = Context {
         store: Arc::new(Mutex::new(store)),
@@ -232,7 +254,7 @@ async fn main() -> std::io::Result<()> {
             .route("/times/{tid}", web::get().to(get_posts))
             .route("/times/{tid}", web::post().to(post_post))
     })
-    .bind("localhost:8080")?
+    .bind(config.listen)?
     .run()
     .await
 }
