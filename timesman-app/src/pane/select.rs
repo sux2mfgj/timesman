@@ -62,6 +62,39 @@ impl Pane for SelectPane {
                 ui.label("new");
                 ui.separator();
                 ui.text_edit_singleline(&mut self.new_title);
+
+                ui.separator();
+                if ui.button("today").clicked() {
+                    let title =
+                        chrono::Local::now().format("%Y%m%d").to_string();
+                    if let Some((_k, tdata)) =
+                        self.times.iter().find(|(_k, t)| t.times.title == title)
+                    {
+                        event = Some(Event::Select(
+                            self.store.clone(),
+                            tdata.times.clone(),
+                        ));
+                    } else {
+                        let store = self.store.clone();
+                        let tx = self.tx.clone();
+                        rt.spawn(async move {
+                            let mut store = store.lock().await;
+
+                            match store.create_times(title.clone()).await {
+                                Ok(new_times) => {
+                                    tx.send(Message::Create(new_times))
+                                        .await
+                                        .unwrap();
+                                }
+                                Err(e) => {
+                                    tx.send(Message::Error(format!("{}", e)))
+                                        .await
+                                        .unwrap();
+                                }
+                            }
+                        });
+                    }
+                }
             });
             if ui.input_mut(|i| i.consume_key(Modifiers::COMMAND, Key::Enter)) {
                 let store = self.store.clone();
