@@ -2,6 +2,7 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
+use url::Url;
 
 use crate::app::Event;
 
@@ -146,7 +147,12 @@ impl TimesPane {
                             ui.label(&p.post);
                         }
                     } else {
-                        ui.label(&p.post).on_hover_ui(|ui| {
+                        let line = match Url::parse(&p.post) {
+                            Ok(_url) => ui.hyperlink(&p.post),
+                            Err(_) => ui.label(&p.post),
+                        };
+
+                        line.on_hover_ui(|ui| {
                             ui.horizontal(|ui| {
                                 ui.label(format!("id: {}", p.id));
                                 if ui.button("delete").clicked() {

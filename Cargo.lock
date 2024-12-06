@@ -4447,6 +4447,7 @@ dependencies = [
  "store",
  "tokio",
  "toml",
+ "url",
  "xdg",
 ]
 
