@@ -78,9 +78,41 @@ impl TimesPane {
         }
     }
 
+    fn is_same_hour<T: chrono::Datelike + chrono::Timelike>(
+        a: &T,
+        b: &T,
+    ) -> bool {
+        if a.year() != b.year() {
+            return false;
+        }
+
+        if a.month() != b.month() {
+            return false;
+        }
+
+        if a.day() != b.day() {
+            return false;
+        }
+
+        if a.hour() != b.hour() {
+            return false;
+        }
+
+        return true;
+    }
+
     fn show_times(&mut self, scroll_area: ScrollArea, ui: &mut Ui) {
         scroll_area.show(ui, |ui| {
+            let mut prev: Option<chrono::NaiveDateTime> = None;
+
             for p in &mut self.posts {
+                if let Some(ptime) = prev {
+                    if !Self::is_same_hour(&ptime, &p.created_at) {
+                        ui.separator();
+                    }
+                }
+                prev = Some(p.created_at);
+
                 ui.horizontal(|ui| {
                     let utc_time = Utc.from_utc_datetime(&p.created_at);
                     let local_time: DateTime<Local> = DateTime::from(utc_time);
