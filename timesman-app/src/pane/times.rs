@@ -36,6 +36,7 @@ enum Message {
     Refresh(Vec<Post>),
     Create(Post),
     Update(Times),
+    Delete(Post),
     Pop,
 }
 
@@ -102,7 +103,12 @@ impl TimesPane {
         return true;
     }
 
-    fn show_times(&mut self, scroll_area: ScrollArea, ui: &mut Ui) {
+    fn show_times(
+        &mut self,
+        rt: &runtime::Runtime,
+        scroll_area: ScrollArea,
+        ui: &mut Ui,
+    ) {
         scroll_area.show(ui, |ui| {
             let mut prev: Option<chrono::NaiveDateTime> = None;
 
@@ -156,12 +162,23 @@ impl TimesPane {
                             ui.horizontal(|ui| {
                                 ui.label(format!("id: {}", p.id));
                                 if ui.button("delete").clicked() {
-                                    //let mut store = self.store.borrow_mut();
-                                    //match store.delete_post(self.times.id, p.id)
-                                    //{
-                                    //    Ok(_) => {}
-                                    //    Err(e) => error!(e),
-                                    //};
+                                    let store = self.store.clone();
+                                    let tid = self.times.id;
+                                    let pid = p.id;
+                                    let tx = self.tx.clone();
+                                    let post = p.clone();
+                                    rt.spawn(async move {
+                                        let mut store = store.lock().await;
+                                        match store.delete_post(tid, pid).await
+                                        {
+                                            Ok(_) => {
+                                                tx.send(Message::Delete(post))
+                                                    .await
+                                                    .unwrap();
+                                            }
+                                            Err(_e) => {}
+                                        }
+                                    });
                                 }
                                 if ui.button("edit").clicked() {
                                     self.edit_post = Some(p.id);
@@ -199,6 +216,11 @@ impl TimesPane {
                 Message::Update(times) => {
                     self.times = times;
                     self.edit_title = false;
+                }
+                Message::Delete(post) => {
+                    debug!("Handling delete post: {}", post.id);
+                    let prev_len = self.posts.len();
+                    self.posts.retain(|x| x.id != post.id);
                 }
                 Message::Pop => {
                     return Some(Event::Pop);
@@ -329,14 +351,6 @@ impl Pane for TimesPane {
                         }
                     }
                 });
-                //let mut store_ref = self.store.borrow_mut();
-                //match store_ref.create_post(self.times.id, text.to_string()) {
-                //    Err(_e) => {}
-                //    Ok(p) => {
-                //        self.posts.push(p);
-                //        self.post_text.clear();
-                //    }
-                //}
             }
         });
 
@@ -345,7 +359,7 @@ impl Pane for TimesPane {
                 .auto_shrink(false)
                 .max_height(ui.available_height())
                 .stick_to_bottom(true);
-            self.show_times(scroll_area, ui);
+            self.show_times(rt, scroll_area, ui);
         });
 
         event
