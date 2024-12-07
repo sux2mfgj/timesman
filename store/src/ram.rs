@@ -134,12 +134,16 @@ impl Store for RamStore {
         Ok(post)
     }
 
-    async fn delete_post(
-        &mut self,
-        _tid: i64,
-        _pid: i64,
-    ) -> Result<(), String> {
-        unimplemented!();
+    async fn delete_post(&mut self, tid: i64, pid: i64) -> Result<(), String> {
+        if let Some(times) = self.times.get_mut(&tid) {
+            if let Some(_) = times.posts.remove(&pid) {
+                Ok(())
+            } else {
+                Err("Invalid pid".to_string())
+            }
+        } else {
+            Err("Invalid tid".to_string())
+        }
     }
 
     async fn get_latest_post(&self, tid: i64) -> Result<Option<Post>, String> {
