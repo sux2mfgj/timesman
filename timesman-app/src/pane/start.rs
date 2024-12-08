@@ -13,7 +13,7 @@ use store::remote::RemoteStore;
 use store::sqlite3::SqliteStoreBuilder;
 use store::Store;
 use tokio::runtime;
-use tokio::sync::mpsc::{self, Receiver, Sender};
+use tokio::sync::mpsc::{self};
 use tokio::sync::Mutex;
 
 #[derive(PartialEq)]

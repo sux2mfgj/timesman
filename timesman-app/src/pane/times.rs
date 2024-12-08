@@ -1,5 +1,3 @@
-use std::fs::File;
-use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
 use url::Url;

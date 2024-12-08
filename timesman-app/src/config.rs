@@ -1,5 +1,3 @@
-use eframe;
-use egui::Vec2;
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::default::Default;
@@ -148,7 +146,7 @@ impl Config {
             .base
             .find_config_file(config_file_name)
             .ok_or("Can't found config file")?;
-        let mut file =
+        let file =
             File::open(&path).map_err(|e| format!("{e}: {:?}", path))?;
 
         let mut bw = BufWriter::new(file);
