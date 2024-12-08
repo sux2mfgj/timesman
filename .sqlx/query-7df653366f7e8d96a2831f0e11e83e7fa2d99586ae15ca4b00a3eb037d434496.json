@@ -1,0 +1,44 @@
+{
+  "db_name": "SQLite",
+  "query": "select * from posts where tid = $1",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "tid",
+        "ordinal": 1,
+        "type_info": "Integer"
+      },
+      {
+        "name": "post",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_at",
+        "ordinal": 3,
+        "type_info": "Datetime"
+      },
+      {
+        "name": "updated_at",
+        "ordinal": 4,
+        "type_info": "Datetime"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "7df653366f7e8d96a2831f0e11e83e7fa2d99586ae15ca4b00a3eb037d434496"
+}

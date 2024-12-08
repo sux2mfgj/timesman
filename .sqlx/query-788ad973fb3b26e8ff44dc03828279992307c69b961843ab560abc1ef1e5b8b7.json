@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "insert into posts(tid, post)\n                    values ($1, $2)\n                    returning id as \"id!\", post, created_at, updated_at",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "post",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_at",
+        "ordinal": 2,
+        "type_info": "Datetime"
+      },
+      {
+        "name": "updated_at",
+        "ordinal": 3,
+        "type_info": "Datetime"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "788ad973fb3b26e8ff44dc03828279992307c69b961843ab560abc1ef1e5b8b7"
+}
