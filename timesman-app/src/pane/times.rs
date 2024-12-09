@@ -34,6 +34,7 @@ enum Message {
     Refresh(Vec<Post>),
     Create(Post),
     UpdateTimes(Times),
+    UpdatePost(Post),
     Delete(Post),
     Pop,
 }
@@ -133,19 +134,24 @@ impl TimesPane {
                         if p.id == edit_pid {
                             ui.text_edit_singleline(&mut p.post);
                             if ui.button("done").clicked() {
+                                let store = self.store.clone();
+                                let tid = self.times.id;
+                                let tx = self.tx.clone();
+                                let post = p.clone();
 
-                                //let mut store = self.store.borrow_mut();
-                                //self.edit_post = None;
-                                //match store
-                                //    .update_post(self.times.id, p.clone())
-                                //{
-                                //    Ok(_) => {
-                                //        //TODO: should update the post.updated_at.
-                                //    }
-                                //    Err(e) => {
-                                //        error!(e);
-                                //    }
-                                //};
+                                rt.spawn(async move {
+                                    let mut store = store.lock().await;
+                                    match store.update_post(tid, post).await {
+                                        Ok(p) => {
+                                            tx.send(Message::UpdatePost(p))
+                                                .await
+                                                .unwrap();
+                                        }
+                                        Err(e) => {
+                                            error!(e);
+                                        }
+                                    }
+                                });
                             }
                         } else {
                             ui.label(&p.post);
@@ -214,6 +220,16 @@ impl TimesPane {
                 Message::UpdateTimes(times) => {
                     self.times = times;
                     self.edit_title = false;
+                }
+                Message::UpdatePost(post) => {
+                    if let Some(p) =
+                        self.posts.iter_mut().find(|p| p.id == post.id)
+                    {
+                        *p = post;
+                    } else {
+                        error!("found invalid post id: {}", post.id);
+                    }
+                    self.edit_post = None;
                 }
                 Message::Delete(post) => {
                     debug!("Handling delete post: {}", post.id);
