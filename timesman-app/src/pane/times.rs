@@ -33,7 +33,7 @@ pub struct TimesPane {
 enum Message {
     Refresh(Vec<Post>),
     Create(Post),
-    Update(Times),
+    UpdateTimes(Times),
     Delete(Post),
     Pop,
 }
@@ -211,7 +211,7 @@ impl TimesPane {
                     self.posts.push(post);
                     self.post_text.clear();
                 }
-                Message::Update(times) => {
+                Message::UpdateTimes(times) => {
                     self.times = times;
                     self.edit_title = false;
                 }
@@ -298,7 +298,7 @@ impl Pane for TimesPane {
                             let mut store = store.lock().await;
                             match store.update_times(times).await {
                                 Ok(times) => {
-                                    tx.send(Message::Update(times))
+                                    tx.send(Message::UpdateTimes(times))
                                         .await
                                         .unwrap();
                                 }
