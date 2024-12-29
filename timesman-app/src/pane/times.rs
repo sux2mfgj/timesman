@@ -8,6 +8,7 @@ use chrono::{DateTime, Local, TimeZone, Utc};
 use eframe::egui::ScrollArea;
 use egui::{Key, Modifiers, Ui};
 use egui_file_dialog::FileDialog;
+#[cfg(feature = "json")]
 use timesman_bstore::json::JsonStore;
 use timesman_bstore::{Post, Store, Times};
 use tokio::runtime;
@@ -194,6 +195,12 @@ impl TimesPane {
         });
     }
 
+    #[cfg(not(feature = "json"))]
+    fn save_file(&self, _path: &PathBuf) -> Result<(), String> {
+        Err("Json feature is disabled.".to_string())
+    }
+
+    #[cfg(feature = "json")]
     fn save_file(&self, path: &PathBuf) -> Result<(), String> {
         let json_store = JsonStore::new(self.times.clone(), self.posts.clone());
 

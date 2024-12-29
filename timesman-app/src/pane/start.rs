@@ -7,27 +7,22 @@ use crate::config::Config;
 use super::Pane;
 
 use egui_file_dialog::FileDialog;
+#[cfg(feature = "json")]
 use timesman_bstore::json::JsonStore;
 use timesman_bstore::ram::RamStore;
+#[cfg(feature = "http")]
 use timesman_bstore::remote::RemoteStore;
+#[cfg(feature = "sqlite")]
 use timesman_bstore::sqlite3::SqliteStoreBuilder;
-use timesman_bstore::Store;
+use timesman_bstore::{Store, StoreType};
 use tokio::runtime;
 use tokio::sync::mpsc::{self};
 use tokio::sync::Mutex;
 
-#[derive(PartialEq)]
-enum BackingStore {
-    Remote,
-    Memory,
-    Sqlite3,
-    Json,
-}
-
 pub struct StartPane {
     config: Config,
     errmsg: Option<String>,
-    store: BackingStore,
+    store: StoreType,
     file_dialog: FileDialog,
     json_file: Option<PathBuf>,
 }
@@ -37,7 +32,7 @@ impl StartPane {
         Self {
             config,
             errmsg: None,
-            store: BackingStore::Remote,
+            store: StoreType::default(),
             file_dialog: FileDialog::new(),
             json_file: None,
         }
@@ -46,14 +41,16 @@ impl StartPane {
     fn start(&self, rt: &runtime::Runtime) -> Result<Event, String> {
         let store: Arc<Mutex<Box<dyn Store + Send + Sync + 'static>>> =
             match self.store {
-                BackingStore::Remote => {
+                #[cfg(feature = "http")]
+                StoreType::Remote => {
                     let server = self.config.params.remote.server.clone();
                     Arc::new(Mutex::new(Box::new(RemoteStore::new(server))))
                 }
-                BackingStore::Memory => {
+                StoreType::Memory => {
                     Arc::new(Mutex::new(Box::new(RamStore::new())))
                 }
-                BackingStore::Json => {
+                #[cfg(feature = "json")]
+                StoreType::Json => {
                     if let Some(path) = &self.json_file {
                         let store = JsonStore::build(path.clone())?;
                         Arc::new(Mutex::new(Box::new(store)))
@@ -61,7 +58,8 @@ impl StartPane {
                         return Err(format!("You should select the json file"));
                     }
                 }
-                BackingStore::Sqlite3 => {
+                #[cfg(feature = "sqlite")]
+                StoreType::Sqlite => {
                     let path = self.config.params.sqlite.db.clone();
                     let store = SqliteStoreBuilder::new(&path);
                     let store =
@@ -105,23 +103,28 @@ impl Pane for StartPane {
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.radio_value(&mut self.store, BackingStore::Remote, "Server");
+            #[cfg(feature = "http")]
+            ui.radio_value(&mut self.store, StoreType::Remote, "Server");
             ui.label("Local");
-            ui.radio_value(&mut self.store, BackingStore::Memory, "Temporay");
-            ui.radio_value(&mut self.store, BackingStore::Json, "Json");
-            ui.radio_value(&mut self.store, BackingStore::Sqlite3, "Sqlite");
+            ui.radio_value(&mut self.store, StoreType::Memory, "Temporay");
+            #[cfg(feature = "json")]
+            ui.radio_value(&mut self.store, StoreType::Json, "Json");
+            #[cfg(feature = "sqlite")]
+            ui.radio_value(&mut self.store, StoreType::Sqlite, "Sqlite");
 
             ui.separator();
             ui.label("Configurations:");
 
             match self.store {
-                BackingStore::Memory => {}
-                BackingStore::Remote => {
+                StoreType::Memory => {}
+                #[cfg(feature = "http")]
+                StoreType::Remote => {
                     ui.label("Server");
                     let server = &mut self.config.params.remote.server;
                     ui.text_edit_singleline(server);
                 }
-                BackingStore::Json => {
+                #[cfg(feature = "json")]
+                StoreType::Json => {
                     ui.label("File");
                     if ui.button("Select").clicked() {
                         self.file_dialog.select_file();
@@ -136,7 +139,8 @@ impl Pane for StartPane {
                         ui.label(format!("{:?}", path));
                     }
                 }
-                BackingStore::Sqlite3 => {
+                #[cfg(feature = "sqlite")]
+                StoreType::Sqlite => {
                     ui.label("database file");
 
                     if ui.button("Select").clicked() {

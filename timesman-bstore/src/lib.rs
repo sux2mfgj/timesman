@@ -1,12 +1,27 @@
+#[cfg(feature = "json")]
 pub mod json;
 pub mod ram;
+#[cfg(feature = "http")]
 pub mod remote;
+#[cfg(feature = "sqlite")]
 pub mod sqlite3;
 
 use async_trait::async_trait;
 use chrono;
 
 use serde::{Deserialize, Serialize};
+
+#[derive(PartialEq, Default)]
+pub enum StoreType {
+    #[default]
+    Memory,
+    #[cfg(feature = "json")]
+    Json,
+    #[cfg(feature = "http")]
+    Remote,
+    #[cfg(feature = "sqlite")]
+    Sqlite,
+}
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Times {

@@ -3,11 +3,16 @@ name = "timesman-bstore"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = []
+json = ["serde_json"]
+http = ["reqwest"]
+sqlite = ["sqlx"]
+
 [dependencies]
 async-trait = "0.1.83"
 chrono = { version = "0.4.38", features = ["serde"] }
-reqwest = { version = "0.12.9", features = ["blocking", "json"] }
+reqwest = { version = "0.12.9", features = ["blocking", "json"], optional = true }
 serde = { version = "1.0.215", features = ["serde_derive"] }
-serde_json = "1.0.133"
-sqlx = { version = "0.8.2", features = ["chrono", "runtime-tokio", "sqlite"] }
-tokio = { version = "1.41.1", features = ["full"] }
+serde_json = {version = "1.0.133", optional = true}
+sqlx = { version = "0.8.2", features = ["chrono", "sqlite"], optional = true }
