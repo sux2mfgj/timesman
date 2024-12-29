@@ -96,7 +96,7 @@ impl Pane for StartPane {
         let mut event = None;
         egui::TopBottomPanel::top("top").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
-                self.times_menu(ui);
+                event = self.times_menu(ui);
             });
         });
 

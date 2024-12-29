@@ -262,7 +262,7 @@ impl Pane for TimesPane {
 
         egui::TopBottomPanel::top("top").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
-                self.times_menu(ui);
+                event = self.times_menu(ui);
             });
 
             ui.horizontal(|ui| {
