@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 use clap::Parser;
-use store::sqlite3::SqliteStoreBuilder;
+use timesman_bstore::sqlite3::SqliteStoreBuilder;
 
 use timesman_server::TimesManServer;
 

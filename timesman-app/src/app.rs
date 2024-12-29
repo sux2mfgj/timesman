@@ -15,7 +15,7 @@ use crate::pane::times::TimesPane;
 use crate::pane::Pane;
 
 use eframe;
-use store::{Store, Times};
+use timesman_bstore::{Store, Times};
 
 pub enum UIOperation {
     ChangeScale(f32),

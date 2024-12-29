@@ -6,7 +6,7 @@ use crate::app::Event;
 use eframe::egui::ScrollArea;
 use egui::{Key, Modifiers};
 use std::collections::HashMap;
-use store::{Post, Store, Times};
+use timesman_bstore::{Post, Store, Times};
 use tokio;
 use tokio::sync::Mutex;
 

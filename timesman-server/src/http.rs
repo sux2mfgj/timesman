@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use store::{Post, Store, Times};
+use timesman_bstore::{Post, Store, Times};
 
 use super::TimesManServer;
 

@@ -8,13 +8,12 @@ use chrono::{DateTime, Local, TimeZone, Utc};
 use eframe::egui::ScrollArea;
 use egui::{Key, Modifiers, Ui};
 use egui_file_dialog::FileDialog;
-use store::{Post, Store, Times};
+use timesman_bstore::json::JsonStore;
+use timesman_bstore::{Post, Store, Times};
 use tokio::runtime;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::Mutex;
-
-use store::json::JsonStore;
 
 use super::Pane;
 

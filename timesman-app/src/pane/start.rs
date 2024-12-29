@@ -7,11 +7,11 @@ use crate::config::Config;
 use super::Pane;
 
 use egui_file_dialog::FileDialog;
-use store::json::JsonStore;
-use store::ram::RamStore;
-use store::remote::RemoteStore;
-use store::sqlite3::SqliteStoreBuilder;
-use store::Store;
+use timesman_bstore::json::JsonStore;
+use timesman_bstore::ram::RamStore;
+use timesman_bstore::remote::RemoteStore;
+use timesman_bstore::sqlite3::SqliteStoreBuilder;
+use timesman_bstore::Store;
 use tokio::runtime;
 use tokio::sync::mpsc::{self};
 use tokio::sync::Mutex;

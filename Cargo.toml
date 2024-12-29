@@ -2,7 +2,7 @@
 resolver = "2"
 
 members = [
-  "store",
+  "timesman-bstore",
   "timesman-app",
   "timesman-server",
 ]

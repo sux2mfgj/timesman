@@ -5,7 +5,7 @@ use std::sync::Mutex;
 
 use async_trait::async_trait;
 
-use store::Store;
+use timesman_bstore::Store;
 
 #[async_trait]
 pub trait TimesManServer {
