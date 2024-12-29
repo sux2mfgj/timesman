@@ -100,6 +100,10 @@ impl Pane for StartPane {
             });
         });
 
+        egui::TopBottomPanel::bottom("bottom").show(ctx, |ui| {
+            self.show_latest_log(ui);
+        });
+
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.radio_value(&mut self.store, BackingStore::Remote, "Server");
             ui.label("Local");

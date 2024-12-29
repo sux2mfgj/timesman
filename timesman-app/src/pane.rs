@@ -48,5 +48,13 @@ pub trait Pane {
         e
     }
 
-    fn bottom_log(&self, ui: &mut egui::Ui) {}
+    fn show_latest_log(&self, ui: &mut egui::Ui) {
+        ui.horizontal(|ui| {
+            ui.label("Log");
+            ui.separator();
+            if let Some(l) = crate::log::latest() {
+                l.show(ui);
+            }
+        });
+    }
 }

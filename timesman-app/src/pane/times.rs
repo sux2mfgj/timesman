@@ -333,6 +333,7 @@ impl Pane for TimesPane {
                 }
             });
         });
+
         egui::TopBottomPanel::bottom("bottom").show(ctx, |ui| {
             let text = self.post_text.clone();
             egui::TextEdit::multiline(&mut self.post_text)
@@ -361,6 +362,8 @@ impl Pane for TimesPane {
                         }
                     }
                 });
+
+                self.show_latest_log(ui);
             }
 
             egui::TopBottomPanel::bottom("bottom log").show(ctx, |ui| {

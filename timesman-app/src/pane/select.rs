@@ -113,6 +113,10 @@ impl Pane for SelectPane {
             }
         });
 
+        egui::TopBottomPanel::bottom("bottom").show(ctx, |ui| {
+            self.show_latest_log(ui);
+        });
+
         egui::CentralPanel::default().show(ctx, |ui| {
             let scroll_area = ScrollArea::vertical()
                 .auto_shrink(false)

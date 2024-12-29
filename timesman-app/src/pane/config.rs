@@ -25,6 +25,21 @@ impl Pane for ConfigPane {
             });
         });
 
+        egui::TopBottomPanel::bottom("bottom").show(ctx, |ui| {
+            if self.edit_mode {
+                if ui.button("Done").clicked() {
+                    self.edit_mode = false;
+                    event = Some(Event::UpdateConfig(self.config.clone()));
+                }
+            } else {
+                if ui.button("Edit").clicked() {
+                    self.edit_mode = true;
+                }
+            }
+            ui.separator();
+            self.show_latest_log(ui);
+        });
+
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.label("Backing Store");
             ui.horizontal(|ui| {
@@ -84,19 +99,6 @@ impl Pane for ConfigPane {
                     }
                 }
             });
-        });
-
-        egui::TopBottomPanel::bottom("bottom").show(ctx, |ui| {
-            if self.edit_mode {
-                if ui.button("Done").clicked() {
-                    self.edit_mode = false;
-                    event = Some(Event::UpdateConfig(self.config.clone()));
-                }
-            } else {
-                if ui.button("Edit").clicked() {
-                    self.edit_mode = true;
-                }
-            }
         });
 
         event

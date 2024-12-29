@@ -4,7 +4,7 @@ use once_cell::sync::OnceCell;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum LogLevel {
     Error,
     Info,
@@ -27,7 +27,7 @@ impl fmt::Display for LogLevel {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LogRecord {
     pub level: LogLevel,
     pub text: String,
@@ -62,6 +62,18 @@ pub fn log(level: LogLevel, text: String) {
             text,
             time: Local::now().naive_local(),
         });
+}
+
+pub fn latest() -> Option<LogRecord> {
+    let logs = match LOGS.get() {
+        Some(l) => l,
+        None => return None,
+    };
+
+    match logs.lock() {
+        Ok(l) => l.last().cloned(),
+        Err(_e) => None,
+    }
 }
 
 #[macro_export]
