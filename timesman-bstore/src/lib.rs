@@ -4,7 +4,7 @@ pub mod ram;
 #[cfg(feature = "http")]
 pub mod remote;
 #[cfg(feature = "sqlite")]
-pub mod sqlite3;
+pub mod sqlite;
 
 use async_trait::async_trait;
 use chrono;

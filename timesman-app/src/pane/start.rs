@@ -13,7 +13,7 @@ use timesman_bstore::ram::RamStore;
 #[cfg(feature = "http")]
 use timesman_bstore::remote::RemoteStore;
 #[cfg(feature = "sqlite")]
-use timesman_bstore::sqlite3::SqliteStoreBuilder;
+use timesman_bstore::sqlite::SqliteStoreBuilder;
 use timesman_bstore::{Store, StoreType};
 use tokio::runtime;
 use tokio::sync::mpsc::{self};
