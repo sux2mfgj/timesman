@@ -4,7 +4,7 @@ use std::sync::Arc;
 use crate::app::Event;
 use crate::config::Config;
 
-use super::{pane_menu, Pane};
+use super::Pane;
 
 use egui_file_dialog::FileDialog;
 use store::json::JsonStore;
@@ -96,11 +96,7 @@ impl Pane for StartPane {
         let mut event = None;
         egui::TopBottomPanel::top("top").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
-                ui.menu_button("Times", |ui| {
-                    if let Some(e) = pane_menu(ui) {
-                        event = Some(e);
-                    }
-                });
+                self.times_menu(ui);
             });
         });
 
@@ -171,5 +167,6 @@ impl Pane for StartPane {
 
         event
     }
+
     fn reload(&mut self, _rt: &runtime::Runtime) {}
 }

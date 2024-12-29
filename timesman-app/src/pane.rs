@@ -17,25 +17,36 @@ pub trait Pane {
     ) -> Option<Event>;
 
     fn reload(&mut self, rt: &runtime::Runtime);
-}
 
-pub fn pane_menu(ui: &mut egui::Ui) -> Option<Event> {
-    let mut e = None;
-    if ui.button("Show logs").clicked() {
-        e = Some(Event::Logs);
+    fn times_menu(&self, ui: &mut egui::Ui) -> Option<Event> {
+        let mut e = None;
+        ui.menu_button("Times", |ui| {
+            e = self.times_menu_content(ui);
+        });
+
+        e
     }
 
-    if ui.button("Config").clicked() {
-        e = Some(Event::Config);
+    fn times_menu_content(&self, ui: &mut egui::Ui) -> Option<Event> {
+        let mut e = None;
+        if ui.button("Show logs").clicked() {
+            e = Some(Event::Logs);
+        }
+
+        if ui.button("Config").clicked() {
+            e = Some(Event::Config);
+        }
+
+        if ui.button("Back").clicked() {
+            e = Some(Event::Pop);
+        }
+
+        if let Some(_) = &e {
+            ui.close_menu();
+        }
+
+        e
     }
 
-    if ui.button("Back").clicked() {
-        e = Some(Event::Pop);
-    }
-
-    if let Some(_) = &e {
-        ui.close_menu();
-    }
-
-    e
+    fn bottom_log(&self, ui: &mut egui::Ui) {}
 }

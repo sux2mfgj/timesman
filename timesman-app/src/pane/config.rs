@@ -1,4 +1,4 @@
-use super::{pane_menu, Pane};
+use super::Pane;
 use crate::app::Event;
 use crate::app::UIOperation;
 use crate::config::Config;
@@ -21,11 +21,7 @@ impl Pane for ConfigPane {
         let mut event = None;
         egui::TopBottomPanel::top("top").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
-                ui.menu_button("Times", |ui| {
-                    if let Some(e) = pane_menu(ui) {
-                        event = Some(e);
-                    }
-                });
+                self.times_menu(ui);
             });
         });
 

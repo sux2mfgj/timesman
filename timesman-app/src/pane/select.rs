@@ -10,7 +10,7 @@ use store::{Post, Store, Times};
 use tokio;
 use tokio::sync::Mutex;
 
-use super::{pane_menu, Pane};
+use super::Pane;
 use tokio::runtime;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{Receiver, Sender};
@@ -50,11 +50,7 @@ impl Pane for SelectPane {
 
         egui::TopBottomPanel::top("top").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
-                ui.menu_button("Times", |ui| {
-                    if let Some(e) = pane_menu(ui) {
-                        event = Some(e);
-                    }
-                });
+                self.times_menu(ui);
             });
 
             ui.separator();
