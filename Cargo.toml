@@ -4,5 +4,5 @@ resolver = "2"
 members = [
   "store",
   "timesman-app",
-  "timesd",
+  "timesman-server",
 ]
