@@ -4412,26 +4412,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "timesd"
-version = "0.1.0"
-dependencies = [
- "actix-web",
- "chrono",
- "clap",
- "log",
- "serde",
- "serde_derive",
- "serde_json",
- "sqlx",
- "store",
- "tokio",
- "toml",
- "tracing",
- "tracing-actix-web",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "timesman-app"
 version = "0.1.0"
 dependencies = [
@@ -4449,6 +4429,26 @@ dependencies = [
  "toml",
  "url",
  "xdg",
+]
+
+[[package]]
+name = "timesman-server"
+version = "0.1.0"
+dependencies = [
+ "actix-web",
+ "chrono",
+ "clap",
+ "log",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "sqlx",
+ "store",
+ "tokio",
+ "toml",
+ "tracing",
+ "tracing-actix-web",
+ "tracing-subscriber",
 ]
 
 [[package]]
