@@ -1,0 +1,11 @@
+[package]
+name = "timesman-tools"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4.5.23", features = ["derive"] }
+timesman-grpc = { path = "../timesman-grpc" }
+timesman-bstore = {path = "../timesman-bstore"}
+tokio = "1.42.0"
+tonic = "0.12.3"
