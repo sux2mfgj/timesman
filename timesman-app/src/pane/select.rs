@@ -1,12 +1,12 @@
 use std::sync::Arc;
-// use std::sync::Mutex;
 
 use crate::app::Event;
 
 use eframe::egui::ScrollArea;
 use egui::{Key, Modifiers};
 use std::collections::HashMap;
-use timesman_bstore::{Post, Store, Times};
+use timesman_bstore::Store;
+use timesman_type::{Post, Times};
 use tokio;
 use tokio::sync::Mutex;
 

@@ -10,7 +10,8 @@ use egui::{Key, Modifiers, Ui};
 use egui_file_dialog::FileDialog;
 #[cfg(feature = "json")]
 use timesman_bstore::json::JsonStore;
-use timesman_bstore::{Post, Store, Times};
+use timesman_bstore::Store;
+use timesman_type::{Post, Times};
 use tokio::runtime;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{Receiver, Sender};

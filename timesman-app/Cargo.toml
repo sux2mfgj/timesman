@@ -8,8 +8,10 @@ default = []
 json = ["timesman-bstore/json"]
 http = ["timesman-bstore/http"]
 sqlite = ["timesman-bstore/sqlite"]
+grpc = ["timesman-bstore/grpc"]
 
 [dependencies]
+timesman-type = {path = "../timesman-type"}
 timesman-bstore = {path = "../timesman-bstore"}
 chrono = { version = "0.4.38", features = ["serde"] }
 eframe = "0.29.1"

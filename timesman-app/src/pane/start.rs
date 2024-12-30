@@ -7,6 +7,8 @@ use crate::config::Config;
 use super::Pane;
 
 use egui_file_dialog::FileDialog;
+#[cfg(feature = "grpc")]
+use timesman_bstore::grpc::GrpcStore;
 #[cfg(feature = "json")]
 use timesman_bstore::json::JsonStore;
 use timesman_bstore::ram::RamStore;
