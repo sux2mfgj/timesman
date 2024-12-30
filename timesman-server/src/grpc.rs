@@ -3,7 +3,8 @@ use tokio::sync::Mutex;
 
 use super::TimesManServer;
 
-use timesman_bstore::{Post, Store, Times};
+use timesman_bstore::Store;
+use timesman_type::{Post, Times};
 
 use async_trait::async_trait;
 
@@ -61,6 +62,66 @@ impl times_man_server::TimesMan for TMServer {
         &self,
         _request: tonic::Request<grpc::TimesTitle>,
     ) -> Result<tonic::Response<grpc::Times>, tonic::Status> {
+        Err(tonic::Status::new(
+            tonic::Code::Unimplemented,
+            "unimplemented",
+        ))
+    }
+
+    async fn delete_times(
+        &self,
+        _request: tonic::Request<grpc::TimesId>,
+    ) -> Result<tonic::Response<()>, tonic::Status> {
+        Err(tonic::Status::new(
+            tonic::Code::Unimplemented,
+            "unimplemented",
+        ))
+    }
+
+    async fn update_times(
+        &self,
+        _request: tonic::Request<grpc::Times>,
+    ) -> Result<tonic::Response<grpc::Times>, tonic::Status> {
+        Err(tonic::Status::new(
+            tonic::Code::Unimplemented,
+            "unimplemented",
+        ))
+    }
+
+    async fn get_posts(
+        &self,
+        _request: tonic::Request<grpc::TimesId>,
+    ) -> Result<tonic::Response<grpc::PostArray>, tonic::Status> {
+        Err(tonic::Status::new(
+            tonic::Code::Unimplemented,
+            "unimplemented",
+        ))
+    }
+
+    async fn create_post(
+        &self,
+        _request: tonic::Request<grpc::CreatePostPrams>,
+    ) -> Result<tonic::Response<grpc::Post>, tonic::Status> {
+        Err(tonic::Status::new(
+            tonic::Code::Unimplemented,
+            "unimplemented",
+        ))
+    }
+
+    async fn delete_post(
+        &self,
+        _request: tonic::Request<grpc::DeletePostParam>,
+    ) -> Result<tonic::Response<()>, tonic::Status> {
+        Err(tonic::Status::new(
+            tonic::Code::Unimplemented,
+            "unimplemented",
+        ))
+    }
+
+    async fn update_post(
+        &self,
+        _request: tonic::Request<grpc::UpdatePostParam>,
+    ) -> Result<tonic::Response<grpc::Post>, tonic::Status> {
         Err(tonic::Status::new(
             tonic::Code::Unimplemented,
             "unimplemented",

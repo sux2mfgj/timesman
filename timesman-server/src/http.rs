@@ -1,7 +1,8 @@
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use timesman_bstore::{Post, Store, Times};
+use timesman_bstore::Store;
+use timesman_type::{Post, Times};
 
 use super::TimesManServer;
 
