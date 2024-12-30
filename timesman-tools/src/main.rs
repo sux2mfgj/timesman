@@ -26,7 +26,7 @@ enum Command {
 
 fn list_times(times: Vec<Times>) {
     for t in times {
-        println!("{}", t.id);
+        println!("{}", t);
     }
 }
 
