@@ -2,8 +2,8 @@ pub mod grpc {
     tonic::include_proto!("timesman");
 }
 
-impl Into<timesman_bstore::Times> for grpc::Times {
-    fn into(self) -> timesman_bstore::Times {
+impl Into<timesman_type::Times> for grpc::Times {
+    fn into(self) -> timesman_type::Times {
         let c = self.created_at.unwrap();
         let ctime = chrono::DateTime::from_timestamp(c.seconds, c.nanos as u32)
             .unwrap();
@@ -18,7 +18,7 @@ impl Into<timesman_bstore::Times> for grpc::Times {
             None
         };
 
-        timesman_bstore::Times {
+        timesman_type::Times {
             id: self.id as i64,
             title: self.title,
             created_at: ctime.naive_local(),
@@ -29,8 +29,8 @@ impl Into<timesman_bstore::Times> for grpc::Times {
 
 use chrono::{Datelike, Timelike};
 
-impl From<timesman_bstore::Times> for grpc::Times {
-    fn from(value: timesman_bstore::Times) -> Self {
+impl From<timesman_type::Times> for grpc::Times {
+    fn from(value: timesman_type::Times) -> Self {
         let ctime = value.created_at;
         let ctime = {
             let c = value.created_at;
