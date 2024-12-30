@@ -20,6 +20,33 @@ impl super::Client for GrpcClient {
             .collect::<Vec<Times>>();
         Ok(r)
     }
+
+    fn create_times(&mut self, title: String) -> Result<Times, String> {
+        Err("not yet implemented".to_string())
+    }
+
+    fn delete_times(&mut self, tid: u64) -> Result<(), String> {
+        Err("not yet implemented".to_string())
+    }
+
+    fn update_times(&mut self, times: Times) -> Result<Times, String> {
+        Err("not yet implemented".to_string())
+    }
+
+    fn get_posts(&mut self, tid: u64) -> Result<Vec<Post>, String> {
+        Err("not yet implemented".to_string())
+    }
+    fn create_post(&mut self, tid: u64, text: String) -> Result<Post, String> {
+        Err("not yet implemented".to_string())
+    }
+
+    fn delete_post(&mut self, tid: u64, pid: u64) -> Result<(), String> {
+        Err("not yet implemented".to_string())
+    }
+
+    fn update_post(&mut self, tid: u64, post: Post) -> Result<Post, String> {
+        Err("not yet implemented".to_string())
+    }
 }
 
 impl GrpcClient {
