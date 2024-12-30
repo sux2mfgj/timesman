@@ -42,8 +42,21 @@ async fn main() -> std::io::Result<()> {
     let store: Box<dyn Store + Send + Sync + 'static> = Box::new(store);
     let store = Arc::new(Mutex::new(store));
 
-    // let server: Box<dyn TimesManServer> = Box::new(http::HttpServer {});
-    let server: Box<dyn TimesManServer> = Box::new(grpc::GrpcServer {});
+    let server = match &*config.front_type {
+        "grpc" => {
+            let grpc_srv: Box<dyn TimesManServer> =
+                Box::new(grpc::GrpcServer {});
+            grpc_srv
+        }
+        "http" => {
+            let http_srv: Box<dyn TimesManServer> =
+                Box::new(http::HttpServer {});
+            http_srv
+        }
+        _ => {
+            panic!("unsupported server type. See the parameter of config.front_type");
+        }
+    };
 
     server.run(&config.listen, store).await;
 
