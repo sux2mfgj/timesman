@@ -7,13 +7,13 @@ import "google/protobuf/timestamp.proto";
 service TimesMan {
   rpc GetTimes(google.protobuf.Empty) returns (TimesArray);
   rpc CreateTimes(TimesTitle) returns (Times);
-  // rpc DeleteTimes(TimesId) returns (google.protobuf.Empty);
-  // rpc UpdateTimes(Times) returns (Times);
+  rpc DeleteTimes(TimesId) returns (google.protobuf.Empty);
+  rpc UpdateTimes(Times) returns (Times);
 
-  // rpc GetPosts(TimesId) returns (TimesArray);
-  //  rpc CreatePost(TimesId, PostText) returns (Post);
-  //  rpc DeletePost(TimesId, PostId) returns (google.protobuf.Empty);
-  //  rpc UpdatePost(TimesId, Post) returns (Post);
+  rpc GetPosts(TimesId) returns (PostArray);
+  rpc CreatePost(CreatePostPrams) returns (Post);
+  rpc DeletePost(DeletePostParam) returns (google.protobuf.Empty);
+  rpc UpdatePost(UpdatePostParam) returns (Post);
 }
 
 message PostId { uint64 id = 1; }
@@ -22,9 +22,26 @@ message TimesId { uint64 id = 1; }
 
 message TimesArray { repeated Times timeses = 1; }
 
+message PostArray { repeated Post posts = 1; }
+
 message TimesTitle { string title = 1; }
 
 message PostText { string text = 1; }
+
+message CreatePostPrams {
+  TimesId id = 1;
+  PostText test = 2;
+}
+
+message DeletePostParam {
+  TimesId tid = 1;
+  PostId pid = 2;
+}
+
+message UpdatePostParam {
+  TimesId tid = 1;
+  Post post = 2;
+}
 
 message Times {
   uint64 id = 1;
