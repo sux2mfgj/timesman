@@ -1,0 +1,14 @@
+[package]
+name = "timesman-grpc"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+timesman-bstore = { path = "../timesman-bstore"}
+chrono = "0.4.39"
+prost = "0.13.4"
+prost-types = "0.13.4"
+tonic = "0.12.3"
+
+[build-dependencies]
+tonic-build = "0.12.3"

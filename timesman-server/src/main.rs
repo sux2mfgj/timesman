@@ -1,11 +1,13 @@
 mod config;
+#[cfg(feature = "grpc")]
+mod grpc;
 mod http;
 
 use std::sync::Arc;
 use std::sync::Mutex;
 
 use clap::Parser;
-use timesman_bstore::sqlite3::SqliteStoreBuilder;
+use timesman_bstore::sqlite::SqliteStoreBuilder;
 
 use timesman_server::TimesManServer;
 
@@ -39,8 +41,10 @@ async fn main() -> std::io::Result<()> {
 
     let store = Arc::new(Mutex::new(store));
 
-    let server: Box<dyn TimesManServer> = Box::new(http::HttpServer {});
+    // let server: Box<dyn TimesManServer> = Box::new(http::HttpServer {});
+    let server: Box<dyn TimesManServer> = Box::new(grpc::GrpcServer {});
 
     server.run(&config.listen, store).await;
+
     Ok(())
 }

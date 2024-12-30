@@ -7,6 +7,7 @@ use toml;
 #[derive(Deserialize, Serialize, Clone)]
 pub struct Config {
     pub listen: String,
+    pub front_type: String,
     pub store_type: String,
     pub store_param: String,
 }
@@ -15,6 +16,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             listen: "localhost:8080".to_string(),
+            front_type: "http".to_string(),
             store_type: "sqlite".to_string(),
             store_param: "./database.db".to_string(),
         }
