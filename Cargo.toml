@@ -7,4 +7,5 @@ members = [
   "timesman-server",
   "timesman-grpc",
   "timesman-tools",
+  "timesman-type",
 ]

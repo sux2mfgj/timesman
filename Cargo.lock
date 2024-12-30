@@ -4632,6 +4632,7 @@ dependencies = [
  "serde",
  "serde_json",
  "timesman-bstore",
+ "timesman-type",
  "tokio",
  "toml",
  "url",
@@ -4648,6 +4649,8 @@ dependencies = [
  "serde",
  "serde_json",
  "sqlx",
+ "timesman-grpc",
+ "timesman-type",
 ]
 
 [[package]]
@@ -4657,7 +4660,7 @@ dependencies = [
  "chrono",
  "prost",
  "prost-types",
- "timesman-bstore",
+ "timesman-type",
  "tonic",
  "tonic-build",
 ]
@@ -4677,6 +4680,7 @@ dependencies = [
  "sqlx",
  "timesman-bstore",
  "timesman-grpc",
+ "timesman-type",
  "tokio",
  "toml",
  "tonic",
@@ -4694,6 +4698,14 @@ dependencies = [
  "timesman-grpc",
  "tokio",
  "tonic",
+]
+
+[[package]]
+name = "timesman-type"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
 ]
 
 [[package]]

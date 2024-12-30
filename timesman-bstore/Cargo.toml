@@ -10,6 +10,7 @@ http = ["reqwest"]
 sqlite = ["sqlx"]
 
 [dependencies]
+timesman-type = {path = "../timesman-type"}
 async-trait = "0.1.83"
 chrono = { version = "0.4.38", features = ["serde"] }
 reqwest = { version = "0.12.9", features = ["blocking", "json"], optional = true }
