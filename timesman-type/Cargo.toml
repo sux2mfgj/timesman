@@ -1,0 +1,8 @@
+[package]
+name = "timesman-type"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+chrono = { version = "0.4.39", features = ["serde"] }
+serde = { version = "1.0.217", features = ["serde_derive"] }
