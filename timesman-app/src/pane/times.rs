@@ -371,10 +371,6 @@ impl Pane for TimesPane {
 
                 self.show_latest_log(ui);
             }
-
-            egui::TopBottomPanel::bottom("bottom log").show(ctx, |ui| {
-                ui.label("bottom of bottom");
-            });
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
