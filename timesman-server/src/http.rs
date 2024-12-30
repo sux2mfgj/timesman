@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use std::sync::Mutex;
+use tokio::sync::Mutex;
 
 use timesman_bstore::{Post, Store, Times};
 
@@ -11,14 +11,18 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone)]
 struct Context {
-    store: Arc<Mutex<dyn Store>>,
+    store: Arc<Mutex<Box<dyn Store + Send + Sync + 'static>>>,
 }
 
 pub struct HttpServer {}
 
 #[async_trait]
 impl TimesManServer for HttpServer {
-    async fn run(&self, listen: &str, store: Arc<Mutex<dyn Store>>) {
+    async fn run(
+        &self,
+        listen: &str,
+        store: Arc<Mutex<Box<dyn Store + Send + Sync + 'static>>>,
+    ) {
         actix_web::HttpServer::new(move || {
             App::new()
                 .app_data(web::Data::new(Context {
@@ -51,7 +55,7 @@ struct ResponseTimes {
 }
 
 async fn get_times(ctx: web::Data<Context>) -> impl Responder {
-    let store = ctx.store.lock().unwrap();
+    let store = ctx.store.lock().await; //.unwrap();
     let times = match store.get_times().await {
         Ok(times) => times,
         Err(e) => {
@@ -85,7 +89,7 @@ async fn create_times(
     ctx: web::Data<Context>,
     req: web::Json<CreateTimesRequest>,
 ) -> impl Responder {
-    let mut store = ctx.store.lock().unwrap();
+    let mut store = ctx.store.lock().await; //.unwrap();
     let times = match store.create_times(req.title.clone()).await {
         Ok(times) => times,
         Err(e) => {
@@ -124,7 +128,7 @@ async fn delete_times(
     path: web::Path<i64>,
 ) -> impl Responder {
     let tid = path.into_inner();
-    let mut store = ctx.store.lock().unwrap();
+    let mut store = ctx.store.lock().await;
 
     match store.delete_times(tid).await {
         Ok(()) => {}
@@ -159,7 +163,7 @@ async fn get_posts(
 ) -> impl Responder {
     let tid = path.into_inner();
 
-    let store = ctx.store.lock().unwrap();
+    let store = ctx.store.lock().await;
     let posts = match store.get_posts(tid).await {
         Ok(posts) => posts,
         Err(e) => {
@@ -203,7 +207,7 @@ async fn post_post(
     let tid = path.into_inner();
     let post = req.post.clone();
 
-    let mut store = ctx.store.lock().unwrap();
+    let mut store = ctx.store.lock().await;
     let post = match store.create_post(tid, post).await {
         Ok(post) => post,
         Err(e) => {

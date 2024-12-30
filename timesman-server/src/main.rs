@@ -4,11 +4,11 @@ mod grpc;
 mod http;
 
 use std::sync::Arc;
-use std::sync::Mutex;
+use tokio::sync::Mutex;
 
 use clap::Parser;
 use timesman_bstore::sqlite::SqliteStoreBuilder;
-
+use timesman_bstore::Store;
 use timesman_server::TimesManServer;
 
 #[derive(Parser, Debug)]
@@ -39,6 +39,7 @@ async fn main() -> std::io::Result<()> {
         }
     };
 
+    let store: Box<dyn Store + Send + Sync + 'static> = Box::new(store);
     let store = Arc::new(Mutex::new(store));
 
     // let server: Box<dyn TimesManServer> = Box::new(http::HttpServer {});

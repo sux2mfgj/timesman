@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use std::sync::Mutex;
+use tokio::sync::Mutex;
 
 use super::TimesManServer;
 
@@ -14,9 +14,13 @@ use tonic::transport::server::Server;
 
 pub struct GrpcServer {}
 
-#[async_trait]
+#[tonic::async_trait]
 impl TimesManServer for GrpcServer {
-    async fn run(&self, listen: &str, store: Arc<Mutex<dyn Store>>) {
+    async fn run(
+        &self,
+        listen: &str,
+        store: Arc<Mutex<Box<dyn Store + Send + Sync + 'static>>>,
+    ) {
         let addr = listen.parse().unwrap();
 
         Server::builder()
@@ -30,7 +34,7 @@ impl TimesManServer for GrpcServer {
 }
 
 struct TMServer {
-    store: Arc<Mutex<dyn Store>>,
+    store: Arc<Mutex<Box<dyn Store + Send + Sync + 'static>>>,
 }
 
 #[async_trait]
@@ -39,10 +43,18 @@ impl times_man_server::TimesMan for TMServer {
         &self,
         _request: tonic::Request<()>,
     ) -> Result<tonic::Response<grpc::TimesArray>, tonic::Status> {
-        Err(tonic::Status::new(
-            tonic::Code::Unimplemented,
-            "unimplemented",
-        ))
+        let guard = self.store.lock().await;
+
+        let times = guard.get_times().await.map_err(|e| {
+            tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
+        })?;
+
+        let timeses = times
+            .iter()
+            .map(|t| t.clone().into())
+            .collect::<Vec<grpc::Times>>();
+
+        Ok(tonic::Response::new(grpc::TimesArray { timeses }))
     }
 
     async fn create_times(
