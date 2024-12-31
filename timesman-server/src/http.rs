@@ -56,7 +56,7 @@ struct ResponseTimes {
 }
 
 async fn get_times(ctx: web::Data<Context>) -> impl Responder {
-    let store = ctx.store.lock().await; //.unwrap();
+    let mut store = ctx.store.lock().await; //.unwrap();
     let times = match store.get_times().await {
         Ok(times) => times,
         Err(e) => {
@@ -164,7 +164,7 @@ async fn get_posts(
 ) -> impl Responder {
     let tid = path.into_inner();
 
-    let store = ctx.store.lock().await;
+    let mut store = ctx.store.lock().await;
     let posts = match store.get_posts(tid).await {
         Ok(posts) => posts,
         Err(e) => {

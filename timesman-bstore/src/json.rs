@@ -18,11 +18,11 @@ struct Data {
 
 #[async_trait]
 impl Store for JsonStore {
-    async fn check(&self) -> Result<(), String> {
+    async fn check(&mut self) -> Result<(), String> {
         Ok(())
     }
 
-    async fn get_times(&self) -> Result<Vec<super::Times>, String> {
+    async fn get_times(&mut self) -> Result<Vec<super::Times>, String> {
         Ok(vec![self.data.times.clone()])
     }
 
@@ -44,7 +44,10 @@ impl Store for JsonStore {
         Err("not supported to update times".to_string())
     }
 
-    async fn get_posts(&self, tid: i64) -> Result<Vec<super::Post>, String> {
+    async fn get_posts(
+        &mut self,
+        tid: i64,
+    ) -> Result<Vec<super::Post>, String> {
         if self.data.times.id != tid {
             return Err("unknown tid found".to_string());
         }
@@ -84,7 +87,10 @@ impl Store for JsonStore {
         Err("not supported to delete post".to_string())
     }
 
-    async fn get_latest_post(&self, _tid: i64) -> Result<Option<Post>, String> {
+    async fn get_latest_post(
+        &mut self,
+        _tid: i64,
+    ) -> Result<Option<Post>, String> {
         Ok(None)
     }
 }
@@ -102,7 +108,7 @@ impl JsonStore {
         Ok(Self { data })
     }
 
-    pub fn save_to_file(&self, filepath: &PathBuf) -> Result<(), String> {
+    pub fn save_to_file(&mut self, filepath: &PathBuf) -> Result<(), String> {
         let serialized =
             serde_json::to_string(&self.data).map_err(|e| format!("{e}"))?;
 

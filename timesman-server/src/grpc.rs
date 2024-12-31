@@ -4,7 +4,6 @@ use tokio::sync::Mutex;
 use super::TimesManServer;
 
 use timesman_bstore::Store;
-use timesman_type::{Post, Times};
 
 use async_trait::async_trait;
 
@@ -44,9 +43,9 @@ impl times_man_server::TimesMan for TMServer {
         &self,
         _request: tonic::Request<()>,
     ) -> Result<tonic::Response<grpc::TimesArray>, tonic::Status> {
-        let guard = self.store.lock().await;
+        let mut store = self.store.lock().await;
 
-        let times = guard.get_times().await.map_err(|e| {
+        let times = store.get_times().await.map_err(|e| {
             tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
         })?;
 

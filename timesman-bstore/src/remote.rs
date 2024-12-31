@@ -66,14 +66,14 @@ impl RemoteStore {
 
 #[async_trait]
 impl Store for RemoteStore {
-    async fn check(&self) -> Result<(), String> {
+    async fn check(&mut self) -> Result<(), String> {
         match self.get_times().await {
             Ok(_) => Ok(()),
             Err(e) => Err(e),
         }
     }
 
-    async fn get_times(&self) -> Result<Vec<Times>, String> {
+    async fn get_times(&mut self) -> Result<Vec<Times>, String> {
         let url = self.server.clone() + "/times";
 
         // debug!("Request HTTP Get to {}", url);
@@ -172,7 +172,7 @@ impl Store for RemoteStore {
         unimplemented!();
     }
 
-    async fn get_posts(&self, tid: i64) -> Result<Vec<Post>, String> {
+    async fn get_posts(&mut self, tid: i64) -> Result<Vec<Post>, String> {
         let url = format!("{}/times/{}", self.server, tid);
 
         // debug!("Request HTTP Get to {}", url);
@@ -265,7 +265,10 @@ impl Store for RemoteStore {
         unimplemented!();
     }
 
-    async fn get_latest_post(&self, tid: i64) -> Result<Option<Post>, String> {
+    async fn get_latest_post(
+        &mut self,
+        tid: i64,
+    ) -> Result<Option<Post>, String> {
         let posts = self.get_posts(tid).await?;
 
         if let Some(p) = posts.iter().max_by_key(|p| p.id) {

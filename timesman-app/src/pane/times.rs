@@ -53,7 +53,7 @@ impl TimesPane {
             let store2 = store.clone();
             let msg_tx = tx.clone();
             rt.spawn(async move {
-                let store = store2.lock().await;
+                let mut store = store2.lock().await;
                 match store.get_posts(tid).await {
                     Ok(posts) => {
                         msg_tx.send(Message::Refresh(posts)).await.unwrap();
@@ -203,7 +203,8 @@ impl TimesPane {
 
     #[cfg(feature = "json")]
     fn save_file(&self, path: &PathBuf) -> Result<(), String> {
-        let json_store = JsonStore::new(self.times.clone(), self.posts.clone());
+        let mut json_store =
+            JsonStore::new(self.times.clone(), self.posts.clone());
 
         json_store.save_to_file(path)?;
 

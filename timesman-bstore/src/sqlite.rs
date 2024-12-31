@@ -71,7 +71,7 @@ impl SqliteStoreBuilder {
 
 #[async_trait]
 impl Store for SqliteStore {
-    async fn check(&self) -> Result<(), String> {
+    async fn check(&mut self) -> Result<(), String> {
         if !self.db.is_closed() {
             Ok(())
         } else {
@@ -79,7 +79,7 @@ impl Store for SqliteStore {
         }
     }
 
-    async fn get_times(&self) -> Result<Vec<Times>, String> {
+    async fn get_times(&mut self) -> Result<Vec<Times>, String> {
         let sql = sqlx::query_as!(
             SqliteTimes,
             r#"select * from times where deleted = 0"#
@@ -114,7 +114,7 @@ impl Store for SqliteStore {
         unimplemented!();
     }
 
-    async fn get_posts(&self, tid: i64) -> Result<Vec<Post>, String> {
+    async fn get_posts(&mut self, tid: i64) -> Result<Vec<Post>, String> {
         let sql = sqlx::query_as!(
             SqlitePost,
             r#"select * from posts where tid = $1"#,
@@ -164,7 +164,10 @@ impl Store for SqliteStore {
         unimplemented!();
     }
 
-    async fn get_latest_post(&self, tid: i64) -> Result<Option<Post>, String> {
+    async fn get_latest_post(
+        &mut self,
+        tid: i64,
+    ) -> Result<Option<Post>, String> {
         Ok(None)
     }
 }

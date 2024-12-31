@@ -163,7 +163,7 @@ impl Pane for SelectPane {
         let tx = self.tx.clone();
         rt.spawn(async move {
             {
-                let store = store.lock().await;
+                let mut store = store.lock().await;
                 let times = store.get_times().await.unwrap();
 
                 let mut map: HashMap<i64, TimesData> = HashMap::new();

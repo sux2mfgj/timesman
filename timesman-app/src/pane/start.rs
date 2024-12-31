@@ -75,7 +75,7 @@ impl StartPane {
             let (tx, mut rx) = mpsc::channel::<Result<(), String>>(8);
 
             rt.block_on(async move {
-                let store = store.lock().await;
+                let mut store = store.lock().await;
                 tx.send(store.check().await).await.unwrap();
             });
 

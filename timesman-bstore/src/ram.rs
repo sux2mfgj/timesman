@@ -25,11 +25,11 @@ impl RamStore {
 
 #[async_trait]
 impl Store for RamStore {
-    async fn check(&self) -> Result<(), String> {
+    async fn check(&mut self) -> Result<(), String> {
         Ok(())
     }
 
-    async fn get_times(&self) -> Result<Vec<super::Times>, String> {
+    async fn get_times(&mut self) -> Result<Vec<super::Times>, String> {
         Ok(self.times.iter().map(|t| t.1.times.clone()).collect())
     }
 
@@ -78,7 +78,10 @@ impl Store for RamStore {
         }
     }
 
-    async fn get_posts(&self, tid: i64) -> Result<Vec<super::Post>, String> {
+    async fn get_posts(
+        &mut self,
+        tid: i64,
+    ) -> Result<Vec<super::Post>, String> {
         let ltimes = self.times.get(&tid).ok_or("invalid tid")?;
 
         let mut pairs: Vec<(&i64, &Post)> = ltimes.posts.iter().collect();
@@ -146,7 +149,10 @@ impl Store for RamStore {
         }
     }
 
-    async fn get_latest_post(&self, tid: i64) -> Result<Option<Post>, String> {
+    async fn get_latest_post(
+        &mut self,
+        tid: i64,
+    ) -> Result<Option<Post>, String> {
         if let Some(ltimes) = self.times.get(&tid) {
             let keys: Vec<i64> = ltimes.posts.clone().into_keys().collect();
             if let Some(latest_pid) = keys.iter().max() {
