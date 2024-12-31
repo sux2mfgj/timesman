@@ -4696,6 +4696,7 @@ dependencies = [
  "clap",
  "timesman-bstore",
  "timesman-grpc",
+ "timesman-type",
  "tokio",
  "tonic",
 ]

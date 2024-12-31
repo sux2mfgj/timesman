@@ -1,5 +1,5 @@
-use timesman_bstore::{Post, Times};
 use timesman_grpc::grpc::times_man_client::TimesManClient;
+use timesman_type::{Post, Times};
 
 pub struct GrpcClient {
     client: TimesManClient<tonic::transport::channel::Channel>,

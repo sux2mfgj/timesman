@@ -2,7 +2,7 @@ mod grpc;
 
 use clap::{Parser, Subcommand};
 
-use timesman_bstore::{Post, Times};
+use timesman_type::{Post, Times};
 
 trait Client {
     fn get_times(&mut self) -> Result<Vec<Times>, String>;
