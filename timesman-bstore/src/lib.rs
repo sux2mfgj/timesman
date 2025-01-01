@@ -31,26 +31,26 @@ pub trait Store: Send + Sync + 'static {
     // for Times
     async fn get_times(&mut self) -> Result<Vec<Times>, String>;
     async fn create_times(&mut self, title: String) -> Result<Times, String>;
-    async fn delete_times(&mut self, tid: i64) -> Result<(), String>;
+    async fn delete_times(&mut self, tid: u64) -> Result<(), String>;
     async fn update_times(&mut self, times: Times) -> Result<Times, String>;
 
     // for Post
-    async fn get_posts(&mut self, tid: i64) -> Result<Vec<Post>, String>;
+    async fn get_posts(&mut self, tid: u64) -> Result<Vec<Post>, String>;
     async fn create_post(
         &mut self,
-        tid: i64,
+        tid: u64,
         post: String,
     ) -> Result<Post, String>;
-    async fn delete_post(&mut self, tid: i64, pid: i64) -> Result<(), String>;
+    async fn delete_post(&mut self, tid: u64, pid: u64) -> Result<(), String>;
     async fn update_post(
         &mut self,
-        tid: i64,
+        tid: u64,
         post: Post,
     ) -> Result<Post, String>;
 
     async fn get_latest_post(
         &mut self,
-        tid: i64,
+        tid: u64,
     ) -> Result<Option<Post>, String>;
 }
 

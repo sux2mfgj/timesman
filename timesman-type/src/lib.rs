@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Times {
-    pub id: i64,
+    pub id: u64,
     pub title: String,
     pub created_at: chrono::NaiveDateTime,
     pub updated_at: Option<chrono::NaiveDateTime>,
@@ -24,7 +24,7 @@ impl std::fmt::Display for Times {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Post {
-    pub id: i64,
+    pub id: u64,
     pub post: String,
     pub created_at: chrono::NaiveDateTime,
     pub updated_at: Option<chrono::NaiveDateTime>,

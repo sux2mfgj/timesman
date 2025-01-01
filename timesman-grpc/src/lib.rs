@@ -19,7 +19,7 @@ impl Into<timesman_type::Times> for grpc::Times {
         };
 
         timesman_type::Times {
-            id: self.id as i64,
+            id: self.id,
             title: self.title,
             created_at: ctime.naive_local(),
             updated_at: utime,
@@ -87,7 +87,7 @@ impl Into<timesman_type::Post> for grpc::Post {
         };
 
         timesman_type::Post {
-            id: self.id as i64,
+            id: self.id,
             post: self.post,
             created_at: ctime,
             updated_at: utime,
@@ -126,7 +126,7 @@ impl From<timesman_type::Post> for grpc::Post {
         };
 
         Self {
-            id: value.id as u64,
+            id: value.id,
             post: value.post,
             created_at: Some(ctime),
             updated_at: utime,

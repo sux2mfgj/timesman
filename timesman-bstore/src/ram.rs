@@ -5,13 +5,13 @@ use std::collections::HashMap;
 
 struct LocalTimes {
     times: Times,
-    posts: HashMap<i64, Post>,
-    next_pid: i64,
+    posts: HashMap<u64, Post>,
+    next_pid: u64,
 }
 
 pub struct RamStore {
-    times: HashMap<i64, LocalTimes>,
-    next_tid: i64,
+    times: HashMap<u64, LocalTimes>,
+    next_tid: u64,
 }
 
 impl RamStore {
@@ -60,7 +60,7 @@ impl Store for RamStore {
         Ok(times)
     }
 
-    async fn delete_times(&mut self, _tid: i64) -> Result<(), String> {
+    async fn delete_times(&mut self, _tid: u64) -> Result<(), String> {
         unimplemented!();
     }
 
@@ -80,11 +80,11 @@ impl Store for RamStore {
 
     async fn get_posts(
         &mut self,
-        tid: i64,
+        tid: u64,
     ) -> Result<Vec<super::Post>, String> {
         let ltimes = self.times.get(&tid).ok_or("invalid tid")?;
 
-        let mut pairs: Vec<(&i64, &Post)> = ltimes.posts.iter().collect();
+        let mut pairs: Vec<(&u64, &Post)> = ltimes.posts.iter().collect();
 
         pairs.sort_by(|a, b| a.0.cmp(&b.0));
 
@@ -95,7 +95,7 @@ impl Store for RamStore {
 
     async fn create_post(
         &mut self,
-        tid: i64,
+        tid: u64,
         post: String,
     ) -> Result<super::Post, String> {
         let ltimes = self.times.get_mut(&tid).ok_or("invalid tid")?;
@@ -115,7 +115,7 @@ impl Store for RamStore {
 
     async fn update_post(
         &mut self,
-        tid: i64,
+        tid: u64,
         mut post: super::Post,
     ) -> Result<super::Post, String> {
         let times = match self.times.get_mut(&tid) {
@@ -137,7 +137,7 @@ impl Store for RamStore {
         Ok(post)
     }
 
-    async fn delete_post(&mut self, tid: i64, pid: i64) -> Result<(), String> {
+    async fn delete_post(&mut self, tid: u64, pid: u64) -> Result<(), String> {
         if let Some(times) = self.times.get_mut(&tid) {
             if let Some(_) = times.posts.remove(&pid) {
                 Ok(())
@@ -151,10 +151,10 @@ impl Store for RamStore {
 
     async fn get_latest_post(
         &mut self,
-        tid: i64,
+        tid: u64,
     ) -> Result<Option<Post>, String> {
         if let Some(ltimes) = self.times.get(&tid) {
-            let keys: Vec<i64> = ltimes.posts.clone().into_keys().collect();
+            let keys: Vec<u64> = ltimes.posts.clone().into_keys().collect();
             if let Some(latest_pid) = keys.iter().max() {
                 if let Some(post) = ltimes.posts.get(latest_pid) {
                     return Ok(Some(post.clone()));

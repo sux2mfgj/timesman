@@ -21,7 +21,7 @@ struct TimesData {
 }
 
 pub struct SelectPane {
-    times: HashMap<i64, TimesData>,
+    times: HashMap<u64, TimesData>,
     new_title: String,
     store: Arc<Mutex<Box<dyn Store + Send + Sync + 'static>>>,
     tx: Sender<Message>,
@@ -30,8 +30,8 @@ pub struct SelectPane {
 
 enum Message {
     Create(Times),
-    Refresh(HashMap<i64, TimesData>),
-    UpdateLatest(i64, Post),
+    Refresh(HashMap<u64, TimesData>),
+    UpdateLatest(u64, Post),
     Error(String),
 }
 
@@ -166,7 +166,7 @@ impl Pane for SelectPane {
                 let mut store = store.lock().await;
                 let times = store.get_times().await.unwrap();
 
-                let mut map: HashMap<i64, TimesData> = HashMap::new();
+                let mut map: HashMap<u64, TimesData> = HashMap::new();
                 for t in &times {
                     map.insert(
                         t.id,

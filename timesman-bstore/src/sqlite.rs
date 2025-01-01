@@ -17,7 +17,7 @@ struct SqliteTimes {
 impl From<SqliteTimes> for Times {
     fn from(value: SqliteTimes) -> Self {
         Times {
-            id: value.id,
+            id: value.id as u64,
             title: value.title,
             created_at: value.created_at,
             updated_at: value.updated_at,
@@ -37,7 +37,7 @@ struct SqlitePost {
 impl From<SqlitePost> for Post {
     fn from(value: SqlitePost) -> Self {
         Self {
-            id: value.id,
+            id: value.id as u64,
             post: value.post,
             created_at: value.created_at,
             updated_at: value.updated_at,
@@ -110,11 +110,12 @@ impl Store for SqliteStore {
         unimplemented!();
     }
 
-    async fn delete_times(&mut self, _tid: i64) -> Result<(), String> {
+    async fn delete_times(&mut self, _tid: u64) -> Result<(), String> {
         unimplemented!();
     }
 
-    async fn get_posts(&mut self, tid: i64) -> Result<Vec<Post>, String> {
+    async fn get_posts(&mut self, tid: u64) -> Result<Vec<Post>, String> {
+        let tid = tid as i64;
         let sql = sqlx::query_as!(
             SqlitePost,
             r#"select * from posts where tid = $1"#,
@@ -130,14 +131,15 @@ impl Store for SqliteStore {
 
     async fn create_post(
         &mut self,
-        tid: i64,
+        tid: u64,
         post: String,
     ) -> Result<Post, String> {
+        let tid = tid as i64;
         let sql = sqlx::query_as!(
-            Post,
+            SqlitePost,
             r#"insert into posts(tid, post)
                     values ($1, $2)
-                    returning id as "id!", post, created_at, updated_at"#,
+                    returning id as "id!", tid, post, created_at, updated_at"#,
             tid,
             post
         )
@@ -145,20 +147,20 @@ impl Store for SqliteStore {
 
         let post = sql.await.map_err(|e| format!("{}", e))?;
 
-        Ok(post)
+        Ok(post.into())
     }
 
     async fn delete_post(
         &mut self,
-        _tid: i64,
-        _pid: i64,
+        _tid: u64,
+        _pid: u64,
     ) -> Result<(), String> {
         unimplemented!();
     }
 
     async fn update_post(
         &mut self,
-        _tid: i64,
+        _tid: u64,
         _post: Post,
     ) -> Result<Post, String> {
         unimplemented!();
@@ -166,7 +168,7 @@ impl Store for SqliteStore {
 
     async fn get_latest_post(
         &mut self,
-        tid: i64,
+        tid: u64,
     ) -> Result<Option<Post>, String> {
         Ok(None)
     }

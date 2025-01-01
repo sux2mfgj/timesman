@@ -5,7 +5,7 @@ use async_trait::async_trait;
 
 #[derive(Deserialize, Clone)]
 struct RemPost {
-    pub id: i64,
+    pub id: u64,
     pub post: String,
     pub created_at: chrono::NaiveDateTime,
     pub updated_at: Option<chrono::NaiveDateTime>,
@@ -13,7 +13,7 @@ struct RemPost {
 
 #[derive(Deserialize, Clone)]
 struct RemTimes {
-    pub id: i64,
+    pub id: u64,
     pub title: String,
     pub created_at: chrono::NaiveDateTime,
     pub updated_at: Option<chrono::NaiveDateTime>,
@@ -43,7 +43,7 @@ impl From<RemPost> for Post {
 
 #[derive(Deserialize)]
 struct ResponseBase {
-    status: i64,
+    status: u64,
     text: String,
 }
 
@@ -144,7 +144,7 @@ impl Store for RemoteStore {
         }
     }
 
-    async fn delete_times(&mut self, tid: i64) -> Result<(), String> {
+    async fn delete_times(&mut self, tid: u64) -> Result<(), String> {
         let url = format!("{}/times/{}", self.server, tid);
 
         // debug!("Request HTTP Delete to {}", self.server);
@@ -172,7 +172,7 @@ impl Store for RemoteStore {
         unimplemented!();
     }
 
-    async fn get_posts(&mut self, tid: i64) -> Result<Vec<Post>, String> {
+    async fn get_posts(&mut self, tid: u64) -> Result<Vec<Post>, String> {
         let url = format!("{}/times/{}", self.server, tid);
 
         // debug!("Request HTTP Get to {}", url);
@@ -202,7 +202,7 @@ impl Store for RemoteStore {
 
     async fn create_post(
         &mut self,
-        tid: i64,
+        tid: u64,
         post: String,
     ) -> Result<Post, String> {
         let url = format!("{}/times/{}", self.server, tid);
@@ -217,7 +217,7 @@ impl Store for RemoteStore {
         #[derive(Deserialize)]
         struct Response {
             base: ResponseBase,
-            pid: i64,
+            pid: u64,
         }
 
         let data = Request {
@@ -251,15 +251,15 @@ impl Store for RemoteStore {
 
     async fn delete_post(
         &mut self,
-        _tid: i64,
-        _pid: i64,
+        _tid: u64,
+        _pid: u64,
     ) -> Result<(), String> {
         unimplemented!();
     }
 
     async fn update_post(
         &mut self,
-        _tid: i64,
+        _tid: u64,
         _post: Post,
     ) -> Result<Post, String> {
         unimplemented!();
@@ -267,7 +267,7 @@ impl Store for RemoteStore {
 
     async fn get_latest_post(
         &mut self,
-        tid: i64,
+        tid: u64,
     ) -> Result<Option<Post>, String> {
         let posts = self.get_posts(tid).await?;
 

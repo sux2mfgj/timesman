@@ -52,8 +52,8 @@ impl Store for GrpcStore {
         Ok(times.into_inner().into())
     }
 
-    async fn delete_times(&mut self, tid: i64) -> Result<(), String> {
-        let id = grpc::TimesId { id: tid as u64 };
+    async fn delete_times(&mut self, tid: u64) -> Result<(), String> {
+        let id = grpc::TimesId { id: tid };
         self.client
             .delete_times(tonic::Request::new(id))
             .await
@@ -73,8 +73,8 @@ impl Store for GrpcStore {
     }
 
     // for Post
-    async fn get_posts(&mut self, tid: i64) -> Result<Vec<Post>, String> {
-        let tid = grpc::TimesId { id: tid as u64 };
+    async fn get_posts(&mut self, tid: u64) -> Result<Vec<Post>, String> {
+        let tid = grpc::TimesId { id: tid };
         let posts = self
             .client
             .get_posts(tonic::Request::new(tid))
@@ -92,11 +92,11 @@ impl Store for GrpcStore {
 
     async fn create_post(
         &mut self,
-        tid: i64,
+        tid: u64,
         post: String,
     ) -> Result<Post, String> {
         let param = grpc::CreatePostPrams {
-            id: tid as u64,
+            id: tid,
             text: post,
         };
         let post = self
@@ -108,11 +108,8 @@ impl Store for GrpcStore {
         Ok(post.into_inner().into())
     }
 
-    async fn delete_post(&mut self, tid: i64, pid: i64) -> Result<(), String> {
-        let param = grpc::DeletePostParam {
-            tid: tid as u64,
-            pid: pid as u64,
-        };
+    async fn delete_post(&mut self, tid: u64, pid: u64) -> Result<(), String> {
+        let param = grpc::DeletePostParam { tid: tid, pid: pid };
 
         self.client
             .delete_post(tonic::Request::new(param))
@@ -123,11 +120,11 @@ impl Store for GrpcStore {
 
     async fn update_post(
         &mut self,
-        tid: i64,
+        tid: u64,
         post: Post,
     ) -> Result<Post, String> {
         let param = grpc::UpdatePostParam {
-            tid: tid as u64,
+            tid,
             post: Some(post.into()),
         };
 
@@ -142,7 +139,7 @@ impl Store for GrpcStore {
 
     async fn get_latest_post(
         &mut self,
-        tid: i64,
+        tid: u64,
     ) -> Result<Option<Post>, String> {
         Err("unimplemented".to_string())
     }

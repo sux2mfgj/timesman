@@ -33,7 +33,7 @@ impl Store for JsonStore {
         Err("not supported to create times".to_string())
     }
 
-    async fn delete_times(&mut self, _tid: i64) -> Result<(), String> {
+    async fn delete_times(&mut self, _tid: u64) -> Result<(), String> {
         Err("not supported to delete times".to_string())
     }
 
@@ -46,7 +46,7 @@ impl Store for JsonStore {
 
     async fn get_posts(
         &mut self,
-        tid: i64,
+        tid: u64,
     ) -> Result<Vec<super::Post>, String> {
         if self.data.times.id != tid {
             return Err("unknown tid found".to_string());
@@ -57,7 +57,7 @@ impl Store for JsonStore {
 
     async fn create_post(
         &mut self,
-        tid: i64,
+        tid: u64,
         _post: String,
     ) -> Result<super::Post, String> {
         if self.data.times.id != tid {
@@ -69,7 +69,7 @@ impl Store for JsonStore {
 
     async fn update_post(
         &mut self,
-        tid: i64,
+        tid: u64,
         mut _post: super::Post,
     ) -> Result<super::Post, String> {
         if self.data.times.id != tid {
@@ -79,7 +79,7 @@ impl Store for JsonStore {
         Err("not supported to update post".to_string())
     }
 
-    async fn delete_post(&mut self, tid: i64, _pid: i64) -> Result<(), String> {
+    async fn delete_post(&mut self, tid: u64, _pid: u64) -> Result<(), String> {
         if self.data.times.id != tid {
             return Err("unknown tid found".to_string());
         }
@@ -89,7 +89,7 @@ impl Store for JsonStore {
 
     async fn get_latest_post(
         &mut self,
-        _tid: i64,
+        _tid: u64,
     ) -> Result<Option<Post>, String> {
         Ok(None)
     }

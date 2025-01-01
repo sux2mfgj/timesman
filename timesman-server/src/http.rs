@@ -126,7 +126,7 @@ async fn create_times(
 
 async fn delete_times(
     ctx: web::Data<Context>,
-    path: web::Path<i64>,
+    path: web::Path<u64>,
 ) -> impl Responder {
     let tid = path.into_inner();
     let mut store = ctx.store.lock().await;
@@ -160,7 +160,7 @@ struct GetPostResponse {
 
 async fn get_posts(
     ctx: web::Data<Context>,
-    path: web::Path<i64>,
+    path: web::Path<u64>,
 ) -> impl Responder {
     let tid = path.into_inner();
 
@@ -192,7 +192,7 @@ async fn get_posts(
 #[derive(Serialize)]
 struct PostPostResponse {
     base: ResponseBase,
-    pid: i64,
+    pid: u64,
 }
 
 #[derive(Deserialize)]
@@ -202,7 +202,7 @@ struct PostPostRequest {
 
 async fn post_post(
     ctx: web::Data<Context>,
-    path: web::Path<i64>,
+    path: web::Path<u64>,
     req: web::Json<PostPostRequest>,
 ) -> impl Responder {
     let tid = path.into_inner();

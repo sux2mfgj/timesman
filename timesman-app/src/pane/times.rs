@@ -26,7 +26,7 @@ pub struct TimesPane {
     file_dialog: FileDialog,
     store: Arc<Mutex<Box<dyn Store + Send + Sync + 'static>>>,
     edit_title: bool,
-    edit_post: Option<i64>,
+    edit_post: Option<u64>,
     tx: Sender<Message>,
     rx: Receiver<Message>,
 }
