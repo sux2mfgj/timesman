@@ -8,12 +8,15 @@ default = []
 json = ["serde_json"]
 http = ["reqwest"]
 sqlite = ["sqlx"]
+grpc = ["timesman-grpc", "tonic"]
 
 [dependencies]
 timesman-type = {path = "../timesman-type"}
+timesman-grpc = {path = "../timesman-grpc", optional = true}
 async-trait = "0.1.83"
 chrono = { version = "0.4.38", features = ["serde"] }
 reqwest = { version = "0.12.9", features = ["blocking", "json"], optional = true }
 serde = { version = "1.0.215", features = ["serde_derive"] }
 serde_json = {version = "1.0.133", optional = true}
 sqlx = { version = "0.8.2", features = ["chrono", "sqlite", "runtime-tokio"], optional = true }
+tonic = {version = "0.12.3", optional = true}

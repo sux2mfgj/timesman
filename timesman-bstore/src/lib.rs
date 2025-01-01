@@ -1,5 +1,5 @@
-//#[cfg(feature = "grpc")]
-//pub mod grpc;
+#[cfg(feature = "grpc")]
+pub mod grpc;
 #[cfg(feature = "json")]
 pub mod json;
 pub mod ram;

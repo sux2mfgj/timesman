@@ -29,17 +29,17 @@ message TimesTitle { string title = 1; }
 message PostText { string text = 1; }
 
 message CreatePostPrams {
-  TimesId id = 1;
-  PostText test = 2;
+  uint64 id = 1;
+  string text = 2;
 }
 
 message DeletePostParam {
-  TimesId tid = 1;
-  PostId pid = 2;
+  uint64 tid = 1;
+  uint64 pid = 2;
 }
 
 message UpdatePostParam {
-  TimesId tid = 1;
+  uint64 tid = 1;
   Post post = 2;
 }
 

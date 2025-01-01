@@ -4651,6 +4651,7 @@ dependencies = [
  "sqlx",
  "timesman-grpc",
  "timesman-type",
+ "tonic",
 ]
 
 [[package]]
