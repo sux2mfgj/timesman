@@ -2,6 +2,7 @@ pub mod config;
 pub mod log;
 pub mod select;
 pub mod start;
+pub mod test;
 pub mod times;
 
 use crate::app::Event;

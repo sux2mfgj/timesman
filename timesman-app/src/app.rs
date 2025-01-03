@@ -76,7 +76,11 @@ impl App {
         logs: Arc<std::sync::Mutex<Vec<LogRecord>>>,
     ) -> Result<Self, String> {
         let mut stack: VecDeque<Box<dyn Pane>> = VecDeque::new();
-        stack.push_front(Box::new(StartPane::new(config.clone())));
+        // stack.push_front(Box::new(StartPane::new(config.clone())));
+        {
+            use crate::pane::test::TestPane;
+            stack.push_front(Box::new(TestPane::new()));
+        }
 
         config.fonts.load_fonts(cc);
 
