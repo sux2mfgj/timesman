@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "insert into posts(tid, post)\n                    values ($1, $2)\n                    returning id as \"id!\", post, created_at, updated_at",
+  "query": "insert into posts(tid, post)\n                    values ($1, $2)\n                    returning id as \"id!\", tid, post, created_at, updated_at",
   "describe": {
     "columns": [
       {
@@ -9,18 +9,23 @@
         "type_info": "Integer"
       },
       {
-        "name": "post",
+        "name": "tid",
         "ordinal": 1,
+        "type_info": "Integer"
+      },
+      {
+        "name": "post",
+        "ordinal": 2,
         "type_info": "Text"
       },
       {
         "name": "created_at",
-        "ordinal": 2,
+        "ordinal": 3,
         "type_info": "Datetime"
       },
       {
         "name": "updated_at",
-        "ordinal": 3,
+        "ordinal": 4,
         "type_info": "Datetime"
       }
     ],
@@ -31,8 +36,9 @@
       true,
       false,
       false,
+      false,
       true
     ]
   },
-  "hash": "788ad973fb3b26e8ff44dc03828279992307c69b961843ab560abc1ef1e5b8b7"
+  "hash": "2e4a6893442b718ebcfdee2aeb6d9df866797bb94c18e446fa8311e3d1891aca"
 }
