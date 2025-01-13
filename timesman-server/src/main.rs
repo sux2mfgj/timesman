@@ -7,6 +7,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use clap::Parser;
+#[cfg(feature = "sqlite")]
 use timesman_bstore::sqlite::SqliteStoreBuilder;
 use timesman_bstore::Store;
 use timesman_server::TimesManServer;

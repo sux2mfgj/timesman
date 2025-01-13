@@ -7,7 +7,7 @@ edition = "2021"
 default = []
 json = ["serde_json"]
 http = ["reqwest"]
-sqlite = ["sqlx"]
+sqlite = ["sqlx/sqlite"]
 grpc = ["timesman-grpc", "tonic"]
 
 [dependencies]
@@ -18,5 +18,5 @@ chrono = { version = "0.4.38", features = ["serde"] }
 reqwest = { version = "0.12.9", features = ["blocking", "json"], optional = true }
 serde = { version = "1.0.215", features = ["serde_derive"] }
 serde_json = {version = "1.0.133", optional = true}
-sqlx = { version = "0.8.2", features = ["chrono", "sqlite", "runtime-tokio"], optional = true }
+sqlx = { version = "0.8.2", features = ["chrono", "runtime-tokio"], optional = true }
 tonic = {version = "0.12.3", optional = true}

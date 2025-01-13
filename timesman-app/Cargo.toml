@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = []
+default = ["json","grpc","sqlite"]
 json = ["timesman-bstore/json"]
 http = ["timesman-bstore/http"]
 sqlite = ["timesman-bstore/sqlite"]
@@ -12,7 +12,7 @@ grpc = ["timesman-bstore/grpc"]
 
 [dependencies]
 timesman-type = {path = "../timesman-type"}
-timesman-bstore = {path = "../timesman-bstore"}
+timesman-bstore = {path = "../timesman-bstore", optional = true}
 chrono = { version = "0.4.38", features = ["serde"] }
 eframe = "0.29.1"
 egui = "0.29.1"
