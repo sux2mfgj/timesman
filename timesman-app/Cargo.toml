@@ -2,6 +2,7 @@
 name = "timesman-app"
 version = "0.1.0"
 edition = "2021"
+repository = "https://github.com/sux2mfgj/timesd"
 
 [features]
 default = ["json","grpc","sqlite"]
