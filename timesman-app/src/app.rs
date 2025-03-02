@@ -5,6 +5,7 @@ use std::sync::Arc;
 use tokio::{runtime, sync::mpsc};
 use tokio::sync::Mutex;
 
+use crate::arbiter::{self, StoreArbiter};
 use crate::config::Config;
 use crate::log::LogRecord;
 use crate::pane::config::ConfigPane;
@@ -150,7 +151,8 @@ impl App {
             }
         };
 
-        
+        let store: AsyncStore = Arc::new(Mutex::new(Box::new(StoreArbiter::new(store))));
+
         {
             let store = store.clone();
             let (tx, mut rx) = mpsc::channel::<Result<(), String>>(8);

@@ -4,6 +4,7 @@ mod app;
 mod config;
 mod fonts;
 mod pane;
+mod arbiter;
 
 use std::sync::Arc;
 use std::sync::Mutex;
