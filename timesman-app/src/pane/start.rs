@@ -1,3 +1,4 @@
+use std::f32::consts::E;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -16,7 +17,7 @@ use timesman_bstore::ram::RamStore;
 use timesman_bstore::remote::RemoteStore;
 #[cfg(feature = "sqlite")]
 use timesman_bstore::sqlite::SqliteStoreBuilder;
-use timesman_bstore::{Store, StoreType};
+use timesman_bstore::{Store, StoreParam, StoreType};
 use tokio::runtime;
 use tokio::sync::mpsc::{self};
 use tokio::sync::Mutex;
@@ -40,56 +41,45 @@ impl StartPane {
         }
     }
 
-    fn start(&self, rt: &runtime::Runtime) -> Result<Event, String> {
-        let store: Arc<Mutex<Box<dyn Store + Send + Sync + 'static>>> =
-            match self.store {
-                #[cfg(feature = "http")]
-                StoreType::Remote => {
-                    let server = self.config.params.remote.server.clone();
-                    Arc::new(Mutex::new(Box::new(RemoteStore::new(server))))
+    fn start(&self) -> Result<Event, String> {
+        match self.store {
+            #[cfg(feature = "http")]
+            StoreType::Remote => {
+                Ok(Event::Connect(
+                    StoreType::Remote,
+                    StoreParam::Remote(self.config.params.remote.server.clone()),
+                ))
+            }
+            #[cfg(feature = "grpc")]
+            StoreType::Grpc => {
+                Ok(Event::Connect(
+                    StoreType::Grpc,
+                    StoreParam::Grpc(self.config.params.grpc.server.clone()),
+                ))
+            }
+            StoreType::Memory => {
+                Ok(Event::Connect(StoreType::Memory, StoreParam::None))
+            }
+            #[cfg(feature = "json")]
+            StoreType::Json => {
+                if let Some(path) = &self.json_file {
+                    Ok(Event::Connect(
+                        StoreType::Json,
+                        StoreParam::Json(path.clone()),
+                    ))
+                } else {
+                    Err(format!("You should select the json file"))
                 }
-                #[cfg(feature = "grpc")]
-                StoreType::Grpc => {
-                    let server = self.config.params.grpc.server.clone();
-                    let store =
-                        rt.block_on(async move { GrpcStore::build(server).await })?;
-                    Arc::new(Mutex::new(Box::new(store)))
-                }
-                StoreType::Memory => {
-                    Arc::new(Mutex::new(Box::new(RamStore::new())))
-                }
-                #[cfg(feature = "json")]
-                StoreType::Json => {
-                    if let Some(path) = &self.json_file {
-                        let store = JsonStore::build(path.clone())?;
-                        Arc::new(Mutex::new(Box::new(store)))
-                    } else {
-                        return Err(format!("You should select the json file"));
-                    }
-                }
-                #[cfg(feature = "sqlite")]
-                StoreType::Sqlite => {
-                    let path = self.config.params.sqlite.db.clone();
-                    let store = SqliteStoreBuilder::new(&path);
-                    let store =
-                        rt.block_on(async move { store.build().await })?;
-                    Arc::new(Mutex::new(Box::new(store)))
-                }
-            };
-
-        {
-            let store = store.clone();
-            let (tx, mut rx) = mpsc::channel::<Result<(), String>>(8);
-
-            rt.block_on(async move {
-                let mut store = store.lock().await;
-                tx.send(store.check().await).await.unwrap();
-            });
-
-            rx.blocking_recv().ok_or("failed to setup backing store")?
-        }?;
-
-        Ok(Event::Connect(store))
+            }
+            #[cfg(feature = "sqlite")]
+            StoreType::Sqlite => {
+                Ok(Event::Connect(
+                    StoreType::Sqlite,
+                    StoreParam::Sqlite(self.config.params.sqlite.db.clone()),
+                ))
+            }
+            _ => Err("Invalid store type".to_string()),
+        }
     }
 }
 
@@ -175,7 +165,7 @@ impl Pane for StartPane {
 
             ui.separator();
             if ui.button("Start").clicked() {
-                match self.start(rt) {
+                match self.start() {
                     Ok(e) => {
                         event = Some(e);
                     }

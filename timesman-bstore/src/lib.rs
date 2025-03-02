@@ -8,6 +8,8 @@ pub mod remote;
 #[cfg(feature = "sqlite")]
 pub mod sqlite;
 
+use std::path::PathBuf;
+
 use async_trait::async_trait;
 
 use timesman_type::{Post, Times};
@@ -24,6 +26,20 @@ pub enum StoreType {
     Grpc,
     #[cfg(feature = "sqlite")]
     Sqlite,
+}
+
+type RemoteServer = String;
+
+pub enum StoreParam {
+    #[cfg(feature = "http")]
+    Remote(RemoteServer),
+    #[cfg(feature = "grpc")]
+    Grpc(RemoteServer),
+    #[cfg(feature = "json")]
+    Json(PathBuf),
+    #[cfg(feature = "sqlite")]
+    Sqlite(String),
+    None,
 }
 
 #[async_trait]

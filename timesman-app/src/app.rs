@@ -2,7 +2,7 @@ use core::fmt;
 use egui::Vec2;
 use std::collections::VecDeque;
 use std::sync::Arc;
-use tokio::runtime;
+use tokio::{runtime, sync::mpsc};
 use tokio::sync::Mutex;
 
 use crate::config::Config;
@@ -15,8 +15,8 @@ use crate::pane::times::TimesPane;
 use crate::pane::Pane;
 
 use eframe;
-use timesman_bstore::Store;
 use timesman_type::Times;
+use timesman_bstore::{grpc::GrpcStore, json::JsonStore, ram::RamStore, sqlite::SqliteStoreBuilder, Store, StoreParam, StoreType};
 
 pub enum UIOperation {
     ChangeScale(f32),
@@ -24,7 +24,7 @@ pub enum UIOperation {
 }
 
 pub enum Event {
-    Connect(Arc<Mutex<Box<dyn Store + Send + Sync + 'static>>>),
+    Connect(StoreType, StoreParam),
     Select(Arc<Mutex<Box<dyn Store + Send + Sync + 'static>>>, Times),
     Pop,
     Logs,
@@ -36,7 +36,7 @@ pub enum Event {
 impl fmt::Display for Event {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Event::Connect(_) => {
+            Event::Connect(_,_) => {
                 write!(f, "Connect")
             }
             Event::Select(_, _) => {
@@ -69,6 +69,8 @@ pub struct App {
     event_queue: VecDeque<Event>,
 }
 
+type AsyncStore = Arc<Mutex<Box<dyn Store + Send + Sync + 'static>>>;
+
 impl App {
     pub fn new(
         cc: &eframe::CreationContext<'_>,
@@ -95,9 +97,78 @@ impl App {
         })
     }
 
+    fn connect(&mut self, stype: StoreType, param: StoreParam) -> Result<AsyncStore, String> {
+        let store: AsyncStore = match stype {
+            #[cfg(feature = "http")]
+            StoreType::Remote => {
+                let server = match param {
+                    StoreParam::Remote(server) => server,
+                    _ => {
+                        return Err("Invalid parameter".to_string());
+                    }
+                };
+                Arc::new(Mutex::new(Box::new(RemoteStore::new(server))))
+            }
+            #[cfg(feature = "grpc")]
+            StoreType::Grpc => {
+                let server = match param {
+                    StoreParam::Grpc(server) => server,
+                    _ => {
+                        return Err("Invalid parameter".to_string());
+                    }
+                };
+                let store = self.rt.block_on(async move { GrpcStore::build(server).await })?;
+                Arc::new(Mutex::new(Box::new(store)))
+            }
+            StoreType::Memory => {
+                Arc::new(Mutex::new(Box::new(RamStore::new())))
+            }
+            #[cfg(feature = "json")]
+            StoreType::Json => {
+                let file = match param {
+                    StoreParam::Json(file) => file,
+                    _ => {
+                        return Err("Invalid parameter".to_string());
+                    }
+                };
+                Arc::new(Mutex::new(Box::new(JsonStore::build(file)?)))
+            }
+            #[cfg(feature = "sqlite")]
+            StoreType::Sqlite => {
+                let file = match param {
+                    StoreParam::Sqlite(file) => file,
+                    _ => {
+                        return Err("Invalid parameter".to_string());
+                    }
+                };
+
+                let store = self.rt.block_on(async move {SqliteStoreBuilder::new(&file).build().await
+                })?;
+                Arc::new(Mutex::new(Box::new(store)))
+            }
+        };
+
+        
+        {
+            let store = store.clone();
+            let (tx, mut rx) = mpsc::channel::<Result<(), String>>(8);
+
+            self.rt.block_on(async move {
+                let mut store = store.lock().await;
+                tx.send(store.check().await).await.unwrap();
+            });
+
+            rx.blocking_recv().ok_or("failed to setup backing store")?
+        }?;
+
+        Ok(store)
+
+    }
+
     fn handle_events(&mut self, event: Event, ctx: &egui::Context) {
         match event {
-            Event::Connect(store) => {
+            Event::Connect(stype, sparam) => {
+                let store = self.connect(stype,sparam).unwrap();
                 self.pane_stack
                     .push_front(Box::new(SelectPane::new(store, &self.rt)));
             }
