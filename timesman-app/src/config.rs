@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
-use std::collections::VecDeque;
+use std::sync::Arc;
+use super::app::AsyncEventQueue;
 use std::default::Default;
 use std::fs::File;
 use std::io::{BufWriter, Read, Write};
@@ -174,7 +175,8 @@ impl Config {
         Ok(())
     }
 
-    pub fn append_init_events(&self, queue: &mut VecDeque<Event>) {
+    pub fn append_init_events(&self, aequeue: &mut AsyncEventQueue) {
+        let mut queue = aequeue.lock().unwrap();
         queue.push_back(Event::ChangeUI(UIOperation::ChangeWindowSize(
             self.params.ui.window_size.width,
             self.params.ui.window_size.height,

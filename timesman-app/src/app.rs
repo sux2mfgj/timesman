@@ -61,15 +61,17 @@ impl fmt::Display for Event {
     }
 }
 
+pub type AsyncEventQueue = Arc<std::sync::Mutex<VecDeque<Event>>>;
+
 pub struct App {
     pane_stack: VecDeque<Box<dyn Pane>>,
     logs: Arc<std::sync::Mutex<Vec<LogRecord>>>,
     config: Config,
     rt: runtime::Runtime,
-    event_queue: VecDeque<Event>,
+    event_queue: AsyncEventQueue,
 }
 
-type AsyncStore = Arc<Mutex<Box<dyn Store + Send + Sync + 'static>>>;
+pub type AsyncStore = Arc<Mutex<Box<dyn Store + Send + Sync + 'static>>>;
 
 impl App {
     pub fn new(
@@ -82,7 +84,7 @@ impl App {
 
         config.fonts.load_fonts(cc);
 
-        let mut event_queue = VecDeque::new();
+        let mut event_queue = Arc::new(std::sync::Mutex::new(VecDeque::new()));
         config.append_init_events(&mut event_queue);
 
         Ok(Self {
@@ -165,7 +167,7 @@ impl App {
 
     }
 
-    fn handle_events(&mut self, event: Event, ctx: &egui::Context) {
+    fn handle_events(&mut self, ctx: &egui::Context, event: Event) {        
         match event {
             Event::Connect(stype, sparam) => {
                 let store = self.connect(stype,sparam).unwrap();
@@ -235,18 +237,21 @@ impl eframe::App for App {
 
         match pane.update(ctx, _frame, &self.rt) {
             Some(event) => {
-                self.event_queue.push_back(event);
+                {
+                    let mut queue = self.event_queue.lock().unwrap();
+                    queue.push_back(event);
+                }
             }
             None => {}
         };
 
         loop {
-            if let Some(event) = self.event_queue.pop_front() {
-                debug!("Handle Event: {}", event);
-                self.handle_events(event, ctx);
-            } else {
+            let mut equeue = self.event_queue.clone();
+            let mut queue = equeue.lock().unwrap();
+            let Some(event) = queue.pop_front() else {
                 break;
-            }
+            };
+            self.handle_events(ctx, event);
         }
     }
 }
