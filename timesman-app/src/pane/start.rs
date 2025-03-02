@@ -48,6 +48,13 @@ impl StartPane {
                     let server = self.config.params.remote.server.clone();
                     Arc::new(Mutex::new(Box::new(RemoteStore::new(server))))
                 }
+                #[cfg(feature = "grpc")]
+                StoreType::Grpc => {
+                    let server = self.config.params.grpc.server.clone();
+                    let store =
+                        rt.block_on(async move { GrpcStore::build(server).await })?;
+                    Arc::new(Mutex::new(Box::new(store)))
+                }
                 StoreType::Memory => {
                     Arc::new(Mutex::new(Box::new(RamStore::new())))
                 }
@@ -107,6 +114,8 @@ impl Pane for StartPane {
         egui::CentralPanel::default().show(ctx, |ui| {
             #[cfg(feature = "http")]
             ui.radio_value(&mut self.store, StoreType::Remote, "Server");
+            #[cfg(feature = "grpc")]
+            ui.radio_value(&mut self.store, StoreType::Grpc, "Grpc");
             ui.label("Local");
             ui.radio_value(&mut self.store, StoreType::Memory, "Temporay");
             #[cfg(feature = "json")]
@@ -123,6 +132,12 @@ impl Pane for StartPane {
                 StoreType::Remote => {
                     ui.label("Server");
                     let server = &mut self.config.params.remote.server;
+                    ui.text_edit_singleline(server);
+                }
+                #[cfg(feature = "grpc")]
+                StoreType::Grpc => {
+                    ui.label("Server");
+                    let server = &mut self.config.params.grpc.server;
                     ui.text_edit_singleline(server);
                 }
                 #[cfg(feature = "json")]

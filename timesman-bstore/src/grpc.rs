@@ -12,9 +12,9 @@ pub struct GrpcStore {
 }
 
 impl GrpcStore {
-    pub async fn build(server: String) -> Self {
-        let client = TimesManClient::connect(server).await.unwrap();
-        Self { client }
+    pub async fn build(server: String) -> Result<Self, String> {
+        let client = TimesManClient::connect(server).await.map_err(|e| format!("{e}"))?;
+        Ok(Self { client })
     }
 }
 

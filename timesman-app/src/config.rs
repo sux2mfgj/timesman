@@ -22,6 +22,7 @@ pub struct ConfigParam {
     pub sqlite: SqliteConfig,
     pub remote: RemoteConfig,
     pub ui: UIConfig,
+    pub grpc: GrpcConfig,
 }
 
 impl Default for ConfigParam {
@@ -31,6 +32,7 @@ impl Default for ConfigParam {
             sqlite: SqliteConfig::default(),
             remote: RemoteConfig::default(),
             ui: UIConfig::default(),
+            grpc: GrpcConfig::default(),
         }
     }
 }
@@ -42,6 +44,11 @@ pub struct SqliteConfig {
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct RemoteConfig {
+    pub server: String,
+}
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct GrpcConfig {
     pub server: String,
 }
 
@@ -74,6 +81,14 @@ impl Default for SqliteConfig {
 }
 
 impl Default for RemoteConfig {
+    fn default() -> Self {
+        Self {
+            server: "http://localhost:8080".to_string(),
+        }
+    }
+}
+
+impl Default for GrpcConfig {
     fn default() -> Self {
         Self {
             server: "http://localhost:8080".to_string(),

@@ -20,6 +20,8 @@ pub enum StoreType {
     Json,
     #[cfg(feature = "http")]
     Remote,
+    #[cfg(feature = "grpc")]
+    Grpc,
     #[cfg(feature = "sqlite")]
     Sqlite,
 }
