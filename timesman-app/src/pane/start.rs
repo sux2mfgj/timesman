@@ -1,182 +1,107 @@
-use std::path::PathBuf;
-use std::sync::Arc;
+use super::{PaneModel, PaneRequest, PaneResponse};
+use crate::pane::start_ui::{StartPaneTrait, UIRequest, UIResponse};
 
-use crate::app::Event;
-use crate::config::Config;
-
-use super::Pane;
-
-use egui_file_dialog::FileDialog;
-#[cfg(feature = "grpc")]
-use timesman_bstore::grpc::GrpcStore;
-#[cfg(feature = "json")]
-use timesman_bstore::json::JsonStore;
-use timesman_bstore::ram::RamStore;
-#[cfg(feature = "http")]
-use timesman_bstore::remote::RemoteStore;
-#[cfg(feature = "sqlite")]
-use timesman_bstore::sqlite::SqliteStoreBuilder;
-use timesman_bstore::{Store, StoreType};
-use tokio::runtime;
-use tokio::sync::mpsc::{self};
-use tokio::sync::Mutex;
-
-pub struct StartPane {
-    config: Config,
-    errmsg: Option<String>,
-    store: StoreType,
-    file_dialog: FileDialog,
-    json_file: Option<PathBuf>,
+pub struct StartPaneModel {
+    pane: Box<dyn StartPaneTrait>,
+    ui_resps: Vec<UIResponse>,
 }
 
-impl StartPane {
-    pub fn new(config: Config) -> Self {
-        Self {
-            config,
-            errmsg: None,
-            store: StoreType::default(),
-            file_dialog: FileDialog::new(),
-            json_file: None,
-        }
-    }
-
-    fn start(&self, rt: &runtime::Runtime) -> Result<Event, String> {
-        let store: Arc<Mutex<Box<dyn Store + Send + Sync + 'static>>> =
-            match self.store {
-                #[cfg(feature = "http")]
-                StoreType::Remote => {
-                    let server = self.config.params.remote.server.clone();
-                    Arc::new(Mutex::new(Box::new(RemoteStore::new(server))))
-                }
-                StoreType::Memory => {
-                    Arc::new(Mutex::new(Box::new(RamStore::new())))
-                }
-                #[cfg(feature = "json")]
-                StoreType::Json => {
-                    if let Some(path) = &self.json_file {
-                        let store = JsonStore::build(path.clone())?;
-                        Arc::new(Mutex::new(Box::new(store)))
-                    } else {
-                        return Err(format!("You should select the json file"));
-                    }
-                }
-                #[cfg(feature = "sqlite")]
-                StoreType::Sqlite => {
-                    let path = self.config.params.sqlite.db.clone();
-                    let store = SqliteStoreBuilder::new(&path);
-                    let store =
-                        rt.block_on(async move { store.build().await })?;
-                    Arc::new(Mutex::new(Box::new(store)))
-                }
-            };
-
-        {
-            let store = store.clone();
-            let (tx, mut rx) = mpsc::channel::<Result<(), String>>(8);
-
-            rt.block_on(async move {
-                let mut store = store.lock().await;
-                tx.send(store.check().await).await.unwrap();
-            });
-
-            rx.blocking_recv().ok_or("failed to setup backing store")?
-        }?;
-
-        Ok(Event::Connect(store))
-    }
-}
-
-impl Pane for StartPane {
+impl PaneModel for StartPaneModel {
     fn update(
         &mut self,
         ctx: &egui::Context,
-        _frame: &mut eframe::Frame,
-        rt: &runtime::Runtime,
-    ) -> Option<Event> {
-        let mut event = None;
-        egui::TopBottomPanel::top("top").show(ctx, |ui| {
-            egui::menu::bar(ui, |ui| {
-                event = self.times_menu(ui);
-            });
-        });
+        msg_resp: &Vec<PaneResponse>,
+    ) -> Result<Vec<PaneRequest>, String> {
+        let reqs = self.pane.update(ctx, &self.ui_resps).unwrap();
 
-        egui::TopBottomPanel::bottom("bottom").show(ctx, |ui| {
-            self.show_latest_log(ui);
-        });
+        let mut ui_resps = vec![];
+        let mut pane_resps = vec![];
+        for req in reqs {
+            let (ui_resp, pane_resp) = self.handle_ui_requests(req).unwrap();
 
-        egui::CentralPanel::default().show(ctx, |ui| {
-            #[cfg(feature = "http")]
-            ui.radio_value(&mut self.store, StoreType::Remote, "Server");
-            ui.label("Local");
-            ui.radio_value(&mut self.store, StoreType::Memory, "Temporay");
-            #[cfg(feature = "json")]
-            ui.radio_value(&mut self.store, StoreType::Json, "Json");
-            #[cfg(feature = "sqlite")]
-            ui.radio_value(&mut self.store, StoreType::Sqlite, "Sqlite");
-
-            ui.separator();
-            ui.label("Configurations:");
-
-            match self.store {
-                StoreType::Memory => {}
-                #[cfg(feature = "http")]
-                StoreType::Remote => {
-                    ui.label("Server");
-                    let server = &mut self.config.params.remote.server;
-                    ui.text_edit_singleline(server);
-                }
-                #[cfg(feature = "json")]
-                StoreType::Json => {
-                    ui.label("File");
-                    if ui.button("Select").clicked() {
-                        self.file_dialog.select_file();
-                    }
-
-                    if let Some(path) = self.file_dialog.update(ctx).selected()
-                    {
-                        self.json_file = Some(path.to_path_buf());
-                    }
-
-                    if let Some(path) = &self.json_file {
-                        ui.label(format!("{:?}", path));
-                    }
-                }
-                #[cfg(feature = "sqlite")]
-                StoreType::Sqlite => {
-                    ui.label("database file");
-
-                    if ui.button("Select").clicked() {
-                        self.file_dialog.select_file();
-                    }
-
-                    if let Some(path) = self.file_dialog.update(ctx).selected()
-                    {
-                        self.config.params.sqlite.db =
-                            path.to_string_lossy().to_string();
-                    }
-                    ui.label(&self.config.params.sqlite.db);
-                }
+            if let Some(resp) = ui_resp {
+                ui_resps.push(resp);
             }
 
-            ui.separator();
-            if ui.button("Start").clicked() {
-                match self.start(rt) {
-                    Ok(e) => {
-                        event = Some(e);
-                    }
-                    Err(e) => {
-                        self.errmsg = Some(e);
-                    }
-                };
+            if let Some(resp) = pane_resp {
+                pane_resps.push(resp);
             }
+        }
+        self.ui_resps = ui_resps;
 
-            if let Some(e) = &self.errmsg {
-                ui.label(format!("error: {e}"));
-            }
-        });
+        Ok(pane_resps)
+    }
+}
 
-        event
+impl StartPaneModel {
+    pub fn new(pane: Box<dyn StartPaneTrait>) -> Self {
+        Self {
+            pane,
+            ui_resps: vec![],
+        }
     }
 
-    fn reload(&mut self, _rt: &runtime::Runtime) {}
+    fn handle_ui_requests(
+        &self,
+        req: UIRequest,
+    ) -> Result<(Option<UIResponse>, Option<PaneRequest>), String> {
+        match req {
+            UIRequest::Close => Ok((None, Some(PaneRequest::Close))),
+            UIRequest::Start => todo!(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+    use std::collections::VecDeque;
+    use std::rc::Rc;
+    use std::sync::Mutex;
+
+    struct DummyStartPane {
+        test_ui_event_queue: Rc<Mutex<VecDeque<UIRequest>>>,
+    }
+
+    impl StartPaneTrait for DummyStartPane {
+        fn update(
+            &mut self,
+            ctx: &egui::Context,
+            msg: &Vec<UIResponse>,
+        ) -> Result<Vec<UIRequest>, String> {
+            let mut ui_resp = vec![];
+            let queue = self.test_ui_event_queue.lock().unwrap();
+
+            for event in queue.iter() {
+                ui_resp.push(*event);
+            }
+
+            Ok(ui_resp)
+        }
+    }
+
+    impl DummyStartPane {
+        fn new(queue: Rc<Mutex<VecDeque<UIRequest>>>) -> Self {
+            Self {
+                test_ui_event_queue: queue,
+            }
+        }
+    }
+
+    #[test]
+    fn test_close() {
+        let ui_event_queue = Rc::new(Mutex::new(VecDeque::new()));
+        let pane = Box::new(DummyStartPane::new(ui_event_queue.clone()));
+        let mut model = StartPaneModel::new(pane);
+
+        {
+            let mut q = ui_event_queue.lock().unwrap();
+            q.push_back(UIRequest::Close);
+        }
+        let ctx = egui::Context::default();
+        let reqs = model.update(&ctx, &vec![]).unwrap();
+        assert_eq!(reqs.len(), 1);
+        assert_eq!(reqs[0], PaneRequest::Close);
+    }
 }
