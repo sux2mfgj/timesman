@@ -2,7 +2,8 @@
 //pub mod grpc;
 //#[cfg(feature = "json")]
 //pub mod json;
-pub mod ram;
+mod ram;
+pub use ram::RamStore;
 #[cfg(feature = "http")]
 pub mod remote;
 //#[cfg(feature = "sqlite")]
@@ -12,7 +13,7 @@ use async_trait::async_trait;
 
 use timesman_type::{Post, Times};
 
-#[derive(PartialEq, Default, Debug)]
+#[derive(PartialEq, Default, Debug, Copy, Clone)]
 pub enum StoreType {
     #[default]
     Memory,

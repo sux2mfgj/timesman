@@ -1,12 +1,17 @@
-use timesman_bstore::{Store, StoreType};
+use timesman_bstore::{RamStore, Store, StoreType};
+use tokio::runtime;
 
-use crate::pane::{init_pane, PaneModel, PaneRequest, PaneResponse};
+use crate::pane::SelectPaneModel;
+use crate::pane::{
+    create_select_pane, init_pane, PaneModel, PaneRequest, PaneResponse,
+};
 
 use std::{collections::VecDeque, rc::Rc, sync::Mutex};
 
 pub struct App {
     pane_stack: VecDeque<Box<dyn PaneModel>>,
     msg_resp: Vec<PaneResponse>,
+    rt: runtime::Runtime,
 }
 
 impl App {
@@ -16,21 +21,24 @@ impl App {
 
         let msg_resp = vec![];
 
+        let rt = runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+
         Self {
             pane_stack,
             msg_resp,
+            rt,
         }
     }
 
-    fn create_store(
-        &self,
-        stype: StoreType,
-    ) -> Result<Rc<Mutex<dyn Store>>, String> {
-        match stype {
-            StoreType::Memory => {}
-        }
+    fn create_store(&self, stype: StoreType) -> Result<Box<dyn Store>, String> {
+        let store = match stype {
+            StoreType::Memory => RamStore::new(),
+        };
 
-        todo!();
+        Ok(Box::new(store))
     }
 
     fn handle_pane_event(
@@ -41,15 +49,15 @@ impl App {
             PaneRequest::Close => {
                 self.pane_stack.pop_front();
             }
-            PaneRequest::SelectTimes(stype) => {
+            PaneRequest::SelectTimes(tid) => {}
+            PaneRequest::SelectStore(stype) => {
                 let store = self.create_store(stype)?;
-                todo!();
-                //let pane = Box::new(SelectPaneModel::new())
+                let pane = create_select_pane(store, &self.rt);
+                self.pane_stack.push_front(pane);
             }
-            PaneRequest::SelectStore => {}
         }
 
-        todo!()
+        Ok(PaneResponse::Ok)
     }
 }
 
@@ -62,7 +70,7 @@ impl eframe::App for App {
             }
         };
 
-        let reqs = match pane.update(ctx, &self.msg_resp) {
+        let reqs = match pane.update(ctx, &self.msg_resp, &self.rt) {
             Ok(reqs) => reqs,
             Err(e) => {
                 todo!("{e}");

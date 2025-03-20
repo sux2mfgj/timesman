@@ -1,8 +1,11 @@
 use serde::{Deserialize, Serialize};
 
+pub type Tid = u64;
+pub type Pid = u64;
+
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Times {
-    pub id: u64,
+    pub id: Tid,
     pub title: String,
     pub created_at: chrono::NaiveDateTime,
     pub updated_at: Option<chrono::NaiveDateTime>,
@@ -24,7 +27,7 @@ impl std::fmt::Display for Times {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Post {
-    pub id: u64,
+    pub id: Pid,
     pub post: String,
     pub created_at: chrono::NaiveDateTime,
     pub updated_at: Option<chrono::NaiveDateTime>,

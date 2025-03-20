@@ -1,6 +1,8 @@
 use super::{PaneModel, PaneRequest, PaneResponse};
 use crate::pane::start_ui::{StartPaneTrait, UIRequest, UIResponse};
 
+use tokio::runtime::Runtime;
+
 pub struct StartPaneModel {
     pane: Box<dyn StartPaneTrait>,
     ui_resps: Vec<UIResponse>,
@@ -11,6 +13,7 @@ impl PaneModel for StartPaneModel {
         &mut self,
         ctx: &egui::Context,
         msg_resp: &Vec<PaneResponse>,
+        rt: &Runtime,
     ) -> Result<Vec<PaneRequest>, String> {
         let reqs = self.pane.update(ctx, &self.ui_resps).unwrap();
 
@@ -47,7 +50,9 @@ impl StartPaneModel {
     ) -> Result<(Option<UIResponse>, Option<PaneRequest>), String> {
         match req {
             UIRequest::Close => Ok((None, Some(PaneRequest::Close))),
-            UIRequest::Start => todo!(),
+            UIRequest::Start(stype) => {
+                Ok((None, Some(PaneRequest::SelectStore(stype))))
+            }
         }
     }
 }
