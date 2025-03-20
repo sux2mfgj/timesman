@@ -3,20 +3,23 @@ use std::{rc::Rc, sync::Mutex};
 use timesman_bstore::{Store, StoreType};
 use timesman_type::Tid;
 
-pub mod select;
-pub use select::SelectPaneModel;
+mod select;
 mod select_ui;
-pub mod start;
-pub use start::StartPaneModel;
+mod start;
 mod start_ui;
+mod times;
+mod times_ui;
+
+pub use select::SelectPaneModel;
+pub use start::StartPaneModel;
+pub use times::TimesPaneModel;
 
 use tokio::runtime::Runtime;
 
-#[derive(Debug, PartialEq)]
 pub enum PaneRequest {
     Close,
     SelectStore(StoreType),
-    SelectTimes(Tid),
+    SelectTimes(Rc<Mutex<dyn Store>>, Tid),
     Log(String),
 }
 
@@ -39,7 +42,7 @@ pub trait PaneModel {
 
 pub fn init_pane() -> Box<dyn PaneModel> {
     let pane = Box::new(start_ui::StartPane::new());
-    Box::new(start::StartPaneModel::new(pane))
+    Box::new(StartPaneModel::new(pane))
 }
 
 pub fn create_select_pane(
@@ -47,5 +50,14 @@ pub fn create_select_pane(
     rt: &Runtime,
 ) -> Box<dyn PaneModel> {
     let pane = Box::new(select_ui::SelectPane::new());
-    Box::new(select::SelectPaneModel::new(store, pane, rt))
+    Box::new(SelectPaneModel::new(store, pane, rt))
+}
+
+pub fn create_times_pane(
+    store: Rc<Mutex<dyn Store>>,
+    tid: Tid,
+    rt: &Runtime,
+) -> Box<dyn PaneModel> {
+    let pane = Box::new(times_ui::TimesPane::new());
+    Box::new(TimesPaneModel::new(pane, store, tid, rt))
 }

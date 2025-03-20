@@ -17,6 +17,10 @@ pub struct SelectPaneModel {
     times_list: Vec<Times>,
 }
 
+fn log(text: String) {
+    tmlog(format!("{} {}", PANE_NAME.to_string(), text));
+}
+
 impl PaneModel for SelectPaneModel {
     fn update(
         &mut self,
@@ -81,13 +85,12 @@ impl SelectPaneModel {
     ) -> (Option<UIResponse>, Option<PaneRequest>) {
         match req {
             UIRequest::SelectTimes(tid) => {
-                tmlog(format!(
-                    "{} The times is selected {}",
-                    PANE_NAME.to_string(),
-                    tid
-                ));
+                log(format!("The times is selected {}", tid));
 
-                (None, Some(PaneRequest::SelectTimes(tid)))
+                (
+                    None,
+                    Some(PaneRequest::SelectTimes(self.store.clone(), tid)),
+                )
             }
             UIRequest::CreateTimes(title) => {
                 let times = {
@@ -100,11 +103,7 @@ impl SelectPaneModel {
                     .unwrap()
                 };
 
-                tmlog(format!(
-                    "{} A new times is created named {}",
-                    PANE_NAME.to_string(),
-                    title
-                ));
+                log(format!("A new times is created named {}", title));
 
                 self.times_list.push(times);
 

@@ -3,7 +3,8 @@ use tokio::runtime;
 
 use crate::log::tmlog;
 use crate::pane::{
-    create_select_pane, init_pane, PaneModel, PaneRequest, PaneResponse,
+    create_select_pane, create_times_pane, init_pane, PaneModel, PaneRequest,
+    PaneResponse,
 };
 
 use std::collections::VecDeque;
@@ -55,8 +56,9 @@ impl App {
             PaneRequest::Close => {
                 self.pane_stack.pop_front();
             }
-            PaneRequest::SelectTimes(tid) => {
-                todo!();
+            PaneRequest::SelectTimes(store, tid) => {
+                let pane = create_times_pane(store, tid, &self.rt);
+                self.pane_stack.push_front(pane);
             }
             PaneRequest::SelectStore(stype) => {
                 let store = self.create_store(stype)?;
