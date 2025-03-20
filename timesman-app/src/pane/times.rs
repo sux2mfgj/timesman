@@ -26,7 +26,21 @@ impl PaneModel for TimesPaneModel {
     ) -> Result<Vec<PaneRequest>, String> {
         let mut p_reqs = vec![];
 
-        let ui_reqs = self.pane.update(ctx, &self.ui_resps, &self.posts);
+        let ui_reqs =
+            self.pane.update(ctx, &self.ui_resps, &self.posts).unwrap();
+
+        self.ui_resps = vec![];
+
+        for req in ui_reqs {
+            let (ui_resp, p_req) = self.handle_ui_request(req, rt);
+            if let Some(resp) = ui_resp {
+                self.ui_resps.push(resp);
+            }
+
+            if let Some(req) = p_req {
+                p_reqs.push(req);
+            }
+        }
 
         Ok(p_reqs)
     }
@@ -54,6 +68,29 @@ impl TimesPaneModel {
             tid,
             ui_resps: vec![],
             posts,
+        }
+    }
+
+    fn handle_ui_request(
+        &mut self,
+        reqs: UIRequest,
+        rt: &Runtime,
+    ) -> (Option<UIResponse>, Option<PaneRequest>) {
+        match reqs {
+            UIRequest::Post(text) => {
+                let store = self.store.clone();
+                let tid = self.tid.clone();
+                let post = rt
+                    .block_on(async move {
+                        let mut store = store.lock().unwrap();
+                        store.create_post(tid, text).await
+                    })
+                    .unwrap();
+
+                self.posts.push(post);
+
+                (Some(UIResponse::PostSuccess), None)
+            }
         }
     }
 }

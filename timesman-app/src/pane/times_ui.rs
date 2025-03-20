@@ -1,14 +1,17 @@
 use timesman_type::Post;
 
-use egui::{CentralPanel, ScrollArea, TextEdit, TopBottomPanel};
+use egui::{
+    CentralPanel, Key, Modifiers, ScrollArea, TextEdit, TopBottomPanel,
+};
 
-use tokio::runtime::Runtime;
+#[derive(Clone)]
+pub enum UIRequest {
+    Post(String),
+}
 
-#[derive(Copy, Clone)]
-pub enum UIRequest {}
-
-#[derive(Copy, Clone)]
-pub enum UIResponse {}
+pub enum UIResponse {
+    PostSuccess,
+}
 
 pub trait TimesPaneTrait {
     fn update(
@@ -27,13 +30,21 @@ impl TimesPaneTrait for TimesPane {
     fn update(
         &mut self,
         ctx: &egui::Context,
-        msg: &Vec<UIResponse>,
+        ui_resps: &Vec<UIResponse>,
         posts: &Vec<Post>,
     ) -> Result<Vec<UIRequest>, String> {
         let mut ui_reqs = vec![];
+
+        for resp in ui_resps {
+            self.handle_ui_resp(resp);
+        }
+
         self.top_bar(ctx);
         self.bottom(ctx);
         self.main_panel(ctx, posts);
+
+        let r = self.consume_keys(ctx);
+        ui_reqs = vec![ui_reqs, r].concat();
 
         Ok(ui_reqs)
     }
@@ -56,11 +67,7 @@ impl TimesPane {
 
             ui.separator();
 
-            if ui.button(post.post.clone()).clicked() {
-                todo!();
-            }
-
-            // TODO: show the latest post
+            ui.label(post.post.clone());
         });
     }
 
@@ -85,5 +92,25 @@ impl TimesPane {
                 .desired_width(f32::INFINITY)
                 .show(ui);
         });
+    }
+
+    fn consume_keys(&self, ctx: &egui::Context) -> Vec<UIRequest> {
+        let mut ui_reqs = vec![];
+
+        let cmd_enter =
+            ctx.input_mut(|i| i.consume_key(Modifiers::COMMAND, Key::Enter));
+        if cmd_enter {
+            ui_reqs.push(UIRequest::Post(self.post_text.clone()));
+        }
+
+        ui_reqs
+    }
+
+    fn handle_ui_resp(&mut self, resp: &UIResponse) {
+        match resp {
+            UIResponse::PostSuccess => {
+                self.post_text.clear();
+            }
+        }
     }
 }
