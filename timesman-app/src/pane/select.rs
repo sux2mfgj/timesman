@@ -1,12 +1,17 @@
+use std::{rc::Rc, sync::Mutex};
+
 use super::{PaneModel, PaneRequest};
+use crate::log::tmlog;
 use crate::pane::select_ui::{SelectPaneTrait, UIRequest, UIResponse};
 use timesman_bstore::Store;
 use timesman_type::Times;
 
 use tokio::runtime::Runtime;
 
+const PANE_NAME: &str = "SelectPane";
+
 pub struct SelectPaneModel {
-    store: Box<dyn Store>,
+    store: Rc<Mutex<dyn Store>>,
     pane: Box<dyn SelectPaneTrait>,
     ui_resps: Vec<UIResponse>,
     times_list: Vec<Times>,
@@ -26,7 +31,12 @@ impl PaneModel for SelectPaneModel {
 
         let mut preqs = vec![];
         for r in reqs {
-            if let Some(preq) = self.handle_ui_request(r) {
+            let (uresp, preq) = self.handle_ui_request(rt, r);
+
+            if let Some(uresp) = uresp {
+                todo!();
+            }
+            if let Some(preq) = preq {
                 preqs.push(preq);
             }
         }
@@ -35,17 +45,26 @@ impl PaneModel for SelectPaneModel {
     }
 
     fn get_name(&self) -> String {
-        "SelectPane".to_string()
+        PANE_NAME.to_string()
     }
 }
 
 impl SelectPaneModel {
     pub fn new(
-        mut store: Box<dyn Store>,
+        store: Rc<Mutex<dyn Store>>,
         pane: Box<dyn SelectPaneTrait>,
         rt: &Runtime,
     ) -> Self {
-        let times = rt.block_on(async { store.get_times().await }).unwrap();
+        let times = {
+            let store = store.clone();
+            let times = rt
+                .block_on(async move {
+                    let mut store = store.lock().unwrap();
+                    store.get_times().await
+                })
+                .unwrap();
+            times
+        };
 
         Self {
             store,
@@ -55,10 +74,42 @@ impl SelectPaneModel {
         }
     }
 
-    fn handle_ui_request(&self, req: UIRequest) -> Option<PaneRequest> {
+    fn handle_ui_request(
+        &mut self,
+        rt: &Runtime,
+        req: UIRequest,
+    ) -> (Option<UIResponse>, Option<PaneRequest>) {
         match req {
-            UIRequest::SelectTimes(tid) => Some(PaneRequest::SelectTimes(tid)),
-            UIRequest::CreateTimes(title) => todo!(),
+            UIRequest::SelectTimes(tid) => {
+                tmlog(format!(
+                    "{} The times is selected {}",
+                    PANE_NAME.to_string(),
+                    tid
+                ));
+
+                (None, Some(PaneRequest::SelectTimes(tid)))
+            }
+            UIRequest::CreateTimes(title) => {
+                let times = {
+                    let store = self.store.clone();
+                    let title = title.clone();
+                    rt.block_on(async move {
+                        let mut store = store.lock().unwrap();
+                        store.create_times(title).await
+                    })
+                    .unwrap()
+                };
+
+                tmlog(format!(
+                    "{} A new times is created named {}",
+                    PANE_NAME.to_string(),
+                    title
+                ));
+
+                self.times_list.push(times);
+
+                (None, None)
+            }
         }
     }
 }

@@ -1,3 +1,5 @@
+use std::{rc::Rc, sync::Mutex};
+
 use timesman_bstore::{Store, StoreType};
 use timesman_type::Tid;
 
@@ -41,7 +43,7 @@ pub fn init_pane() -> Box<dyn PaneModel> {
 }
 
 pub fn create_select_pane(
-    store: Box<dyn Store>,
+    store: Rc<Mutex<dyn Store>>,
     rt: &Runtime,
 ) -> Box<dyn PaneModel> {
     let pane = Box::new(select_ui::SelectPane::new());

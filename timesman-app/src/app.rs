@@ -7,6 +7,8 @@ use crate::pane::{
 };
 
 use std::collections::VecDeque;
+use std::rc::Rc;
+use std::sync::Mutex;
 
 pub struct App {
     pane_stack: VecDeque<Box<dyn PaneModel>>,
@@ -33,12 +35,15 @@ impl App {
         }
     }
 
-    fn create_store(&self, stype: StoreType) -> Result<Box<dyn Store>, String> {
+    fn create_store(
+        &self,
+        stype: StoreType,
+    ) -> Result<Rc<Mutex<dyn Store>>, String> {
         let store = match stype {
             StoreType::Memory => RamStore::new(),
         };
 
-        Ok(Box::new(store))
+        Ok(Rc::new(Mutex::new((store))))
     }
 
     fn handle_pane_event(
