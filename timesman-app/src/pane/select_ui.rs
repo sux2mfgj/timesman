@@ -3,6 +3,7 @@ use timesman_type::{Tid, Times};
 
 pub enum UIRequest {
     SelectTimes(Tid),
+    CreateTimes(String),
 }
 
 pub enum UIResponse {}

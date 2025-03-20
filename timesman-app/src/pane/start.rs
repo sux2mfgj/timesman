@@ -34,6 +34,10 @@ impl PaneModel for StartPaneModel {
 
         Ok(pane_resps)
     }
+
+    fn get_name(&self) -> String {
+        "StartPane".to_string()
+    }
 }
 
 impl StartPaneModel {

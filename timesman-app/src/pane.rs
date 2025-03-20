@@ -15,6 +15,7 @@ pub enum PaneRequest {
     Close,
     SelectStore(StoreType),
     SelectTimes(Tid),
+    Log(String),
 }
 
 #[derive(Debug, PartialEq)]
@@ -30,6 +31,8 @@ pub trait PaneModel {
         msg_resp: &Vec<PaneResponse>,
         rt: &Runtime,
     ) -> Result<Vec<PaneRequest>, String>;
+
+    fn get_name(&self) -> String;
 }
 
 pub fn init_pane() -> Box<dyn PaneModel> {

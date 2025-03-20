@@ -1,12 +1,12 @@
 use timesman_bstore::{RamStore, Store, StoreType};
 use tokio::runtime;
 
-use crate::pane::SelectPaneModel;
+use crate::log::tmlog;
 use crate::pane::{
     create_select_pane, init_pane, PaneModel, PaneRequest, PaneResponse,
 };
 
-use std::{collections::VecDeque, rc::Rc, sync::Mutex};
+use std::collections::VecDeque;
 
 pub struct App {
     pane_stack: VecDeque<Box<dyn PaneModel>>,
@@ -44,16 +44,22 @@ impl App {
     fn handle_pane_event(
         &mut self,
         req: PaneRequest,
+        name: &String,
     ) -> Result<PaneResponse, String> {
         match req {
             PaneRequest::Close => {
                 self.pane_stack.pop_front();
             }
-            PaneRequest::SelectTimes(tid) => {}
+            PaneRequest::SelectTimes(tid) => {
+                todo!();
+            }
             PaneRequest::SelectStore(stype) => {
                 let store = self.create_store(stype)?;
                 let pane = create_select_pane(store, &self.rt);
                 self.pane_stack.push_front(pane);
+            }
+            PaneRequest::Log(text) => {
+                tmlog(format!("{name} {text}"));
             }
         }
 
@@ -70,6 +76,8 @@ impl eframe::App for App {
             }
         };
 
+        let name = pane.get_name().clone();
+
         let reqs = match pane.update(ctx, &self.msg_resp, &self.rt) {
             Ok(reqs) => reqs,
             Err(e) => {
@@ -80,7 +88,7 @@ impl eframe::App for App {
         self.msg_resp = vec![];
 
         for r in reqs {
-            match self.handle_pane_event(r) {
+            match self.handle_pane_event(r, &name) {
                 Ok(resp) => {
                     self.msg_resp.push(resp);
                 }

@@ -33,6 +33,10 @@ impl PaneModel for SelectPaneModel {
 
         Ok(preqs)
     }
+
+    fn get_name(&self) -> String {
+        "SelectPane".to_string()
+    }
 }
 
 impl SelectPaneModel {
@@ -54,6 +58,7 @@ impl SelectPaneModel {
     fn handle_ui_request(&self, req: UIRequest) -> Option<PaneRequest> {
         match req {
             UIRequest::SelectTimes(tid) => Some(PaneRequest::SelectTimes(tid)),
+            UIRequest::CreateTimes(title) => todo!(),
         }
     }
 }
