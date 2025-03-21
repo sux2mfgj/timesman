@@ -21,10 +21,14 @@ impl PaneModel for TimesPaneModel {
     fn update(
         &mut self,
         ctx: &egui::Context,
-        msg_resp: &Vec<PaneResponse>,
+        p_resps: &Vec<PaneResponse>,
         rt: &Runtime,
     ) -> Result<Vec<PaneRequest>, String> {
         let mut p_reqs = vec![];
+
+        for p in p_resps {
+            todo!("{:?}", p);
+        }
 
         let ui_reqs =
             self.pane.update(ctx, &self.ui_resps, &self.posts).unwrap();

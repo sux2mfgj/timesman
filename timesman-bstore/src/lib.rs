@@ -9,6 +9,8 @@ pub mod remote;
 //#[cfg(feature = "sqlite")]
 //pub mod sqlite;
 
+use std::fmt::Debug;
+
 use async_trait::async_trait;
 
 use timesman_type::{Post, Times};
@@ -26,7 +28,7 @@ pub enum StoreType {
 }
 
 #[async_trait]
-pub trait Store: Send + Sync + 'static {
+pub trait Store: Send + Sync + 'static + Debug {
     async fn check(&mut self) -> Result<(), String>;
 
     // for Times

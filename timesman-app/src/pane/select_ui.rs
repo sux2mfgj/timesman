@@ -61,25 +61,34 @@ impl SelectPane {
         reqs
     }
 
-    fn times_entry(&self, times: &Times, ui: &mut egui::Ui) -> Vec<UIRequest> {
-        let mut reqs = vec![];
-
+    fn times_entry(
+        &self,
+        times: &Times,
+        ui: &mut egui::Ui,
+    ) -> Option<UIRequest> {
+        let mut req = None;
         ui.horizontal(|ui| {
             ui.label(times.created_at.format("%Y-%m-%d %H:%M").to_string());
 
             ui.separator();
 
             if ui.button(times.title.clone()).clicked() {
-                reqs.push(UIRequest::SelectTimes(times.id));
+                req = Some(UIRequest::SelectTimes(times.id));
             }
 
             // TODO: show the latest post
         });
 
-        reqs
+        req
     }
 
-    fn main_panel(&self, ctx: &egui::Context, times: &Vec<Times>) {
+    fn main_panel(
+        &self,
+        ctx: &egui::Context,
+        times: &Vec<Times>,
+    ) -> Vec<UIRequest> {
+        let mut reqs = vec![];
+
         CentralPanel::default().show(ctx, |ui| {
             let scroll_area = ScrollArea::vertical()
                 .auto_shrink(false)
@@ -87,10 +96,15 @@ impl SelectPane {
 
             scroll_area.show(ui, |ui| {
                 for t in times {
-                    self.times_entry(&t, ui);
+                    let r = self.times_entry(&t, ui);
+                    if let Some(r) = r {
+                        reqs.push(r);
+                    }
                 }
             });
         });
+
+        reqs
     }
 }
 
@@ -106,7 +120,8 @@ impl SelectPaneTrait for SelectPane {
         let ur = self.top_bar(ctx, times);
         ureq = [ureq, ur].concat();
 
-        self.main_panel(ctx, times);
+        let r = self.main_panel(ctx, times);
+        ureq = vec![ureq, r].concat();
 
         Ok(ureq)
     }

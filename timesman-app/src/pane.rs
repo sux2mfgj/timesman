@@ -16,6 +16,7 @@ pub use times::TimesPaneModel;
 
 use tokio::runtime::Runtime;
 
+#[derive(Debug)]
 pub enum PaneRequest {
     Close,
     SelectStore(StoreType),
@@ -26,7 +27,6 @@ pub enum PaneRequest {
 #[derive(Debug, PartialEq)]
 pub enum PaneResponse {
     Err(String),
-    Ok,
 }
 
 pub trait PaneModel {

@@ -17,6 +17,10 @@ pub struct App {
     rt: runtime::Runtime,
 }
 
+fn log(text: String) {
+    tmlog(format!("app {}", text));
+}
+
 impl App {
     pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         let mut pane_stack = VecDeque::new();
@@ -51,7 +55,9 @@ impl App {
         &mut self,
         req: PaneRequest,
         name: &String,
-    ) -> Result<PaneResponse, String> {
+    ) -> Result<(), String> {
+        log(format!("{:?}", req));
+
         match req {
             PaneRequest::Close => {
                 self.pane_stack.pop_front();
@@ -70,7 +76,7 @@ impl App {
             }
         }
 
-        Ok(PaneResponse::Ok)
+        Ok(())
     }
 }
 
@@ -96,11 +102,9 @@ impl eframe::App for App {
 
         for r in reqs {
             match self.handle_pane_event(r, &name) {
-                Ok(resp) => {
-                    self.msg_resp.push(resp);
-                }
+                Ok(()) => {}
                 Err(e) => {
-                    todo!("{e}");
+                    self.msg_resp.push(PaneResponse::Err(e));
                 }
             }
         }
