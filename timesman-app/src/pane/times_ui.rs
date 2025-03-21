@@ -1,3 +1,4 @@
+use super::ui;
 use timesman_type::Post;
 
 use egui::{
@@ -7,6 +8,7 @@ use egui::{
 #[derive(Clone)]
 pub enum UIRequest {
     Post(String),
+    Close,
 }
 
 pub enum UIResponse {
@@ -101,6 +103,10 @@ impl TimesPane {
             ctx.input_mut(|i| i.consume_key(Modifiers::COMMAND, Key::Enter));
         if cmd_enter {
             ui_reqs.push(UIRequest::Post(self.post_text.clone()));
+        }
+
+        if ui::consume_escape(ctx) {
+            ui_reqs.push(UIRequest::Close);
         }
 
         ui_reqs

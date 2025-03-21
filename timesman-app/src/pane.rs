@@ -3,6 +3,8 @@ use std::{rc::Rc, sync::Mutex};
 use timesman_bstore::{Store, StoreType};
 use timesman_type::Tid;
 
+mod ui;
+
 mod select;
 mod select_ui;
 mod start;

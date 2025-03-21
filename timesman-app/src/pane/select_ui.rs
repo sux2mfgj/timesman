@@ -2,10 +2,13 @@ use chrono::Local;
 use egui::{CentralPanel, ScrollArea, TopBottomPanel};
 use timesman_type::{Tid, Times};
 
+use super::ui;
+
 #[derive(Clone)]
 pub enum UIRequest {
     SelectTimes(Tid),
     CreateTimes(String),
+    Close,
 }
 
 pub enum UIResponse {}
@@ -106,6 +109,16 @@ impl SelectPane {
 
         reqs
     }
+
+    fn consume_keys(&self, ctx: &egui::Context) -> Vec<UIRequest> {
+        let mut reqs = vec![];
+
+        if ui::consume_escape(ctx) {
+            reqs.push(UIRequest::Close);
+        }
+
+        reqs
+    }
 }
 
 impl SelectPaneTrait for SelectPane {
@@ -115,14 +128,17 @@ impl SelectPaneTrait for SelectPane {
         msg: &Vec<UIResponse>,
         times: &Vec<Times>,
     ) -> Result<Vec<UIRequest>, String> {
-        let mut ureq = vec![];
+        let mut ureqs = vec![];
 
-        let ur = self.top_bar(ctx, times);
-        ureq = [ureq, ur].concat();
+        let r = self.top_bar(ctx, times);
+        ureqs = [ureqs, r].concat();
 
         let r = self.main_panel(ctx, times);
-        ureq = vec![ureq, r].concat();
+        ureqs = vec![ureqs, r].concat();
 
-        Ok(ureq)
+        let r = self.consume_keys(ctx);
+        ureqs = vec![ureqs, r].concat();
+
+        Ok(ureqs)
     }
 }

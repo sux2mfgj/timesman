@@ -84,6 +84,7 @@ impl SelectPaneModel {
         req: UIRequest,
     ) -> (Option<UIResponse>, Option<PaneRequest>) {
         match req {
+            UIRequest::Close => (None, Some(PaneRequest::Close)),
             UIRequest::SelectTimes(tid) => {
                 log(format!("The times is selected {}", tid));
 

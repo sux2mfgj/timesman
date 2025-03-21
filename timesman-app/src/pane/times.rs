@@ -95,6 +95,7 @@ impl TimesPaneModel {
 
                 (Some(UIResponse::PostSuccess), None)
             }
+            UIRequest::Close => (None, Some(PaneRequest::Close)),
         }
     }
 }

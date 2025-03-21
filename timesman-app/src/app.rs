@@ -48,7 +48,7 @@ impl App {
             StoreType::Memory => RamStore::new(),
         };
 
-        Ok(Rc::new(Mutex::new((store))))
+        Ok(Rc::new(Mutex::new(store)))
     }
 
     fn handle_pane_event(

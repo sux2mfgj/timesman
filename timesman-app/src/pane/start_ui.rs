@@ -1,10 +1,10 @@
-use super::{PaneModel, PaneRequest, PaneResponse};
+use super::{ui, PaneModel, PaneRequest, PaneResponse};
 use timesman_bstore::StoreType;
 
 #[derive(Copy, Clone)]
 pub enum UIRequest {
-    Close,
     Start(StoreType),
+    Close,
 }
 
 #[derive(Copy, Clone)]
@@ -33,18 +33,21 @@ impl StartPaneTrait for StartPane {
     ) -> Result<Vec<UIRequest>, String> {
         // self.handle_ui_response(resps);
 
-        let mut reqs = vec![];
+        let mut ui_reqs = vec![];
 
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.radio_value(&mut self.store, StoreType::Memory, "Temporay");
 
             ui.separator();
             if ui.button("Start").clicked() {
-                reqs.push(UIRequest::Start(self.store));
+                ui_reqs.push(UIRequest::Start(self.store));
             }
         });
 
-        Ok(reqs)
+        let r = self.consume_keys(ctx);
+        ui_reqs = vec![ui_reqs, r].concat();
+
+        Ok(ui_reqs)
     }
 }
 
@@ -56,6 +59,16 @@ impl StartPane {
 
     fn handle_ui_response(&self, resps: Vec<UIResponse>) {
         todo!();
+    }
+
+    fn consume_keys(&self, ctx: &egui::Context) -> Vec<UIRequest> {
+        let mut reqs = vec![];
+
+        if ui::consume_escape(ctx) {
+            reqs.push(UIRequest::Close);
+        }
+
+        reqs
     }
 }
 
