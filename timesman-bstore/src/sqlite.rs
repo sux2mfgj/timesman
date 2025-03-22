@@ -5,6 +5,8 @@ use sqlx::sqlite::SqlitePool;
 
 use async_trait::async_trait;
 
+use std::fmt;
+
 #[derive(Clone)]
 struct SqliteTimes {
     pub id: i64,
@@ -171,5 +173,11 @@ impl Store for SqliteStore {
         tid: u64,
     ) -> Result<Option<Post>, String> {
         Ok(None)
+    }
+}
+
+impl fmt::Debug for SqliteStore {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "TODO")
     }
 }

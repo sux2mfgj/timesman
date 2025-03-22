@@ -1,7 +1,7 @@
 use super::{ui, PaneModel, PaneRequest, PaneResponse};
 use timesman_bstore::StoreType;
 
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub enum UIRequest {
     Start(StoreType),
     Close,
@@ -40,7 +40,7 @@ impl StartPaneTrait for StartPane {
 
             ui.separator();
             if ui.button("Start").clicked() {
-                ui_reqs.push(UIRequest::Start(self.store));
+                ui_reqs.push(UIRequest::Start(self.store.clone()));
             }
         });
 

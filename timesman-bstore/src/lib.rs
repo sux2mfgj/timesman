@@ -7,7 +7,8 @@ pub use ram::RamStore;
 #[cfg(feature = "http")]
 pub mod remote;
 //#[cfg(feature = "sqlite")]
-//pub mod sqlite;
+//mod sqlite;
+//pub use sqlite::{SqliteStore, SqliteStoreBuilder};
 
 use std::fmt::Debug;
 
@@ -15,7 +16,7 @@ use async_trait::async_trait;
 
 use timesman_type::{Post, Times};
 
-#[derive(PartialEq, Default, Debug, Copy, Clone)]
+#[derive(PartialEq, Default, Debug, Clone)]
 pub enum StoreType {
     #[default]
     Memory,
@@ -24,7 +25,7 @@ pub enum StoreType {
     //#[cfg(feature = "http")]
     //Remote,
     //#[cfg(feature = "sqlite")]
-    //Sqlite,
+    //Sqlite(String),
 }
 
 #[async_trait]
