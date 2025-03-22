@@ -6,9 +6,10 @@ mod ram;
 pub use ram::RamStore;
 #[cfg(feature = "http")]
 pub mod remote;
-//#[cfg(feature = "sqlite")]
-//mod sqlite;
-//pub use sqlite::{SqliteStore, SqliteStoreBuilder};
+
+#[cfg(feature = "sqlite")]
+mod sqlite;
+pub use sqlite::SqliteStore;
 
 use std::fmt::Debug;
 
@@ -24,8 +25,8 @@ pub enum StoreType {
     //Json,
     //#[cfg(feature = "http")]
     //Remote,
-    //#[cfg(feature = "sqlite")]
-    //Sqlite(String),
+    #[cfg(feature = "sqlite")]
+    Sqlite(String),
 }
 
 #[async_trait]

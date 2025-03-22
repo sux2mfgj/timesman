@@ -1,7 +1,8 @@
 use timesman_bstore::{RamStore, Store, StoreType};
 
-//#[cfg(feature = "sqlite")]
-//use timesman_bstore::{SqliteStore,SqliteStoreBuilder};
+#[cfg(feature = "sqlite")]
+use timesman_bstore::SqliteStore;
+
 use tokio::runtime;
 
 use crate::log::tmlog;
@@ -47,13 +48,15 @@ impl App {
         &self,
         stype: StoreType,
     ) -> Result<Rc<Mutex<dyn Store>>, String> {
-        let store = match stype {
-            StoreType::Memory => RamStore::new(),
-            //#[cfg(feature = "sqlite")]
-            //StoreType::Sqlite(db_file_path) => SqliteStore::new(db_file_path),
+        let store: Rc<Mutex<dyn Store>> = match stype {
+            StoreType::Memory => Rc::new(Mutex::new(RamStore::new())),
+            #[cfg(feature = "sqlite")]
+            StoreType::Sqlite(db_file_path) => {
+                Rc::new(Mutex::new(SqliteStore::new(&self.rt, &db_file_path)?))
+            }
         };
 
-        Ok(Rc::new(Mutex::new(store)))
+        Ok(store)
     }
 
     fn handle_pane_event(

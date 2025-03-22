@@ -4,6 +4,7 @@ use sqlx;
 use sqlx::sqlite::SqlitePool;
 
 use async_trait::async_trait;
+use tokio::runtime;
 
 use std::fmt;
 
@@ -51,23 +52,16 @@ pub struct SqliteStore {
     db: SqlitePool,
 }
 
-pub struct SqliteStoreBuilder {
-    dbfile: String,
-}
-
-impl SqliteStoreBuilder {
-    pub fn new(dbfile: &str) -> Self {
-        Self {
-            dbfile: dbfile.to_string(),
-        }
-    }
-
-    pub async fn build(&self) -> Result<SqliteStore, String> {
-        let db = SqlitePool::connect(&self.dbfile)
-            .await
+impl SqliteStore {
+    pub fn new(
+        rt: &runtime::Runtime,
+        db_file_path: &String,
+    ) -> Result<Self, String> {
+        let db = rt
+            .block_on(async { SqlitePool::connect(db_file_path).await })
             .map_err(|e| format!("{e}"))?;
 
-        Ok(SqliteStore { db })
+        Ok(Self { db })
     }
 }
 
@@ -82,11 +76,8 @@ impl Store for SqliteStore {
     }
 
     async fn get_times(&mut self) -> Result<Vec<Times>, String> {
-        let sql = sqlx::query_as!(
-            SqliteTimes,
-            r#"select * from times where deleted = 0"#
-        )
-        .fetch_all(&self.db);
+        let sql = sqlx::query_as!(SqliteTimes, r#"select * from times"#)
+            .fetch_all(&self.db);
 
         let times = sql.await.map_err(|e| format!("{e}"))?;
 
