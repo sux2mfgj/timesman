@@ -1,7 +1,7 @@
 mod config;
 #[cfg(feature = "grpc")]
 mod grpc;
-mod http;
+//mod http;
 
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -37,26 +37,26 @@ async fn main() -> std::io::Result<()> {
         }
     };
 
-    let store: Box<dyn Store + Send + Sync + 'static> = Box::new(store);
     let store = Arc::new(Mutex::new(store));
 
     let server = match &*config.front_type {
+        #[cfg(feature = "grpc")]
         "grpc" => {
             let grpc_srv: Box<dyn TimesManServer> =
                 Box::new(grpc::GrpcServer {});
             grpc_srv
         }
-        "http" => {
-            let http_srv: Box<dyn TimesManServer> =
-                Box::new(http::HttpServer {});
-            http_srv
-        }
+        //"http" => {
+        //    let http_srv: Box<dyn TimesManServer> =
+        //        Box::new(http::HttpServer {});
+        //    http_srv
+        //}
         _ => {
             panic!("unsupported server type. See the parameter of config.front_type");
         }
     };
 
-    server.run(&config.listen, store).await;
+    server.run(&config.listen, store, None).await;
 
     Ok(())
 }

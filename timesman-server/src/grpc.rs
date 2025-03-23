@@ -1,9 +1,11 @@
+use std::marker::{Send, Sync};
+use std::sync::mpsc;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use super::TimesManServer;
 
-use timesman_bstore::Store;
+use timesman_bstore::{Store, StoreEvent};
 
 use async_trait::async_trait;
 
@@ -14,18 +16,20 @@ use tonic::transport::server::Server;
 
 pub struct GrpcServer {}
 
-#[tonic::async_trait]
+#[async_trait]
 impl TimesManServer for GrpcServer {
     async fn run(
         &self,
         listen: &str,
-        store: Arc<Mutex<Box<dyn Store + Send + Sync + 'static>>>,
+        store: Arc<Mutex<dyn Store>>,
+        tx: Option<mpsc::Sender<StoreEvent>>,
     ) {
         let addr = listen.parse().unwrap();
 
         Server::builder()
             .add_service(times_man_server::TimesManServer::new(TMServer {
                 store,
+                tx,
             }))
             .serve(addr)
             .await
@@ -33,8 +37,9 @@ impl TimesManServer for GrpcServer {
     }
 }
 
-struct TMServer {
-    store: Arc<Mutex<Box<dyn Store + Send + Sync + 'static>>>,
+pub struct TMServer {
+    store: Arc<Mutex<dyn Store>>,
+    tx: Option<mpsc::Sender<StoreEvent>>,
 }
 
 #[async_trait]

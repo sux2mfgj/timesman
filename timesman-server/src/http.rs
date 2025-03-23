@@ -1,3 +1,4 @@
+use std::sync::mpsc;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -18,11 +19,12 @@ struct Context {
 pub struct HttpServer {}
 
 #[async_trait]
-impl TimesManServer for HttpServer {
+impl<T> TimesManServer<T> for HttpServer {
     async fn run(
         &self,
         listen: &str,
         store: Arc<Mutex<Box<dyn Store + Send + Sync + 'static>>>,
+        tx: Option<mpsc::Sender<T>>,
     ) {
         actix_web::HttpServer::new(move || {
             App::new()

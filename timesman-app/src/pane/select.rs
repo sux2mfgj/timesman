@@ -1,9 +1,6 @@
-use std::{rc::Rc, sync::Mutex};
-
 use super::{PaneModel, PaneRequest};
 use crate::log::tmlog;
 use crate::pane::select_ui::{SelectPaneTrait, UIRequest, UIResponse};
-use timesman_bstore::Store;
 use timesman_type::Times;
 
 use tokio::runtime::Runtime;
@@ -11,7 +8,6 @@ use tokio::runtime::Runtime;
 const PANE_NAME: &str = "SelectPane";
 
 pub struct SelectPaneModel {
-    store: Rc<Mutex<dyn Store>>,
     pane: Box<dyn SelectPaneTrait>,
     ui_resps: Vec<UIResponse>,
     times_list: Vec<Times>,
@@ -54,27 +50,11 @@ impl PaneModel for SelectPaneModel {
 }
 
 impl SelectPaneModel {
-    pub fn new(
-        store: Rc<Mutex<dyn Store>>,
-        pane: Box<dyn SelectPaneTrait>,
-        rt: &Runtime,
-    ) -> Self {
-        let times = {
-            let store = store.clone();
-            let times = rt
-                .block_on(async move {
-                    let mut store = store.lock().unwrap();
-                    store.get_times().await
-                })
-                .unwrap();
-            times
-        };
-
+    pub fn new(pane: Box<dyn SelectPaneTrait>) -> Self {
         Self {
-            store,
             pane,
             ui_resps: vec![],
-            times_list: times,
+            times_list: vec![],
         }
     }
 
@@ -88,27 +68,11 @@ impl SelectPaneModel {
             UIRequest::SelectTimes(tid) => {
                 log(format!("The times is selected {}", tid));
 
-                (
-                    None,
-                    Some(PaneRequest::SelectTimes(self.store.clone(), tid)),
-                )
+                (None, Some(PaneRequest::SelectTimes(tid)))
             }
             UIRequest::CreateTimes(title) => {
-                let times = {
-                    let store = self.store.clone();
-                    let title = title.clone();
-                    rt.block_on(async move {
-                        let mut store = store.lock().unwrap();
-                        store.create_times(title).await
-                    })
-                    .unwrap()
-                };
-
-                log(format!("A new times is created named {}", title));
-
-                self.times_list.push(times);
-
-                (None, None)
+                let req = PaneRequest::CreateTimes(title);
+                (None, Some(req))
             }
         }
     }

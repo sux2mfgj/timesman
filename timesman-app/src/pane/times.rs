@@ -3,13 +3,11 @@ use super::{PaneModel, PaneRequest, PaneResponse};
 use std::rc::Rc;
 use std::sync::Mutex;
 
-use timesman_bstore::Store;
 use timesman_type::{Post, Tid};
 use tokio::runtime::Runtime;
 
 pub struct TimesPaneModel {
     pane: Box<dyn TimesPaneTrait>,
-    store: Rc<Mutex<dyn Store>>,
     tid: Tid,
     ui_resps: Vec<UIResponse>,
     posts: Vec<Post>,
@@ -36,7 +34,7 @@ impl PaneModel for TimesPaneModel {
         self.ui_resps = vec![];
 
         for req in ui_reqs {
-            let (ui_resp, p_req) = self.handle_ui_request(req, rt);
+            let (ui_resp, p_req) = self.handle_ui_request(req);
             if let Some(resp) = ui_resp {
                 self.ui_resps.push(resp);
             }
@@ -55,45 +53,23 @@ impl PaneModel for TimesPaneModel {
 }
 
 impl TimesPaneModel {
-    pub fn new(
-        pane: Box<dyn TimesPaneTrait>,
-        store: Rc<Mutex<dyn Store>>,
-        tid: Tid,
-        rt: &Runtime,
-    ) -> Self {
-        let posts = {
-            let mut store = store.lock().unwrap();
-            rt.block_on(async move { store.get_posts(tid).await })
-                .unwrap()
-        };
+    pub fn new(pane: Box<dyn TimesPaneTrait>, tid: Tid) -> Self {
         Self {
             pane,
-            store,
             tid,
             ui_resps: vec![],
-            posts,
+            posts: vec![],
         }
     }
 
     fn handle_ui_request(
         &mut self,
         reqs: UIRequest,
-        rt: &Runtime,
     ) -> (Option<UIResponse>, Option<PaneRequest>) {
         match reqs {
             UIRequest::Post(text) => {
-                let store = self.store.clone();
-                let tid = self.tid.clone();
-                let post = rt
-                    .block_on(async move {
-                        let mut store = store.lock().unwrap();
-                        store.create_post(tid, text).await
-                    })
-                    .unwrap();
-
-                self.posts.push(post);
-
-                (Some(UIResponse::PostSuccess), None)
+                let req = PaneRequest::CreatePost(text);
+                (None, Some(req))
             }
             UIRequest::Close => (None, Some(PaneRequest::Close)),
         }

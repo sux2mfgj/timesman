@@ -12,9 +12,9 @@ mod start_ui;
 mod times;
 mod times_ui;
 
-pub use select::SelectPaneModel;
-pub use start::StartPaneModel;
-pub use times::TimesPaneModel;
+use select::SelectPaneModel;
+use start::StartPaneModel;
+use times::TimesPaneModel;
 
 use tokio::runtime::Runtime;
 
@@ -22,7 +22,9 @@ use tokio::runtime::Runtime;
 pub enum PaneRequest {
     Close,
     SelectStore(StoreType),
-    SelectTimes(Rc<Mutex<dyn Store>>, Tid),
+    SelectTimes(Tid),
+    CreateTimes(String),
+    CreatePost(String),
     Log(String),
 }
 
@@ -47,19 +49,12 @@ pub fn init_pane() -> Box<dyn PaneModel> {
     Box::new(StartPaneModel::new(pane))
 }
 
-pub fn create_select_pane(
-    store: Rc<Mutex<dyn Store>>,
-    rt: &Runtime,
-) -> Box<dyn PaneModel> {
+pub fn create_select_pane() -> Box<dyn PaneModel> {
     let pane = Box::new(select_ui::SelectPane::new());
-    Box::new(SelectPaneModel::new(store, pane, rt))
+    Box::new(SelectPaneModel::new(pane))
 }
 
-pub fn create_times_pane(
-    store: Rc<Mutex<dyn Store>>,
-    tid: Tid,
-    rt: &Runtime,
-) -> Box<dyn PaneModel> {
+pub fn create_times_pane(tid: Tid) -> Box<dyn PaneModel> {
     let pane = Box::new(times_ui::TimesPane::new());
-    Box::new(TimesPaneModel::new(pane, store, tid, rt))
+    Box::new(TimesPaneModel::new(pane, tid))
 }

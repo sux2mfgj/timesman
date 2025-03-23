@@ -1,3 +1,7 @@
+use std::collections::VecDeque;
+use std::sync::Arc;
+use std::sync::Mutex;
+
 use timesman_bstore::{GrpcStore, RamStore, Store, StoreType};
 
 #[cfg(feature = "sqlite")]
@@ -11,14 +15,11 @@ use crate::pane::{
     PaneResponse,
 };
 
-use std::collections::VecDeque;
-use std::rc::Rc;
-use std::sync::Mutex;
-
 pub struct App {
     pane_stack: VecDeque<Box<dyn PaneModel>>,
     msg_resp: Vec<PaneResponse>,
     rt: runtime::Runtime,
+    store: Option<Arc<Mutex<dyn Store>>>,
 }
 
 fn log(text: String) {
@@ -41,17 +42,18 @@ impl App {
             pane_stack,
             msg_resp,
             rt,
+            store: None,
         }
     }
 
     fn create_store(
         &self,
         stype: StoreType,
-    ) -> Result<Rc<Mutex<dyn Store>>, String> {
-        let store: Rc<Mutex<dyn Store>> = match stype {
-            StoreType::Memory => Rc::new(Mutex::new(RamStore::new())),
+    ) -> Result<Arc<Mutex<dyn Store>>, String> {
+        let store: Arc<Mutex<dyn Store>> = match stype {
+            StoreType::Memory => Arc::new(Mutex::new(RamStore::new())),
             #[cfg(feature = "sqlite")]
-            StoreType::Sqlite(db_file_path) => Rc::new(Mutex::new(
+            StoreType::Sqlite(db_file_path) => Arc::new(Mutex::new(
                 //TODO make user selectable to create or use exists database.
                 self.rt.block_on(async {
                     SqliteStore::new(&db_file_path, false).await
@@ -59,7 +61,7 @@ impl App {
             )),
             #[cfg(feature = "grpc")]
             StoreType::Grpc(server) => self.rt.block_on(async {
-                Rc::new(Mutex::new(GrpcStore::new(server).await))
+                Arc::new(Mutex::new(GrpcStore::new(server).await))
             }),
         };
 
@@ -77,14 +79,24 @@ impl App {
             PaneRequest::Close => {
                 self.pane_stack.pop_front();
             }
-            PaneRequest::SelectTimes(store, tid) => {
-                let pane = create_times_pane(store, tid, &self.rt);
-                self.pane_stack.push_front(pane);
+            PaneRequest::SelectTimes(tid) => {
+                if let Some(_) = &self.store {
+                    let pane = create_times_pane(tid);
+                    self.pane_stack.push_front(pane);
+                } else {
+                    todo!();
+                }
             }
             PaneRequest::SelectStore(stype) => {
-                let store = self.create_store(stype)?;
-                let pane = create_select_pane(store, &self.rt);
+                self.store = Some(self.create_store(stype)?);
+                let pane = create_select_pane();
                 self.pane_stack.push_front(pane);
+            }
+            PaneRequest::CreateTimes(title) => {
+                todo!();
+            }
+            PaneRequest::CreatePost(text) => {
+                todo!();
             }
             PaneRequest::Log(text) => {
                 tmlog(format!("{name} {text}"));

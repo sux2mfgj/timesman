@@ -1,4 +1,5 @@
 mod app;
+mod arbiter;
 mod log;
 mod pane;
 

@@ -11,13 +11,14 @@ pub use sqlite::SqliteStore;
 
 #[cfg(feature = "grpc")]
 mod grpc;
+#[cfg(feature = "grpc")]
 pub use grpc::GrpcStore;
 
 use std::fmt::Debug;
 
 use async_trait::async_trait;
 
-use timesman_type::{Post, Times};
+use timesman_type::{Pid, Post, Tid, Times};
 
 #[derive(PartialEq, Default, Debug, Clone)]
 pub enum StoreType {
@@ -31,6 +32,15 @@ pub enum StoreType {
     Sqlite(String),
     #[cfg(feature = "grpc")]
     Grpc(String),
+}
+
+pub enum StoreEvent {
+    CreateTimes(Times),
+    DeleteTimes(Tid),
+    UpdateTimes(Times),
+    CreatePost(Tid, Post),
+    DeletePost(Tid, Pid),
+    UpdatePost(Tid, Post),
 }
 
 #[async_trait]
