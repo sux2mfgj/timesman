@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "select * from times where deleted = 0",
+  "query": "select * from times",
   "describe": {
     "columns": [
       {
@@ -40,5 +40,5 @@
       false
     ]
   },
-  "hash": "dbd15801dfb5b1e17cdaf36cf29026231930310e6c8d4b643d3808f9e195353e"
+  "hash": "9848fe7610447d5478c68243f38c9868f9e9a9eb6ba02539f997329962725b71"
 }

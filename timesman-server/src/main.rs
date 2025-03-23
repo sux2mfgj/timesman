@@ -8,7 +8,7 @@ use tokio::sync::Mutex;
 
 use clap::Parser;
 #[cfg(feature = "sqlite")]
-use timesman_bstore::sqlite::SqliteStoreBuilder;
+use timesman_bstore::SqliteStore;
 use timesman_bstore::Store;
 use timesman_server::TimesManServer;
 
@@ -30,10 +30,7 @@ async fn main() -> std::io::Result<()> {
     let config = config::Config::load(args.config.into()).unwrap();
 
     let store = match &*config.store_type {
-        "sqlite" => SqliteStoreBuilder::new(&config.store_param)
-            .build()
-            .await
-            .unwrap(),
+        "sqlite" => SqliteStore::new(&config.store_param, true).await,
         _ => {
             tracing::error!("invalid config: store_type");
             return Ok(());

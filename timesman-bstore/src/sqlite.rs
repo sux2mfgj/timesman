@@ -1,7 +1,7 @@
 use super::{Post, Store, Times};
 
 use sqlx;
-use sqlx::sqlite::SqlitePool;
+use sqlx::sqlite::{SqliteConnectOptions, SqlitePool};
 
 use async_trait::async_trait;
 use tokio::runtime;
@@ -53,15 +53,13 @@ pub struct SqliteStore {
 }
 
 impl SqliteStore {
-    pub fn new(
-        rt: &runtime::Runtime,
-        db_file_path: &String,
-    ) -> Result<Self, String> {
-        let db = rt
-            .block_on(async { SqlitePool::connect(db_file_path).await })
-            .map_err(|e| format!("{e}"))?;
+    pub async fn new(db_file_path: &String, create: bool) -> Self {
+        let opt = SqliteConnectOptions::new()
+            .filename(db_file_path)
+            .create_if_missing(create);
+        let db = SqlitePool::connect_with(opt).await.unwrap();
 
-        Ok(Self { db })
+        Self { db }
     }
 }
 

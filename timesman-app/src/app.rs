@@ -51,9 +51,12 @@ impl App {
         let store: Rc<Mutex<dyn Store>> = match stype {
             StoreType::Memory => Rc::new(Mutex::new(RamStore::new())),
             #[cfg(feature = "sqlite")]
-            StoreType::Sqlite(db_file_path) => {
-                Rc::new(Mutex::new(SqliteStore::new(&self.rt, &db_file_path)?))
-            }
+            StoreType::Sqlite(db_file_path) => Rc::new(Mutex::new(
+                //TODO make user selectable to create or use exists database.
+                self.rt.block_on(async {
+                    SqliteStore::new(&db_file_path, false).await
+                }),
+            )),
             #[cfg(feature = "grpc")]
             StoreType::Grpc(server) => self.rt.block_on(async {
                 Rc::new(Mutex::new(GrpcStore::new(server).await))
