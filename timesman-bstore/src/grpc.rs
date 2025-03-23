@@ -12,7 +12,7 @@ pub struct GrpcStore {
 }
 
 impl GrpcStore {
-    pub async fn build(server: String) -> Self {
+    pub async fn new(server: String) -> Self {
         let client = TimesManClient::connect(server).await.unwrap();
         Self { client }
     }
@@ -142,5 +142,11 @@ impl Store for GrpcStore {
         tid: u64,
     ) -> Result<Option<Post>, String> {
         Err("unimplemented".to_string())
+    }
+}
+
+impl std::fmt::Debug for GrpcStore {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "GrpcStore")
     }
 }

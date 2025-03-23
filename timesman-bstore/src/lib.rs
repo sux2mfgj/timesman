@@ -1,5 +1,3 @@
-//#[cfg(feature = "grpc")]
-//pub mod grpc;
 //#[cfg(feature = "json")]
 //pub mod json;
 mod ram;
@@ -10,6 +8,10 @@ pub mod remote;
 #[cfg(feature = "sqlite")]
 mod sqlite;
 pub use sqlite::SqliteStore;
+
+#[cfg(feature = "grpc")]
+mod grpc;
+pub use grpc::GrpcStore;
 
 use std::fmt::Debug;
 
@@ -27,6 +29,8 @@ pub enum StoreType {
     //Remote,
     #[cfg(feature = "sqlite")]
     Sqlite(String),
+    #[cfg(feature = "grpc")]
+    Grpc(String),
 }
 
 #[async_trait]

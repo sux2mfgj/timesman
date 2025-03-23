@@ -1,4 +1,4 @@
-use timesman_bstore::{RamStore, Store, StoreType};
+use timesman_bstore::{GrpcStore, RamStore, Store, StoreType};
 
 #[cfg(feature = "sqlite")]
 use timesman_bstore::SqliteStore;
@@ -54,6 +54,10 @@ impl App {
             StoreType::Sqlite(db_file_path) => {
                 Rc::new(Mutex::new(SqliteStore::new(&self.rt, &db_file_path)?))
             }
+            #[cfg(feature = "grpc")]
+            StoreType::Grpc(server) => self.rt.block_on(async {
+                Rc::new(Mutex::new(GrpcStore::new(server).await))
+            }),
         };
 
         Ok(store)
