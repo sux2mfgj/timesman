@@ -4,7 +4,7 @@ use timesman_bstore::StoreType;
 
 #[derive(Clone)]
 pub enum UIRequest {
-    Start(StoreType),
+    Start(StoreType, Option<String>),
     Close,
 }
 
@@ -24,7 +24,9 @@ pub trait StartPaneTrait {
 
 pub struct StartPane {
     store: StoreKind,
-    param: String,
+    param: Option<String>,
+    server_enable: bool,
+    server: String,
     file_dialog: FileDialog,
     error_text: Option<String>,
 }
@@ -35,8 +37,6 @@ enum StoreKind {
     Memory,
     #[cfg(feature = "sqlite")]
     Sqlite,
-    #[cfg(feature = "grpc")]
-    Grpc,
 }
 
 impl StartPaneTrait for StartPane {
@@ -53,49 +53,62 @@ impl StartPaneTrait for StartPane {
             ui.radio_value(&mut self.store, StoreKind::Memory, "Temporay");
             #[cfg(feature = "sqlite")]
             ui.radio_value(&mut self.store, StoreKind::Sqlite, "Sqlite");
-            #[cfg(feature = "grpc")]
-            ui.radio_value(&mut self.store, StoreKind::Grpc, "GRPC Server");
 
             ui.separator();
 
             match self.store {
                 StoreKind::Memory => {}
                 StoreKind::Sqlite => {
-                    ui.horizontal(|ui| {
-                        ui.label("database file:");
-                        ui.label(&self.param);
-                    });
+                    ui.label("database file");
+                    if let Some(db_file) = &self.param {
+                        ui.label(format!("File: {db_file}"));
+                    } else {
+                        ui.label("Please select a db file");
+                    }
                     if ui.button("Select").clicked() {
                         self.file_dialog.select_file();
                     }
                     if let Some(db_file_path) =
                         self.file_dialog.update(ctx).selected()
                     {
-                        self.param = db_file_path.to_string_lossy().to_string();
+                        self.param =
+                            Some(db_file_path.to_string_lossy().to_string());
                     }
                 }
-                StoreKind::Grpc => {
-                    ui.horizontal(|ui| {
-                        ui.label("server: ");
-                        ui.text_edit_singleline(&mut self.param);
-                    });
-                }
             }
+
+            ui.separator();
+            ui.checkbox(&mut self.server_enable, "Enable server");
+            ui.text_edit_singleline(&mut self.server);
 
             ui.separator();
 
             if ui.button("Start").clicked() {
                 let store = match self.store {
-                    StoreKind::Memory => StoreType::Memory,
+                    StoreKind::Memory => Some(StoreType::Memory),
                     #[cfg(feature = "sqlite")]
-                    StoreKind::Sqlite => StoreType::Sqlite(self.param.clone()),
-                    StoreKind::Grpc => StoreType::Grpc(self.param.clone()),
+                    StoreKind::Sqlite => {
+                        if let Some(db_file) = &self.param {
+                            Some(StoreType::Sqlite(db_file.clone()))
+                        } else {
+                            self.error_text =
+                                Some("db file is not specified".to_string());
+                            None
+                        }
+                    }
                 };
-                ui_reqs.push(UIRequest::Start(store));
+                if let Some(s) = store {
+                    let server = if self.server_enable {
+                        Some(self.server.clone())
+                    } else {
+                        None
+                    };
+                    ui_reqs.push(UIRequest::Start(s, server));
+                }
             }
             ui.separator();
             if let Some(e) = &self.error_text {
-                ui.label("{e}");
+                ui.label(format!("{e}"));
             }
         });
 
@@ -111,7 +124,9 @@ impl StartPane {
         let store = StoreKind::default();
         Self {
             store,
-            param: String::default(),
+            param: None,
+            server_enable: false,
+            server: String::default(),
             file_dialog: FileDialog::new(),
             error_text: None,
         }

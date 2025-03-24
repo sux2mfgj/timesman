@@ -1,7 +1,7 @@
 use std::{rc::Rc, sync::Mutex};
 
 use timesman_bstore::{Store, StoreType};
-use timesman_type::Tid;
+use timesman_type::{Pid, Post, Tid, Times};
 
 mod ui;
 
@@ -21,15 +21,17 @@ use tokio::runtime::Runtime;
 #[derive(Debug)]
 pub enum PaneRequest {
     Close,
-    SelectStore(StoreType),
+    SelectStore(StoreType, Option<String>),
     SelectTimes(Tid),
     CreateTimes(String),
-    CreatePost(String),
+    CreatePost(Pid, String),
     Log(String),
 }
 
 #[derive(Debug, PartialEq)]
 pub enum PaneResponse {
+    TimesCreated(Times),
+    PostCreated(Post),
     Err(String),
 }
 

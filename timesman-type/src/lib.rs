@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 pub type Tid = u64;
 pub type Pid = u64;
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub struct Times {
     pub id: Tid,
     pub title: String,
@@ -25,7 +25,7 @@ impl std::fmt::Display for Times {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub struct Post {
     pub id: Pid,
     pub post: String,

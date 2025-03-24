@@ -64,12 +64,18 @@ impl times_man_server::TimesMan for TMServer {
 
     async fn create_times(
         &self,
-        _request: tonic::Request<grpc::TimesTitle>,
+        request: tonic::Request<grpc::TimesTitle>,
     ) -> Result<tonic::Response<grpc::Times>, tonic::Status> {
-        Err(tonic::Status::new(
-            tonic::Code::Unimplemented,
-            "unimplemented",
-        ))
+        let mut store = self.store.lock().await;
+        let title = request.into_inner().title;
+
+        let times = store.create_times(title).await.unwrap();
+
+        if let Some(tx) = &self.tx {
+            tx.send(StoreEvent::CreateTimes(times.clone())).unwrap();
+        }
+
+        Ok(tonic::Response::new(grpc::Times::from(times)))
     }
 
     async fn delete_times(
@@ -94,12 +100,22 @@ impl times_man_server::TimesMan for TMServer {
 
     async fn get_posts(
         &self,
-        _request: tonic::Request<grpc::TimesId>,
+        request: tonic::Request<grpc::TimesId>,
     ) -> Result<tonic::Response<grpc::PostArray>, tonic::Status> {
-        Err(tonic::Status::new(
-            tonic::Code::Unimplemented,
-            "unimplemented",
-        ))
+        let mut store = self.store.lock().await;
+
+        let tid = request.into_inner().id;
+
+        let posts = store.get_posts(tid).await.map_err(|e| {
+            tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
+        })?;
+
+        let posts = posts
+            .iter()
+            .map(|t| t.clone().into())
+            .collect::<Vec<grpc::Post>>();
+
+        Ok(tonic::Response::new(grpc::PostArray { posts }))
     }
 
     async fn create_post(

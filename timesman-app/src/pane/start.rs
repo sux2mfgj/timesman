@@ -54,8 +54,8 @@ impl StartPaneModel {
     ) -> Result<(Option<UIResponse>, Option<PaneRequest>), String> {
         match req {
             UIRequest::Close => Ok((None, Some(PaneRequest::Close))),
-            UIRequest::Start(stype) => {
-                Ok((None, Some(PaneRequest::SelectStore(stype))))
+            UIRequest::Start(stype, server) => {
+                Ok((None, Some(PaneRequest::SelectStore(stype, server))))
             }
         }
     }

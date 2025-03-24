@@ -68,7 +68,7 @@ impl TimesPaneModel {
     ) -> (Option<UIResponse>, Option<PaneRequest>) {
         match reqs {
             UIRequest::Post(text) => {
-                let req = PaneRequest::CreatePost(text);
+                let req = PaneRequest::CreatePost(self.tid, text);
                 (None, Some(req))
             }
             UIRequest::Close => (None, Some(PaneRequest::Close)),

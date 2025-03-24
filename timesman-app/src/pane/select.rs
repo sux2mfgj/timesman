@@ -1,4 +1,4 @@
-use super::{PaneModel, PaneRequest};
+use super::{PaneModel, PaneRequest, PaneResponse};
 use crate::log::tmlog;
 use crate::pane::select_ui::{SelectPaneTrait, UIRequest, UIResponse};
 use timesman_type::Times;
@@ -21,15 +21,32 @@ impl PaneModel for SelectPaneModel {
     fn update(
         &mut self,
         ctx: &egui::Context,
-        msg_resp: &Vec<super::PaneResponse>,
+        presps: &Vec<PaneResponse>,
         rt: &Runtime,
     ) -> Result<Vec<PaneRequest>, String> {
+        let mut preqs = vec![];
+
+        for resp in presps {
+            match resp {
+                PaneResponse::TimesCreated(times) => {
+                    self.times_list.push(times.clone());
+                    preqs.push(PaneRequest::SelectTimes(times.id));
+                }
+                PaneResponse::Err(e) => {
+                    log(format!("{e}"));
+                    todo!();
+                }
+                _ => {
+                    todo!("unknown response found");
+                }
+            }
+        }
+
         let reqs = self
             .pane
             .update(ctx, &self.ui_resps, &self.times_list)
             .unwrap();
 
-        let mut preqs = vec![];
         for r in reqs {
             let (uresp, preq) = self.handle_ui_request(rt, r);
 
