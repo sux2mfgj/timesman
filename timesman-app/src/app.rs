@@ -88,12 +88,21 @@ impl App {
                 self.pane_stack.pop_front();
             }
             PaneRequest::SelectTimes(tid) => {
-                if let Some(_) = &self.store {
-                    let pane = create_times_pane(tid);
-                    self.pane_stack.push_front(pane);
-                } else {
+                let Some(store) = self.store.clone() else {
                     todo!();
-                }
+                };
+
+                let pane = create_times_pane(tid);
+                self.pane_stack.push_front(pane);
+
+                let tx = self.tx.clone();
+                self.rt.spawn(async move {
+                    let mut store = store.lock().await;
+                    let posts = store.get_posts(tid).await.unwrap();
+                    for p in posts {
+                        tx.send(PaneResponse::PostCreated(p.clone())).unwrap();
+                    }
+                });
             }
             PaneRequest::SelectStore(stype, server) => {
                 let mut store = self.create_store(stype)?;

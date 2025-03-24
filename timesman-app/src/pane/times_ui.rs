@@ -101,7 +101,7 @@ impl TimesPane {
 
         let cmd_enter =
             ctx.input_mut(|i| i.consume_key(Modifiers::COMMAND, Key::Enter));
-        if cmd_enter {
+        if cmd_enter && !self.post_text.is_empty() {
             ui_reqs.push(UIRequest::Post(self.post_text.clone()));
         }
 

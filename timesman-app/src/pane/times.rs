@@ -23,15 +23,25 @@ impl PaneModel for TimesPaneModel {
         rt: &Runtime,
     ) -> Result<Vec<PaneRequest>, String> {
         let mut p_reqs = vec![];
+        self.ui_resps = vec![];
 
         for p in p_resps {
-            todo!("{:?}", p);
+            match p {
+                PaneResponse::PostCreated(p) => {
+                    self.posts.push(p.clone());
+                    self.ui_resps.push(UIResponse::PostSuccess);
+                }
+                PaneResponse::Err(e) => {
+                    todo!("{e}");
+                }
+                _ => {
+                    todo!("unexpected pane response found");
+                }
+            }
         }
 
         let ui_reqs =
             self.pane.update(ctx, &self.ui_resps, &self.posts).unwrap();
-
-        self.ui_resps = vec![];
 
         for req in ui_reqs {
             let (ui_resp, p_req) = self.handle_ui_request(req);
