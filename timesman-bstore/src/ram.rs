@@ -1,4 +1,4 @@
-use super::{Post, Store, Times};
+use super::{File, Post, Store, Times};
 use async_trait::async_trait;
 use chrono::Local;
 use core::fmt;
@@ -98,6 +98,7 @@ impl Store for RamStore {
         &mut self,
         tid: u64,
         post: String,
+        file: Option<(String, File)>,
     ) -> Result<super::Post, String> {
         let ltimes = self.times.get_mut(&tid).ok_or("invalid tid")?;
 
@@ -106,6 +107,7 @@ impl Store for RamStore {
             post,
             created_at: Local::now().naive_local(),
             updated_at: None,
+            file,
         };
 
         ltimes.posts.insert(post.id, post.clone());

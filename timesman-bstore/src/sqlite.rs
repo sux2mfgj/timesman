@@ -1,4 +1,4 @@
-use super::{Post, Store, Times};
+use super::{File, Post, Store, Times};
 
 use sqlx;
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePool};
@@ -44,6 +44,7 @@ impl From<SqlitePost> for Post {
             post: value.post,
             created_at: value.created_at,
             updated_at: value.updated_at,
+            file: None,
         }
     }
 }
@@ -124,6 +125,7 @@ impl Store for SqliteStore {
         &mut self,
         tid: u64,
         post: String,
+        file: Option<(String, File)>,
     ) -> Result<Post, String> {
         let tid = tid as i64;
         let sql = sqlx::query_as!(

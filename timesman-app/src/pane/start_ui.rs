@@ -126,7 +126,7 @@ impl StartPane {
             store,
             param: None,
             server_enable: false,
-            server: String::default(),
+            server: "127.0.0.1:8080".to_string(),
             file_dialog: FileDialog::new(),
             error_text: None,
         }

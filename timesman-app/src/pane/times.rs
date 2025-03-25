@@ -1,7 +1,5 @@
 use super::times_ui::{TimesPaneTrait, UIRequest, UIResponse};
 use super::{PaneModel, PaneRequest, PaneResponse};
-use std::rc::Rc;
-use std::sync::Mutex;
 
 use timesman_type::{Post, Tid};
 use tokio::runtime::Runtime;
@@ -30,6 +28,9 @@ impl PaneModel for TimesPaneModel {
                 PaneResponse::PostCreated(p) => {
                     self.posts.push(p.clone());
                     self.ui_resps.push(UIResponse::PostSuccess);
+                }
+                PaneResponse::FileDropped(path) => {
+                    self.ui_resps.push(UIResponse::FileDropped(path.clone()));
                 }
                 PaneResponse::Err(e) => {
                     todo!("{e}");
@@ -77,8 +78,8 @@ impl TimesPaneModel {
         reqs: UIRequest,
     ) -> (Option<UIResponse>, Option<PaneRequest>) {
         match reqs {
-            UIRequest::Post(text) => {
-                let req = PaneRequest::CreatePost(self.tid, text);
+            UIRequest::Post(text, file) => {
+                let req = PaneRequest::CreatePost(self.tid, text, file);
                 (None, Some(req))
             }
             UIRequest::Close => (None, Some(PaneRequest::Close)),

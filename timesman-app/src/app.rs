@@ -19,7 +19,7 @@ use crate::pane::{
 
 pub struct App {
     pane_stack: VecDeque<Box<dyn PaneModel>>,
-    msg_resp: Vec<PaneResponse>,
+    resp: Vec<PaneResponse>,
     rt: runtime::Runtime,
     store: Option<Arc<Mutex<dyn Store>>>,
     rx: Receiver<PaneResponse>,
@@ -35,7 +35,7 @@ impl App {
         let mut pane_stack = VecDeque::new();
         pane_stack.push_front(init_pane());
 
-        let msg_resp = vec![];
+        let resp = vec![];
 
         let rt = runtime::Builder::new_multi_thread()
             .enable_all()
@@ -46,7 +46,7 @@ impl App {
 
         Self {
             pane_stack,
-            msg_resp,
+            resp,
             rt,
             store: None,
             rx,
@@ -107,6 +107,7 @@ impl App {
             PaneRequest::SelectStore(stype, server) => {
                 let mut store = self.create_store(stype)?;
                 if let Some(server) = server {
+                    tmlog(format!("Start server: {server}"));
                     let s = ArbiterStore::new(&self.rt, store, &server);
                     store = Arc::new(Mutex::new(s));
                 };
@@ -127,7 +128,7 @@ impl App {
                     tx.send(PaneResponse::TimesCreated(times)).unwrap();
                 });
             }
-            PaneRequest::CreatePost(tid, text) => {
+            PaneRequest::CreatePost(tid, text, file) => {
                 let Some(store) = self.store.clone() else {
                     todo!();
                 };
@@ -136,7 +137,8 @@ impl App {
 
                 self.rt.spawn(async move {
                     let mut store = store.lock().await;
-                    let post = store.create_post(tid, text).await.unwrap();
+                    let post =
+                        store.create_post(tid, text, file).await.unwrap();
                     tx.send(PaneResponse::PostCreated(post)).unwrap();
                 });
             }
@@ -160,27 +162,27 @@ impl eframe::App for App {
 
         let name = pane.get_name().clone();
 
-        let reqs = match pane.update(ctx, &self.msg_resp, &self.rt) {
+        let reqs = match pane.update(ctx, &self.resp, &self.rt) {
             Ok(reqs) => reqs,
             Err(e) => {
                 todo!("{e}");
             }
         };
 
-        self.msg_resp = vec![];
+        self.resp = vec![];
 
         for r in reqs {
             match self.handle_pane_event(r, &name) {
                 Ok(()) => {}
                 Err(e) => {
-                    self.msg_resp.push(PaneResponse::Err(e));
+                    self.resp.push(PaneResponse::Err(e));
                 }
             }
         }
 
         loop {
             match self.rx.try_recv() {
-                Ok(resp) => self.msg_resp.push(resp),
+                Ok(resp) => self.resp.push(resp),
                 Err(TryRecvError::Empty) => {
                     break;
                 }
@@ -193,4 +195,19 @@ impl eframe::App for App {
     }
 
     fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {}
+
+    fn raw_input_hook(
+        &mut self,
+        _ctx: &egui::Context,
+        raw_input: &mut egui::RawInput,
+    ) {
+        for f in &raw_input.dropped_files {
+            tmlog(format!("{:?}", f));
+            let Some(path) = &f.path else {
+                continue;
+            };
+
+            self.resp.push(PaneResponse::FileDropped(path.clone()));
+        }
+    }
 }

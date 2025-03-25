@@ -91,6 +91,7 @@ impl Into<timesman_type::Post> for grpc::Post {
             post: self.post,
             created_at: ctime,
             updated_at: utime,
+            file: None,
         }
     }
 }

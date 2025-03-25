@@ -1,7 +1,7 @@
-use std::{rc::Rc, sync::Mutex};
+use std::path::PathBuf;
 
 use timesman_bstore::{Store, StoreType};
-use timesman_type::{Pid, Post, Tid, Times};
+use timesman_type::{File, Pid, Post, Tid, Times};
 
 mod ui;
 
@@ -18,14 +18,43 @@ use times::TimesPaneModel;
 
 use tokio::runtime::Runtime;
 
-#[derive(Debug)]
 pub enum PaneRequest {
     Close,
     SelectStore(StoreType, Option<String>),
     SelectTimes(Tid),
     CreateTimes(String),
-    CreatePost(Pid, String),
+    CreatePost(Pid, String, Option<(String, File)>), //filename and file path
     Log(String),
+}
+
+impl std::fmt::Debug for PaneRequest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PaneRequest::Close => {
+                write!(f, "Close")
+            }
+            PaneRequest::SelectStore(stype, opt) => {
+                write!(f, "SelectStore {:?}", stype)
+            }
+            PaneRequest::SelectTimes(tid) => {
+                write!(f, "SelectTimes {tid}")
+            }
+            PaneRequest::CreateTimes(name) => {
+                write!(f, "CreateTimes {name}")
+            }
+            PaneRequest::CreatePost(pid, text, file) => {
+                let fname = if let Some(file) = file {
+                    file.0.clone()
+                } else {
+                    "".to_string()
+                };
+                write!(f, "CreatePost {pid} {text} {fname}")
+            }
+            PaneRequest::Log(log) => {
+                write!(f, "Log {log}")
+            }
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -33,6 +62,7 @@ pub enum PaneResponse {
     TimesCreated(Times),
     PostCreated(Post),
     Err(String),
+    FileDropped(PathBuf),
 }
 
 pub trait PaneModel {

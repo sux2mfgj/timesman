@@ -18,7 +18,7 @@ use std::fmt::Debug;
 
 use async_trait::async_trait;
 
-use timesman_type::{Pid, Post, Tid, Times};
+use timesman_type::{File, Pid, Post, Tid, Times};
 
 #[derive(PartialEq, Default, Debug, Clone)]
 pub enum StoreType {
@@ -59,6 +59,7 @@ pub trait Store: Send + Sync + 'static + Debug {
         &mut self,
         tid: u64,
         post: String,
+        file: Option<(String, File)>,
     ) -> Result<Post, String>;
     async fn delete_post(&mut self, tid: u64, pid: u64) -> Result<(), String>;
     async fn update_post(

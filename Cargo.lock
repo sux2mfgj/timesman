@@ -4679,7 +4679,6 @@ name = "timesman-tools"
 version = "0.1.0"
 dependencies = [
  "clap",
- "timesman-bstore",
  "timesman-grpc",
  "timesman-type",
  "tokio",

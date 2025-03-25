@@ -1,5 +1,8 @@
 use super::ui;
-use timesman_type::Post;
+use std::io::Read;
+use std::{fs::File, path::PathBuf};
+
+use timesman_type::{self, Post};
 
 use egui::{
     CentralPanel, Key, Modifiers, ScrollArea, TextEdit, TopBottomPanel,
@@ -7,12 +10,13 @@ use egui::{
 
 #[derive(Clone)]
 pub enum UIRequest {
-    Post(String),
+    Post(String, Option<(String, timesman_type::File)>),
     Close,
 }
 
 pub enum UIResponse {
     PostSuccess,
+    FileDropped(PathBuf),
 }
 
 pub trait TimesPaneTrait {
@@ -26,6 +30,7 @@ pub trait TimesPaneTrait {
 
 pub struct TimesPane {
     post_text: String,
+    dropped_file: Option<PathBuf>,
 }
 
 impl TimesPaneTrait for TimesPane {
@@ -56,6 +61,7 @@ impl TimesPane {
     pub fn new() -> Self {
         Self {
             post_text: String::default(),
+            dropped_file: None,
         }
     }
 
@@ -71,6 +77,14 @@ impl TimesPane {
 
             ui.label(post.post.clone());
         });
+        if let Some(file) = &post.file {
+            match &file.1 {
+                timesman_type::File::Image(data) => {}
+                timesman_type::File::Text(txt) => {}
+                timesman_type::File::Other(data) => {}
+            }
+            ui.label(format!("File: {}", file.0));
+        }
     }
 
     fn main_panel(&self, ctx: &egui::Context, posts: &Vec<Post>) {
@@ -89,10 +103,24 @@ impl TimesPane {
 
     fn bottom(&mut self, ctx: &egui::Context) {
         TopBottomPanel::bottom("input").show(ctx, |ui| {
-            TextEdit::multiline(&mut self.post_text)
-                .hint_text("write here")
-                .desired_width(f32::INFINITY)
-                .show(ui);
+            ui.vertical(|ui| {
+                TextEdit::multiline(&mut self.post_text)
+                    .hint_text("write here")
+                    .desired_width(f32::INFINITY)
+                    .show(ui);
+
+                if let Some(path) = self.dropped_file.clone() {
+                    ui.horizontal(|ui| {
+                        if let Some(name) = path.file_name() {
+                            ui.label(format!("{}", name.to_str().unwrap()));
+
+                            if ui.button("clear").clicked() {
+                                self.dropped_file = None;
+                            };
+                        }
+                    });
+                }
+            });
         });
     }
 
@@ -101,8 +129,35 @@ impl TimesPane {
 
         let cmd_enter =
             ctx.input_mut(|i| i.consume_key(Modifiers::COMMAND, Key::Enter));
-        if cmd_enter && !self.post_text.is_empty() {
-            ui_reqs.push(UIRequest::Post(self.post_text.clone()));
+        if cmd_enter
+            && (!self.post_text.is_empty() || self.dropped_file.is_some())
+        {
+            let txt = self.post_text.clone();
+            let file = if let Some(file) = self.dropped_file.clone() {
+                let name =
+                    file.file_name().unwrap().to_string_lossy().to_string();
+
+                let ext =
+                    file.extension().unwrap().to_string_lossy().to_string();
+
+                let mut data = vec![];
+                let mut file = File::open(file).unwrap();
+                file.read_to_end(&mut data).unwrap();
+
+                let f = match &*ext {
+                    "png" => timesman_type::File::Image(data),
+                    "txt" => timesman_type::File::Text(
+                        String::from_utf8(data).unwrap(),
+                    ),
+                    _ => timesman_type::File::Other(data),
+                };
+
+                Some((name, f))
+            } else {
+                None
+            };
+
+            ui_reqs.push(UIRequest::Post(txt, file));
         }
 
         if ui::consume_escape(ctx) {
@@ -116,6 +171,10 @@ impl TimesPane {
         match resp {
             UIResponse::PostSuccess => {
                 self.post_text.clear();
+                self.dropped_file = None;
+            }
+            UIResponse::FileDropped(path) => {
+                self.dropped_file = Some(path.clone());
             }
         }
     }

@@ -25,10 +25,18 @@ impl std::fmt::Display for Times {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum File {
+    Image(Vec<u8>),
+    Text(String),
+    Other(Vec<u8>),
+}
+
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub struct Post {
     pub id: Pid,
     pub post: String,
     pub created_at: chrono::NaiveDateTime,
     pub updated_at: Option<chrono::NaiveDateTime>,
+    pub file: Option<(String, File)>,
 }

@@ -6,7 +6,7 @@ use tokio::sync::Mutex;
 
 use timesman_bstore::{Store, StoreEvent};
 use timesman_server::{GrpcServer, TimesManServer};
-use timesman_type::{Post, Times};
+use timesman_type::{File, Post, Times};
 
 pub struct ArbiterStore {
     store: Arc<Mutex<dyn Store + Send + Sync>>,
@@ -68,9 +68,10 @@ impl Store for ArbiterStore {
         &mut self,
         tid: u64,
         post: String,
+        file: Option<(String, File)>,
     ) -> Result<Post, String> {
         let mut store = self.store.lock().await;
-        store.create_post(tid, post).await
+        store.create_post(tid, post, None).await
     }
     async fn delete_post(&mut self, tid: u64, pid: u64) -> Result<(), String> {
         let mut store = self.store.lock().await;

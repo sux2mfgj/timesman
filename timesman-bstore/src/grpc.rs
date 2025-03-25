@@ -5,7 +5,7 @@ use timesman_grpc::grpc;
 use timesman_grpc::grpc::times_man_client::TimesManClient;
 use tonic;
 
-use timesman_type::{Post, Times};
+use timesman_type::{File, Post, Times};
 
 pub struct GrpcStore {
     client: TimesManClient<tonic::transport::channel::Channel>,
@@ -94,6 +94,7 @@ impl Store for GrpcStore {
         &mut self,
         tid: u64,
         post: String,
+        file: Option<(String, File)>,
     ) -> Result<Post, String> {
         let param = grpc::CreatePostPrams {
             id: tid,
