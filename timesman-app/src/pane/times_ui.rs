@@ -123,7 +123,8 @@ impl TimesPane {
                 .stick_to_bottom(true)
                 .auto_shrink(false)
                 .max_scroll_height(height_available)
-                .column(Column::auto())
+                .resizable(true)
+                .column(Column::auto().at_least(100f32))
                 .column(Column::remainder());
 
             builder

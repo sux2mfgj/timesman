@@ -18,13 +18,21 @@ use times::TimesPaneModel;
 
 use tokio::runtime::Runtime;
 
+#[derive(Clone)]
 pub enum PaneRequest {
     Close,
     SelectStore(StoreType, Option<String>),
     SelectTimes(Tid),
     CreateTimes(String),
     CreatePost(Pid, String, Option<(String, File)>), //filename and file path
+    UI(UIRequest),
     Log(String),
+}
+
+#[derive(Debug, Clone)]
+pub enum UIRequest {
+    ChangeScale(f32),
+    ChangeWindowSize(f32, f32),
 }
 
 impl std::fmt::Debug for PaneRequest {
@@ -50,6 +58,7 @@ impl std::fmt::Debug for PaneRequest {
                 };
                 write!(f, "CreatePost {pid} {text} {fname}")
             }
+            PaneRequest::UI(op) => op.fmt(f),
             PaneRequest::Log(log) => {
                 write!(f, "Log {log}")
             }

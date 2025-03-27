@@ -1,3 +1,4 @@
+use egui::Vec2;
 use std::collections::VecDeque;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -11,14 +12,16 @@ use std::sync::mpsc::{channel, Receiver, Sender, TryRecvError};
 use tokio::runtime;
 
 use crate::arbiter::ArbiterStore;
+use crate::config::Config;
 use crate::log::tmlog;
 use crate::pane::{
     create_select_pane, create_times_pane, init_pane, PaneModel, PaneRequest,
-    PaneResponse,
+    PaneResponse, UIRequest,
 };
 
 pub struct App {
     pane_stack: VecDeque<Box<dyn PaneModel>>,
+    reqs: Vec<PaneRequest>,
     resp: Vec<PaneResponse>,
     rt: runtime::Runtime,
     store: Option<Arc<Mutex<dyn Store>>>,
@@ -31,7 +34,7 @@ fn log(text: String) {
 }
 
 impl App {
-    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(_cc: &eframe::CreationContext<'_>, config: Config) -> Self {
         let mut pane_stack = VecDeque::new();
         pane_stack.push_front(init_pane());
 
@@ -44,9 +47,12 @@ impl App {
 
         let (tx, rx) = channel();
 
+        let reqs = config.generate_pane_reqs();
+
         Self {
             pane_stack,
             resp,
+            reqs,
             rt,
             store: None,
             rx,
@@ -79,6 +85,7 @@ impl App {
     fn handle_pane_event(
         &mut self,
         req: PaneRequest,
+        ctx: &egui::Context,
         name: &String,
     ) -> Result<(), String> {
         log(format!("{:?}", req));
@@ -142,6 +149,12 @@ impl App {
                     tx.send(PaneResponse::PostCreated(post)).unwrap();
                 });
             }
+            PaneRequest::UI(op) => match op {
+                UIRequest::ChangeScale(scale) => ctx.set_zoom_factor(scale),
+                UIRequest::ChangeWindowSize(h, w) => ctx.send_viewport_cmd(
+                    egui::ViewportCommand::InnerSize(Vec2::new(h, w)),
+                ),
+            },
             PaneRequest::Log(text) => {
                 tmlog(format!("{name} {text}"));
             }
@@ -162,7 +175,7 @@ impl eframe::App for App {
 
         let name = pane.get_name().clone();
 
-        let reqs = match pane.update(ctx, &self.resp) {
+        let mut reqs = match pane.update(ctx, &self.resp) {
             Ok(reqs) => reqs,
             Err(e) => {
                 todo!("{e}");
@@ -171,14 +184,15 @@ impl eframe::App for App {
 
         self.resp = vec![];
 
-        for r in reqs {
-            match self.handle_pane_event(r, &name) {
+        for r in [&reqs[..], &self.reqs[..]].concat() {
+            match self.handle_pane_event(r, ctx, &name) {
                 Ok(()) => {}
                 Err(e) => {
                     self.resp.push(PaneResponse::Err(e));
                 }
             }
         }
+        self.reqs.clear();
 
         loop {
             match self.rx.try_recv() {
