@@ -29,3 +29,5 @@ tokio = { version = "1.41.1", features = ["rt-multi-thread"] }
 url = "2.5.4"
 tonic = "0.12.3"
 async-trait = "0.1.88"
+egui_extras = { version = "0.29.1", features = ["all_loaders"] }
+image = "0.25.6"

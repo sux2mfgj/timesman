@@ -1,11 +1,17 @@
 use super::ui;
+use std::fs;
 use std::io::Read;
+use std::sync::Arc;
 use std::{fs::File, path::PathBuf};
 
+use crate::log::tmlog;
+
+use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use timesman_type::{self, Post};
 
 use egui::{
-    CentralPanel, Key, Modifiers, ScrollArea, TextEdit, TopBottomPanel,
+    load, CentralPanel, ImageSource, Key, Modifiers, ScrollArea, TextEdit,
+    TopBottomPanel, Vec2, Window,
 };
 
 #[derive(Clone)]
@@ -31,6 +37,7 @@ pub trait TimesPaneTrait {
 pub struct TimesPane {
     post_text: String,
     dropped_file: Option<PathBuf>,
+    preview: Option<(String, Vec<u8>)>,
 }
 
 impl TimesPaneTrait for TimesPane {
@@ -48,7 +55,23 @@ impl TimesPaneTrait for TimesPane {
 
         self.top_bar(ctx);
         self.bottom(ctx);
-        self.main_panel(ctx, posts);
+        // self.main_panel(ctx, posts);
+        self.main_panel_table(ctx, posts);
+
+        if let Some((name, preview_img)) = &self.preview {
+            let img = egui::Image::from_bytes(
+                format!("bytes://{}", name),
+                preview_img.clone(),
+            );
+
+            egui::Window::new(format!("{}", name))
+                // .title_bar(false)
+                .collapsible(false)
+                // .fixed_size()
+                .show(ctx, |ui| {
+                    ui.add(img);
+                });
+        }
 
         let r = self.consume_keys(ctx);
         ui_reqs = vec![ui_reqs, r].concat();
@@ -62,6 +85,7 @@ impl TimesPane {
         Self {
             post_text: String::default(),
             dropped_file: None,
+            preview: None,
         }
     }
 
@@ -69,29 +93,121 @@ impl TimesPane {
         TopBottomPanel::top("bar").show(ctx, |ui| {});
     }
 
-    fn post_entry(&self, post: &Post, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
+    fn post_row(&mut self, row: &mut TableRow, post: &Post) {
+        row.col(|ui| {
             ui.label(post.created_at.format("%Y-%m-%d %H:%M").to_string());
-
-            ui.separator();
-
-            ui.label(post.post.clone());
         });
-        if let Some(file) = &post.file {
-            match &file.1 {
-                timesman_type::File::Image(data) => {}
-                timesman_type::File::Text(txt) => {}
-                timesman_type::File::Other(data) => {}
+        row.col(|ui| {
+            ui.label(post.post.clone());
+
+            if let Some(file) = &post.file {
+                match &file.1 {
+                    timesman_type::File::Image(data) => {
+                        let img = egui::Image::from_bytes(
+                            format!("bytes://{}", file.0),
+                            data.clone(),
+                        );
+                        let img_ui = ui.add(
+                            img.max_height(200.0).sense(egui::Sense::click()),
+                        );
+
+                        if img_ui.clicked() {
+                            self.preview = Some((file.0.clone(), data.clone()));
+                        }
+                    }
+                    timesman_type::File::Text(txt) => {}
+                    timesman_type::File::Other(data) => {}
+                }
             }
-            ui.label(format!("File: {}", file.0));
-        }
+        });
     }
 
-    fn main_panel(&self, ctx: &egui::Context, posts: &Vec<Post>) {
+    /*
+    fn post_entry(&mut self, post: &Post, ui: &mut egui::Ui) {
+        ui.vertical(|ui| {
+            ui.horizontal(|ui| {
+                ui.label(post.created_at.format("%Y-%m-%d %H:%M").to_string());
+
+                ui.separator();
+
+                ui.label(post.post.clone());
+            });
+
+            if let Some(file) = &post.file {
+                match &file.1 {
+                    timesman_type::File::Image(data) => {
+                        let img = egui::Image::from_bytes(
+                            format!("bytes://{}", file.0),
+                            data.clone(),
+                        );
+                        let click_img = ui
+                            .add(
+                                img.max_height(200.0)
+                                    .sense(egui::Sense::click()),
+                            )
+                            .clicked();
+                        if click_img {
+                            tmlog("oh".to_string());
+                            self.preview = Some(data.clone());
+                        }
+                    }
+                    _ => {
+                        ui.label(format!("File: {}", file.0.clone()));
+                    }
+                }
+            }
+        });
+    }
+    */
+
+    fn main_panel_table(&mut self, ctx: &egui::Context, posts: &Vec<Post>) {
+        CentralPanel::default().show(ctx, |ui| {
+            let height_available = ui.available_height();
+            let mut builder = TableBuilder::new(ui)
+                .striped(true)
+                .resizable(false)
+                .stick_to_bottom(true)
+                .auto_shrink(false)
+                .max_scroll_height(height_available)
+                .column(Column::auto())
+                .column(Column::remainder());
+
+            builder
+                .header(20.0, |mut header| {
+                    header.col(|ui| {
+                        ui.heading("datetime");
+                    });
+                    header.col(|ui| {
+                        ui.heading("content");
+                    });
+                })
+                .body(|mut body| {
+                    for p in posts {
+                        // TODO: function
+                        let hight = if let Some(a) = &p.file {
+                            match a.1 {
+                                timesman_type::File::Image(_) => 100f32,
+                                _ => 20f32,
+                            }
+                        } else {
+                            20f32
+                        };
+
+                        body.row(hight, |mut row| {
+                            self.post_row(&mut row, &p);
+                        })
+                    }
+                });
+        });
+    }
+
+    /*
+    fn main_panel(&mut self, ctx: &egui::Context, posts: &Vec<Post>) {
         CentralPanel::default().show(ctx, |ui| {
             let scroll_area = ScrollArea::vertical()
                 .auto_shrink(false)
-                .max_height(ui.available_height());
+                .max_height(ui.available_height())
+                .stick_to_bottom(true);
 
             scroll_area.show(ui, |ui| {
                 for p in posts {
@@ -99,7 +215,16 @@ impl TimesPane {
                 }
             });
         });
+
+        if let Some((_, preview_img)) = &self.preview {
+            Window::new("image").show(ctx, |ui| {
+                let img =
+                    egui::Image::from_bytes("bytes://", preview_img.clone());
+                ui.add(img);
+            });
+        }
     }
+    */
 
     fn bottom(&mut self, ctx: &egui::Context) {
         TopBottomPanel::bottom("input").show(ctx, |ui| {
@@ -124,7 +249,7 @@ impl TimesPane {
         });
     }
 
-    fn consume_keys(&self, ctx: &egui::Context) -> Vec<UIRequest> {
+    fn consume_keys(&mut self, ctx: &egui::Context) -> Vec<UIRequest> {
         let mut ui_reqs = vec![];
 
         let cmd_enter =
@@ -145,7 +270,7 @@ impl TimesPane {
                 file.read_to_end(&mut data).unwrap();
 
                 let f = match &*ext {
-                    "png" => timesman_type::File::Image(data),
+                    "png" | "jpg" | "jpeg" => timesman_type::File::Image(data),
                     "txt" => timesman_type::File::Text(
                         String::from_utf8(data).unwrap(),
                     ),
@@ -161,7 +286,11 @@ impl TimesPane {
         }
 
         if ui::consume_escape(ctx) {
-            ui_reqs.push(UIRequest::Close);
+            if self.preview.is_some() {
+                self.preview = None;
+            } else {
+                ui_reqs.push(UIRequest::Close);
+            }
         }
 
         ui_reqs

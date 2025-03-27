@@ -4,6 +4,7 @@ mod log;
 mod pane;
 
 use app::App;
+use egui_extras::install_image_loaders;
 
 fn main() -> Result<(), i64> {
     log::tmlog("Starting".to_string());
@@ -18,6 +19,7 @@ fn main() -> Result<(), i64> {
         "TimesMan",
         options,
         Box::new(|cc| {
+            egui_extras::install_image_loaders(&cc.egui_ctx);
             let app = App::new(cc);
             Ok(Box::new(app))
         }),
