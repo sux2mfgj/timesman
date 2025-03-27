@@ -1,18 +1,12 @@
 use super::ui;
 use std::fs;
 use std::io::Read;
-use std::sync::Arc;
 use std::{fs::File, path::PathBuf};
 
-use crate::log::tmlog;
-
-use egui_extras::{Column, TableBody, TableBuilder, TableRow};
+use egui_extras::{Column, TableBuilder, TableRow};
 use timesman_type::{self, Post};
 
-use egui::{
-    load, CentralPanel, ImageSource, Key, Modifiers, ScrollArea, TextEdit,
-    TopBottomPanel, Vec2, Window,
-};
+use egui::{CentralPanel, Key, Modifiers, TextEdit, TopBottomPanel};
 
 #[derive(Clone)]
 pub enum UIRequest {
@@ -55,7 +49,6 @@ impl TimesPaneTrait for TimesPane {
 
         self.top_bar(ctx);
         self.bottom(ctx);
-        // self.main_panel(ctx, posts);
         self.main_panel_table(ctx, posts);
 
         if let Some((name, preview_img)) = &self.preview {
@@ -65,9 +58,8 @@ impl TimesPaneTrait for TimesPane {
             );
 
             egui::Window::new(format!("{}", name))
-                // .title_bar(false)
+                .title_bar(false)
                 .collapsible(false)
-                // .fixed_size()
                 .show(ctx, |ui| {
                     ui.add(img);
                 });
@@ -90,7 +82,7 @@ impl TimesPane {
     }
 
     fn top_bar(&self, ctx: &egui::Context) {
-        TopBottomPanel::top("bar").show(ctx, |ui| {});
+        TopBottomPanel::top("bar").show(ctx, |_ui| {});
     }
 
     fn post_row(&mut self, row: &mut TableRow, post: &Post) {
@@ -115,55 +107,17 @@ impl TimesPane {
                             self.preview = Some((file.0.clone(), data.clone()));
                         }
                     }
-                    timesman_type::File::Text(txt) => {}
-                    timesman_type::File::Other(data) => {}
+                    timesman_type::File::Text(_txt) => {}
+                    timesman_type::File::Other(_data) => {}
                 }
             }
         });
     }
-
-    /*
-    fn post_entry(&mut self, post: &Post, ui: &mut egui::Ui) {
-        ui.vertical(|ui| {
-            ui.horizontal(|ui| {
-                ui.label(post.created_at.format("%Y-%m-%d %H:%M").to_string());
-
-                ui.separator();
-
-                ui.label(post.post.clone());
-            });
-
-            if let Some(file) = &post.file {
-                match &file.1 {
-                    timesman_type::File::Image(data) => {
-                        let img = egui::Image::from_bytes(
-                            format!("bytes://{}", file.0),
-                            data.clone(),
-                        );
-                        let click_img = ui
-                            .add(
-                                img.max_height(200.0)
-                                    .sense(egui::Sense::click()),
-                            )
-                            .clicked();
-                        if click_img {
-                            tmlog("oh".to_string());
-                            self.preview = Some(data.clone());
-                        }
-                    }
-                    _ => {
-                        ui.label(format!("File: {}", file.0.clone()));
-                    }
-                }
-            }
-        });
-    }
-    */
 
     fn main_panel_table(&mut self, ctx: &egui::Context, posts: &Vec<Post>) {
         CentralPanel::default().show(ctx, |ui| {
             let height_available = ui.available_height();
-            let mut builder = TableBuilder::new(ui)
+            let builder = TableBuilder::new(ui)
                 .striped(true)
                 .resizable(false)
                 .stick_to_bottom(true)
@@ -200,31 +154,6 @@ impl TimesPane {
                 });
         });
     }
-
-    /*
-    fn main_panel(&mut self, ctx: &egui::Context, posts: &Vec<Post>) {
-        CentralPanel::default().show(ctx, |ui| {
-            let scroll_area = ScrollArea::vertical()
-                .auto_shrink(false)
-                .max_height(ui.available_height())
-                .stick_to_bottom(true);
-
-            scroll_area.show(ui, |ui| {
-                for p in posts {
-                    self.post_entry(&p, ui);
-                }
-            });
-        });
-
-        if let Some((_, preview_img)) = &self.preview {
-            Window::new("image").show(ctx, |ui| {
-                let img =
-                    egui::Image::from_bytes("bytes://", preview_img.clone());
-                ui.add(img);
-            });
-        }
-    }
-    */
 
     fn bottom(&mut self, ctx: &egui::Context) {
         TopBottomPanel::bottom("input").show(ctx, |ui| {
