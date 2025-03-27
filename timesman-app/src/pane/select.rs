@@ -22,7 +22,6 @@ impl PaneModel for SelectPaneModel {
         &mut self,
         ctx: &egui::Context,
         presps: &Vec<PaneResponse>,
-        rt: &Runtime,
     ) -> Result<Vec<PaneRequest>, String> {
         let mut preqs = vec![];
 
@@ -48,7 +47,7 @@ impl PaneModel for SelectPaneModel {
             .unwrap();
 
         for r in reqs {
-            let (uresp, preq) = self.handle_ui_request(rt, r);
+            let (uresp, preq) = self.handle_ui_request(r);
 
             if let Some(uresp) = uresp {
                 todo!();
@@ -77,7 +76,6 @@ impl SelectPaneModel {
 
     fn handle_ui_request(
         &mut self,
-        rt: &Runtime,
         req: UIRequest,
     ) -> (Option<UIResponse>, Option<PaneRequest>) {
         match req {

@@ -162,7 +162,7 @@ impl eframe::App for App {
 
         let name = pane.get_name().clone();
 
-        let reqs = match pane.update(ctx, &self.resp, &self.rt) {
+        let reqs = match pane.update(ctx, &self.resp) {
             Ok(reqs) => reqs,
             Err(e) => {
                 todo!("{e}");

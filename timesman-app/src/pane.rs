@@ -33,7 +33,7 @@ impl std::fmt::Debug for PaneRequest {
             PaneRequest::Close => {
                 write!(f, "Close")
             }
-            PaneRequest::SelectStore(stype, opt) => {
+            PaneRequest::SelectStore(stype, _opt) => {
                 write!(f, "SelectStore {:?}", stype)
             }
             PaneRequest::SelectTimes(tid) => {
@@ -70,7 +70,6 @@ pub trait PaneModel {
         &mut self,
         ctx: &egui::Context,
         msg_resp: &Vec<PaneResponse>,
-        rt: &Runtime,
     ) -> Result<Vec<PaneRequest>, String>;
 
     fn get_name(&self) -> String;

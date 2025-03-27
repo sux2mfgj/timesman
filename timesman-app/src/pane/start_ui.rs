@@ -130,7 +130,7 @@ impl StartPane {
     }
 
     fn handle_ui_response(&self, resps: &Vec<UIResponse>) {
-        for r in resps {
+        for _r in resps {
             todo!();
         }
     }

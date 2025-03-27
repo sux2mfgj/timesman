@@ -13,7 +13,6 @@ impl PaneModel for StartPaneModel {
         &mut self,
         ctx: &egui::Context,
         msg_resp: &Vec<PaneResponse>,
-        rt: &Runtime,
     ) -> Result<Vec<PaneRequest>, String> {
         let reqs = self.pane.update(ctx, &self.ui_resps).unwrap();
 

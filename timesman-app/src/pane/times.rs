@@ -18,7 +18,6 @@ impl PaneModel for TimesPaneModel {
         &mut self,
         ctx: &egui::Context,
         p_resps: &Vec<PaneResponse>,
-        rt: &Runtime,
     ) -> Result<Vec<PaneRequest>, String> {
         let mut p_reqs = vec![];
         self.ui_resps = vec![];
