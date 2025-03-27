@@ -9,10 +9,7 @@ pub enum UIRequest {
 }
 
 #[derive(Copy, Clone)]
-pub enum UIResponse {
-    Ok,
-    Err,
-}
+pub enum UIResponse {}
 
 pub trait StartPaneTrait {
     fn update(
@@ -45,7 +42,7 @@ impl StartPaneTrait for StartPane {
         ctx: &egui::Context,
         resps: &Vec<UIResponse>,
     ) -> Result<Vec<UIRequest>, String> {
-        // self.handle_ui_response(resps);
+        self.handle_ui_response(resps);
 
         let mut ui_reqs = vec![];
 
@@ -132,8 +129,10 @@ impl StartPane {
         }
     }
 
-    fn handle_ui_response(&self, resps: Vec<UIResponse>) {
-        todo!();
+    fn handle_ui_response(&self, resps: &Vec<UIResponse>) {
+        for r in resps {
+            todo!();
+        }
     }
 
     fn consume_keys(&self, ctx: &egui::Context) -> Vec<UIRequest> {
