@@ -71,6 +71,15 @@ impl StartPaneTrait for StartPane {
                         self.param =
                             Some(db_file_path.to_string_lossy().to_string());
                     }
+
+                    if ui.button("Default").clicked() {
+                        let db_path = dirs::data_dir()
+                            .unwrap()
+                            .join("timesman")
+                            .join("sqlite.db");
+                        self.param =
+                            Some(db_path.to_string_lossy().to_string());
+                    }
                 }
             }
 
