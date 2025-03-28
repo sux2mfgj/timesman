@@ -43,21 +43,6 @@ impl Default for WindowConfig {
     }
 }
 
-fn load_fonts(path: &PathBuf) -> Result<(), String> {
-    if !path.exists() {
-        fs::create_dir(path)
-            .map_err(|e| format!("failed to create font directory: {e}"))?;
-    }
-
-    if !(path.exists() && path.is_dir()) {
-        return Err("Failed to open the fonts directory".to_string());
-    }
-
-    //TODO load fonts
-
-    Ok(())
-}
-
 impl Config {
     fn load_config_file(path: &PathBuf) -> Result<Config, String> {
         if !path.exists() {
@@ -95,9 +80,6 @@ impl Config {
 
         let tm_config_dir = config_dir.join("timesman");
         let config = Self::load_config_file(&tm_config_dir)?;
-
-        let font_dir = tm_config_dir.join("fonts");
-        load_fonts(&font_dir)?;
 
         Ok(config)
     }

@@ -1,6 +1,7 @@
 mod app;
 mod arbiter;
 mod config;
+mod fonts;
 mod log;
 mod pane;
 
@@ -26,6 +27,7 @@ fn main() -> Result<(), i64> {
         options,
         Box::new(|cc| {
             egui_extras::install_image_loaders(&cc.egui_ctx);
+            fonts::load_fonts(&cc);
             let app = App::new(cc, config.clone());
             Ok(Box::new(app))
         }),
