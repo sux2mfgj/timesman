@@ -63,19 +63,6 @@ impl SqlitePost {
 
 #[derive(Clone)]
 struct SqliteFile {
-    fn from(value: SqlitePost) -> Self {
-        Self {
-            id: value.id as u64,
-            post: value.post,
-            created_at: value.created_at,
-            updated_at: value.updated_at,
-            file: None,
-        }
-    }
-}
-
-#[derive(Clone)]
-struct SqliteFile {
     pub id: i64,
     pub tid: i64,
     pub name: String,
