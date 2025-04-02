@@ -6,6 +6,7 @@ use sqlx::sqlite::{SqliteConnectOptions, SqlitePool};
 use async_trait::async_trait;
 use tokio::fs;
 use uuid::Uuid;
+use mime_guess; // Moved import to the top
 
 use std::fmt;
 use std::path::{Path, PathBuf};
@@ -412,6 +413,3 @@ impl fmt::Debug for SqliteStore {
             .finish()
     }
 }
-
-// Add mime_guess dependency for load_file
-use mime_guess;
