@@ -7,6 +7,7 @@ pub mod remote;
 
 #[cfg(feature = "sqlite")]
 mod sqlite;
+#[cfg(feature = "sqlite")]
 pub use sqlite::SqliteStore;
 
 #[cfg(feature = "grpc")]

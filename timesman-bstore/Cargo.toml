@@ -22,4 +22,4 @@ sqlx = { version = "0.8.2", features = ["chrono", "runtime-tokio"], optional = t
 tonic = {version = "0.12.3", optional = true}
 tokio = { version = "1.44.1", features = ["fs", "macros", "rt-multi-thread"] } # Ensure fs feature is enabled
 uuid = { version = "1.10.0", features = ["v4"] }
-mime = "0.3.20"
+mime = "0.3.17"
