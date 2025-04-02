@@ -14,7 +14,6 @@ struct SqliteTimes {
     pub title: String,
     pub created_at: chrono::NaiveDateTime,
     pub updated_at: Option<chrono::NaiveDateTime>,
-    pub deleted: i64,
 }
 
 impl From<SqliteTimes> for Times {
@@ -35,6 +34,7 @@ struct SqlitePost {
     pub post: String,
     pub created_at: chrono::NaiveDateTime,
     pub updated_at: Option<chrono::NaiveDateTime>,
+    pub fid: i64,
 }
 
 impl From<SqlitePost> for Post {
@@ -49,6 +49,15 @@ impl From<SqlitePost> for Post {
     }
 }
 
+#[derive(Clone)]
+struct SqliteFile {
+    pub id: i64,
+    pub tid: i64,
+    pub name: String,
+    pub path: String,
+    pub created_at: chrono::NaiveDateTime,
+}
+
 pub struct SqliteStore {
     db: SqlitePool,
 }
@@ -61,6 +70,35 @@ impl SqliteStore {
         let db = SqlitePool::connect_with(opt).await.unwrap();
 
         Self { db }
+    }
+
+    fn save_file(
+        &self,
+        tid: i64,
+        file: Option<(String, File)>,
+    ) -> Result<Option<i64>, String> {
+        let Some((name, file)) = file else {
+            return Ok(None);
+        };
+
+        // let path = dirs::
+
+        //TODO:
+        // - save file to desinated path
+        // - create a new entry to files table
+
+        let sql = sqlx::query_as!(
+            SqliteFile,
+            r#"insert into files(tid, name, path) values ($1, $2, $3) returning fid"#,
+            tid, name, "/tmp/a"
+        )
+        .fetch_one(&self.db);
+
+        todo!();
+    }
+
+    fn load_file(&self, fid: i64, tid: i64) -> Result<File, String> {
+        todo!();
     }
 }
 
@@ -116,7 +154,16 @@ impl Store for SqliteStore {
         .fetch_all(&self.db);
 
         let posts = sql.await.map_err(|e| format!("{}", e))?;
-        let result = posts.iter().map(|sp| Post::from(sp.clone())).collect();
+        let result = posts
+            .iter()
+            .map(|sp| {
+                let p = Post::from(sp.clone());
+                if let Some(fid) = sp.fid {
+                    p.file = self.load_file(fid, sp.tid)?;
+                };
+                p
+            })
+            .collect();
 
         Ok(result)
     }
@@ -127,14 +174,17 @@ impl Store for SqliteStore {
         post: String,
         file: Option<(String, File)>,
     ) -> Result<Post, String> {
+        let fid = save_file(tid, file)?;
+
         let tid = tid as i64;
         let sql = sqlx::query_as!(
             SqlitePost,
-            r#"insert into posts(tid, post)
-                    values ($1, $2)
+            r#"insert into posts(tid, post, fid)
+                    values ($1, $2, $3)
                     returning id as "id!", tid, post, created_at, updated_at"#,
             tid,
-            post
+            post,
+            fid
         )
         .fetch_one(&self.db);
 
