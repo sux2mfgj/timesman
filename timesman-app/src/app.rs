@@ -70,7 +70,9 @@ impl App {
             StoreType::Sqlite(db_file_path) => Arc::new(Mutex::new(
                 //TODO make user selectable to create or use exists database.
                 self.rt.block_on(async {
-                    SqliteStore::new(&db_file_path, false).await
+                    SqliteStore::new(&format!("//{db_file_path}?mode=rwc"))
+                        .await
+                        .unwrap()
                 }),
             )),
             #[cfg(feature = "grpc")]

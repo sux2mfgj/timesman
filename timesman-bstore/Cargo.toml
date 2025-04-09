@@ -7,7 +7,7 @@ edition = "2021"
 default = []
 json = ["serde_json"]
 http = ["reqwest"]
-sqlite = ["sqlx/sqlite"]
+sqlite = ["sea-orm"]
 grpc = ["timesman-grpc", "tonic"]
 
 [dependencies]
@@ -18,8 +18,10 @@ chrono = { version = "0.4.38", features = ["serde"] }
 reqwest = { version = "0.12.9", features = ["blocking", "json"], optional = true }
 serde = { version = "1.0.215", features = ["serde_derive"] }
 serde_json = {version = "1.0.133", optional = true}
-sqlx = { version = "0.8.2", features = ["chrono", "runtime-tokio"], optional = true }
 tonic = {version = "0.12.3", optional = true}
 tokio = { version = "1.44.1", features = ["fs", "macros", "rt-multi-thread"] } # Ensure fs feature is enabled
 uuid = { version = "1.10.0", features = ["v4"] }
-mime = "0.3.17"
+mime_guess = "2.0.5"
+sea-orm = { version = "1.1.8", features = ["macros", "sqlx-sqlite", "runtime-tokio-rustls"], optional = true }
+log = "0.4.27"
+migration = {path = "migration"}
