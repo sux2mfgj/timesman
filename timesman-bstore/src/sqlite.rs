@@ -3,7 +3,7 @@ use super::{File, Post, Store, Times};
 use async_trait::async_trait;
 use chrono::Utc;
 use migration::{Migrator, MigratorTrait};
-use sea_orm::entity::*;
+use sea_orm::{entity::*, query::*};
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 use tokio::fs;
 use uuid::Uuid; // Moved import to the top
@@ -18,7 +18,7 @@ mod times;
 
 impl From<times::Model> for Times {
     fn from(model: times::Model) -> Self {
-        Times {
+        Self {
             id: model.id as u64,
             title: model.title,
             created_at: model.created_at,
@@ -102,7 +102,12 @@ impl Store for SqliteStore {
     }
 
     async fn get_posts(&mut self, tid: u64) -> Result<Vec<Post>, String> {
-        let ps = post::Entity::find().all(&self.db).await.unwrap();
+        let ps = post::Entity::find()
+            .filter(post::Column::Tid.eq(0))
+            .order_by_asc(post::Column::Id)
+            .all(&self.db)
+            .await
+            .unwrap();
         Ok(ps.iter().map(|p| Post::from(p.clone())).collect())
     }
 

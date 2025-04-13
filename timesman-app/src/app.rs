@@ -134,7 +134,23 @@ impl App {
                 self.rt.spawn(async move {
                     let mut store = store.lock().await;
                     let times = store.create_times(title).await.unwrap();
-                    tx.send(PaneResponse::TimesCreated(times)).unwrap();
+                    tx.send(PaneResponse::NewTimes(times, true)).unwrap();
+                });
+            }
+            PaneRequest::GetTimes => {
+                let Some(store) = self.store.clone() else {
+                    todo!();
+                };
+
+                let tx = self.tx.clone();
+
+                self.rt.spawn(async move {
+                    let mut store = store.lock().await;
+                    let times = store.get_times().await.unwrap();
+                    for t in times {
+                        tx.send(PaneResponse::NewTimes(t.clone(), false))
+                            .unwrap();
+                    }
                 });
             }
             PaneRequest::CreatePost(tid, text, file) => {

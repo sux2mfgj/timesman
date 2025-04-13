@@ -9,7 +9,8 @@ const PANE_NAME: &str = "SelectPane";
 
 pub struct SelectPaneModel {
     pane: Box<dyn SelectPaneTrait>,
-    ui_resps: Vec<UIResponse>,
+    uresps: Vec<UIResponse>,
+    preqs: Vec<PaneRequest>,
     times_list: Vec<Times>,
 }
 
@@ -23,13 +24,13 @@ impl PaneModel for SelectPaneModel {
         ctx: &egui::Context,
         presps: &Vec<PaneResponse>,
     ) -> Result<Vec<PaneRequest>, String> {
-        let mut preqs = vec![];
-
         for resp in presps {
             match resp {
-                PaneResponse::TimesCreated(times) => {
+                PaneResponse::NewTimes(times, select) => {
                     self.times_list.push(times.clone());
-                    preqs.push(PaneRequest::SelectTimes(times.id));
+                    if *select {
+                        self.preqs.push(PaneRequest::SelectTimes(times.id));
+                    }
                 }
                 PaneResponse::Err(e) => {
                     log(format!("{e}"));
@@ -43,7 +44,7 @@ impl PaneModel for SelectPaneModel {
 
         let reqs = self
             .pane
-            .update(ctx, &self.ui_resps, &self.times_list)
+            .update(ctx, &self.uresps, &self.times_list)
             .unwrap();
 
         for r in reqs {
@@ -53,9 +54,12 @@ impl PaneModel for SelectPaneModel {
                 todo!();
             }
             if let Some(preq) = preq {
-                preqs.push(preq);
+                self.preqs.push(preq);
             }
         }
+
+        let preqs = self.preqs.clone();
+        self.preqs.clear();
 
         Ok(preqs)
     }
@@ -67,9 +71,11 @@ impl PaneModel for SelectPaneModel {
 
 impl SelectPaneModel {
     pub fn new(pane: Box<dyn SelectPaneTrait>) -> Self {
+        let preqs = vec![PaneRequest::GetTimes];
         Self {
             pane,
-            ui_resps: vec![],
+            uresps: vec![],
+            preqs,
             times_list: vec![],
         }
     }

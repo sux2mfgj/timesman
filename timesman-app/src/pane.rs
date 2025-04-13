@@ -24,6 +24,7 @@ pub enum PaneRequest {
     SelectStore(StoreType, Option<String>),
     SelectTimes(Tid),
     CreateTimes(String),
+    GetTimes,
     CreatePost(Pid, String, Option<(String, File)>), //filename and file path
     UI(UIRequest),
     Log(String),
@@ -50,6 +51,9 @@ impl std::fmt::Debug for PaneRequest {
             PaneRequest::CreateTimes(name) => {
                 write!(f, "CreateTimes {name}")
             }
+            PaneRequest::GetTimes => {
+                write!(f, "GetTimes")
+            }
             PaneRequest::CreatePost(pid, text, file) => {
                 let fname = if let Some(file) = file {
                     file.0.clone()
@@ -68,7 +72,7 @@ impl std::fmt::Debug for PaneRequest {
 
 #[derive(Debug, PartialEq)]
 pub enum PaneResponse {
-    TimesCreated(Times),
+    NewTimes(Times, bool),
     PostCreated(Post),
     Err(String),
     FileDropped(PathBuf),
