@@ -87,7 +87,9 @@ impl TimesPane {
 
     fn post_row(&mut self, row: &mut TableRow, post: &Post) {
         row.col(|ui| {
-            ui.label(post.created_at.format("%Y-%m-%d %H:%M").to_string());
+            let localtime: DateTime<Local> =
+                DateTime::from(post.created_at.and_utc());
+            ui.label(localtime.format("%Y-%m-%d %H:%M").to_string());
         });
         row.col(|ui| {
             ui.label(post.post.clone());
