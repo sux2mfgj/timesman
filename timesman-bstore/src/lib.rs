@@ -16,6 +16,7 @@ mod grpc;
 pub use grpc::GrpcStore;
 
 use std::fmt::Debug;
+use std::path::PathBuf;
 
 use async_trait::async_trait;
 
@@ -30,7 +31,7 @@ pub enum StoreType {
     //#[cfg(feature = "http")]
     //Remote,
     #[cfg(feature = "sqlite")]
-    Sqlite(String),
+    Sqlite(String, PathBuf),
     #[cfg(feature = "grpc")]
     Grpc(String),
 }

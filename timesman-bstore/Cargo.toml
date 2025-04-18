@@ -9,6 +9,7 @@ json = ["serde_json"]
 http = ["reqwest"]
 sqlite = ["sea-orm"]
 grpc = ["timesman-grpc", "tonic"]
+sea-orm = ["dep:sea-orm"]
 
 [dependencies]
 timesman-type = {path = "../timesman-type"}

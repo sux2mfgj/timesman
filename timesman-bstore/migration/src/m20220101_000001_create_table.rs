@@ -65,7 +65,6 @@ impl MigrationTrait for Migration {
                     )
                     .col(ColumnDef::new(File::Tid).integer().not_null())
                     .col(ColumnDef::new(File::Name).string().not_null())
-                    .col(ColumnDef::new(File::Path).string().not_null())
                     .to_owned(),
             )
             .await?;
@@ -86,7 +85,6 @@ enum File {
     Id,
     Tid,
     Name,
-    Path,
 }
 
 #[derive(DeriveIden)]

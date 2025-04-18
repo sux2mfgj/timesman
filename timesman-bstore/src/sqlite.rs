@@ -5,10 +5,11 @@ use chrono::Utc;
 use migration::{Migrator, MigratorTrait};
 use sea_orm::{entity::*, query::*};
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
-use tokio::fs;
 use uuid::Uuid; // Moved import to the top
 
 use std::fmt;
+use std::fs;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
 mod file;
@@ -27,39 +28,37 @@ impl From<times::Model> for Times {
     }
 }
 
-impl From<post::Model> for Post {
-    fn from(model: post::Model) -> Self {
-        let post = if let Some(post) = model.text {
+impl post::Model {
+    fn into(&self, file: Option<(String, File)>) -> Post {
+        let post = if let Some(post) = self.text.clone() {
             post
         } else {
             "".to_string()
         };
 
-        if let Some(_fid) = model.file_id {
-            todo!();
-        }
-
-        Self {
-            id: model.id as u64,
+        Post {
+            id: self.id as u64,
             post,
-            created_at: model.created_at,
-            updated_at: model.updated_at,
-            file: None,
+            created_at: self.created_at,
+            updated_at: self.updated_at,
+            file,
         }
     }
 }
 
 pub struct SqliteStore {
     db: DatabaseConnection,
+    file_path_base: PathBuf,
 }
 
 impl SqliteStore {
-    ///
     /// SqliteStore::new(":memory:");
     /// SqliteStore::new("//path/to/db.sqlite?mode=rwc");
-    pub async fn new(path: &str) -> Result<Self, String> {
-        // let mut opt = ConnectOptions::new(format!("sqlite://{}?mode=rwc", path));
-        let mut opt = ConnectOptions::new(format!("sqlite:{path}"));
+    pub async fn new(
+        db_path: &str,
+        file_path_base: PathBuf,
+    ) -> Result<Self, String> {
+        let mut opt = ConnectOptions::new(format!("sqlite:{db_path}"));
 
         opt.sqlx_logging(true)
             .sqlx_logging_level(log::LevelFilter::Info);
@@ -67,7 +66,12 @@ impl SqliteStore {
         let db = Database::connect(opt).await.unwrap();
 
         Migrator::up(&db, None).await.unwrap();
-        Ok(Self { db })
+
+        if !file_path_base.exists() {
+            std::fs::create_dir(&file_path_base).unwrap();
+        }
+
+        Ok(Self { db, file_path_base })
     }
 }
 
@@ -85,6 +89,7 @@ impl Store for SqliteStore {
     async fn create_times(&mut self, title: String) -> Result<Times, String> {
         let am = times::ActiveModel {
             title: ActiveValue::Set(title),
+            created_at: ActiveValue::Set(Utc::now().naive_utc()),
             ..Default::default()
         };
 
@@ -103,34 +108,111 @@ impl Store for SqliteStore {
 
     async fn get_posts(&mut self, tid: u64) -> Result<Vec<Post>, String> {
         let ps = post::Entity::find()
-            .filter(post::Column::Tid.eq(0))
+            .filter(post::Column::Tid.eq(tid))
             .order_by_asc(post::Column::Id)
             .all(&self.db)
             .await
             .unwrap();
-        Ok(ps.iter().map(|p| Post::from(p.clone())).collect())
+
+        let fs = file::Entity::find()
+            .filter(file::Column::Tid.eq(tid))
+            .all(&self.db)
+            .await
+            .unwrap();
+
+        Ok(ps
+            .iter()
+            .map(|p| {
+                let file = if let Some(fid) = p.file_id {
+                    let fdir = self.file_path_base.join(format!("{}", p.tid));
+                    let f = fdir.join(format!("{fid}"));
+                    let mut data = vec![];
+                    let mut file = std::fs::File::open(f).unwrap();
+                    file.read_to_end(&mut data).unwrap();
+
+                    let f = fs.iter().find(|f| f.id == fid).unwrap();
+                    Some((f.name.clone(), File::Image(data)))
+                } else {
+                    None
+                };
+
+                p.into(file)
+            })
+            .collect())
     }
 
     async fn create_post(
         &mut self,
         tid: u64,
-        post_text: String,                 // Renamed parameter
-        file_data: Option<(String, File)>, // Renamed parameter
+        post_text: String,
+        file_data: Option<(String, File)>,
     ) -> Result<Post, String> {
-        if file_data.is_some() {
-            todo!();
-        }
+        let fdata = file_data.clone();
+
+        let fid = if let Some((name, data)) = file_data {
+            let file = file::ActiveModel {
+                tid: ActiveValue::Set(tid as i32),
+                name: ActiveValue::Set(name),
+                ..Default::default()
+            };
+
+            let file = file.insert(&self.db).await.unwrap();
+
+            let fid = file.id;
+
+            let fdir = self.file_path_base.join(format!("{tid}"));
+
+            if !fdir.exists() {
+                std::fs::create_dir(&fdir).unwrap();
+            }
+
+            let fpath = fdir.join(format!("{}", &fid));
+
+            if fpath.exists() {
+                todo!();
+            }
+
+            let mut ofile = fs::File::create(fpath).unwrap();
+            match data {
+                File::Text(text) => {
+                    write!(ofile, "{text}").unwrap();
+                }
+                File::Image(data) => {
+                    ofile.write_all(data.as_slice()).unwrap();
+                }
+                File::Other(data) => {
+                    ofile.write_all(data.as_slice()).unwrap();
+                }
+            }
+
+            Some(fid)
+        } else {
+            None
+        };
 
         let am = post::ActiveModel {
             tid: ActiveValue::Set(tid as i32),
             text: ActiveValue::Set(Some(post_text)),
             created_at: ActiveValue::Set(Utc::now().naive_utc()),
+            file_id: ActiveValue::Set(fid),
             ..Default::default()
         };
 
         let res = am.insert(&self.db).await.unwrap();
 
-        Ok(Post::from(res))
+        let post = if let Some(text) = res.text {
+            text
+        } else {
+            "".to_string()
+        };
+
+        Ok(Post {
+            id: res.id as u64,
+            post,
+            created_at: res.created_at,
+            updated_at: res.updated_at,
+            file: fdata,
+        })
     }
 
     async fn delete_post(&mut self, tid: u64, pid: u64) -> Result<(), String> {
@@ -171,7 +253,6 @@ mod tests {
 
     #[tokio::test]
     async fn test() {
-        // let mut opt = ConnectOptions::new("sqlite::memory:");
         let mut opt = ConnectOptions::new("sqlite://./db.sqlite?mode=rwc");
 
         opt.sqlx_logging(true)
@@ -191,14 +272,12 @@ mod tests {
 
         postam.insert(&db).await.unwrap();
 
-        // post::Entity::find().filter(post::Column::)
-
         db.close().await.unwrap();
     }
 
     #[tokio::test]
     async fn test2() {
-        let mut store = SqliteStore::new(":memory:").await.unwrap();
+        let mut store = SqliteStore::new(":memory:", "./path").await.unwrap();
         store.check().await.unwrap();
     }
 }
