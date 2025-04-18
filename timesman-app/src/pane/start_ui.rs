@@ -1,5 +1,6 @@
 use super::{ui, PaneModel, PaneRequest, PaneResponse};
 use egui_file_dialog::FileDialog;
+use std::path::PathBuf;
 use timesman_bstore::StoreType;
 
 #[derive(Clone)]
@@ -22,6 +23,7 @@ pub trait StartPaneTrait {
 pub struct StartPane {
     store: StoreKind,
     param: Option<String>,
+    path: Option<PathBuf>,
     server_enable: bool,
     server: String,
     file_dialog: FileDialog,
@@ -72,6 +74,13 @@ impl StartPaneTrait for StartPane {
                             Some(db_file_path.to_string_lossy().to_string());
                     }
 
+                    ui.label("file path");
+                    if let Some(file_path) = &self.path {
+                        ui.label(format!("File: {:?}", file_path));
+                    } else {
+                        ui.label("Please select a file path");
+                    }
+
                     if ui.button("Default").clicked() {
                         let db_path = dirs::data_dir()
                             .unwrap()
@@ -79,6 +88,12 @@ impl StartPaneTrait for StartPane {
                             .join("sqlite.db");
                         self.param =
                             Some(db_path.to_string_lossy().to_string());
+
+                        let file_path = dirs::data_dir()
+                            .unwrap()
+                            .join("timesman")
+                            .join("files");
+                        self.path = Some(file_path);
                     }
                 }
             }
@@ -94,12 +109,15 @@ impl StartPaneTrait for StartPane {
                     StoreKind::Memory => Some(StoreType::Memory),
                     #[cfg(feature = "sqlite")]
                     StoreKind::Sqlite => {
-                        if let Some(db_file) = &self.param {
-                            Some(StoreType::Sqlite(db_file.clone()))
-                        } else {
-                            self.error_text =
-                                Some("db file is not specified".to_string());
+                        if self.param.is_none() || self.path.is_none() {
+                            self.error_text = Some(
+                                "db file or path is not specified".to_string(),
+                            );
                             None
+                        } else {
+                            let db_file = self.param.clone().unwrap();
+                            let file_path = self.path.clone().unwrap();
+                            Some(StoreType::Sqlite(db_file, file_path))
                         }
                     }
                 };
@@ -131,6 +149,7 @@ impl StartPane {
         Self {
             store,
             param: None,
+            path: None,
             server_enable: false,
             server: "127.0.0.1:8080".to_string(),
             file_dialog: FileDialog::new(),

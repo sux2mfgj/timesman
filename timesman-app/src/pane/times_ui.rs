@@ -127,32 +127,23 @@ impl TimesPane {
                 .column(Column::auto().at_least(100f32))
                 .column(Column::remainder());
 
-            builder
-                .header(20.0, |mut header| {
-                    header.col(|ui| {
-                        ui.heading("datetime");
-                    });
-                    header.col(|ui| {
-                        ui.heading("content");
-                    });
-                })
-                .body(|mut body| {
-                    for p in posts {
-                        // TODO: function
-                        let hight = if let Some(a) = &p.file {
-                            match a.1 {
-                                timesman_type::File::Image(_) => 100f32,
-                                _ => 20f32,
-                            }
-                        } else {
-                            20f32
-                        };
+            builder.body(|mut body| {
+                for p in posts {
+                    // TODO: function
+                    let hight = if let Some(a) = &p.file {
+                        match a.1 {
+                            timesman_type::File::Image(_) => 100f32,
+                            _ => 20f32,
+                        }
+                    } else {
+                        20f32
+                    };
 
-                        body.row(hight, |mut row| {
-                            self.post_row(&mut row, &p);
-                        })
-                    }
-                });
+                    body.row(hight, |mut row| {
+                        self.post_row(&mut row, &p);
+                    })
+                }
+            });
         });
     }
 

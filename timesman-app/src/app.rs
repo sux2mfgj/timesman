@@ -67,12 +67,15 @@ impl App {
         let store: Arc<Mutex<dyn Store>> = match stype {
             StoreType::Memory => Arc::new(Mutex::new(RamStore::new())),
             #[cfg(feature = "sqlite")]
-            StoreType::Sqlite(db_file_path) => Arc::new(Mutex::new(
+            StoreType::Sqlite(db_file_path, file_path) => Arc::new(Mutex::new(
                 //TODO make user selectable to create or use exists database.
                 self.rt.block_on(async {
-                    SqliteStore::new(&format!("//{db_file_path}?mode=rwc"))
-                        .await
-                        .unwrap()
+                    SqliteStore::new(
+                        &format!("//{db_file_path}?mode=rwc"),
+                        file_path,
+                    )
+                    .await
+                    .unwrap()
                 }),
             )),
             #[cfg(feature = "grpc")]
