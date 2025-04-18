@@ -153,6 +153,7 @@ impl TimesPane {
                 TextEdit::multiline(&mut self.post_text)
                     .hint_text("write here")
                     .desired_width(f32::INFINITY)
+                    .lock_focus(true)
                     .show(ui);
 
                 if let Some(path) = self.dropped_file.clone() {

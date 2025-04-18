@@ -1,4 +1,5 @@
 use super::{ui, PaneModel, PaneRequest, PaneResponse};
+use egui::{Key, Modifiers};
 use egui_file_dialog::FileDialog;
 use std::path::PathBuf;
 use timesman_bstore::StoreType;
@@ -105,29 +106,8 @@ impl StartPaneTrait for StartPane {
             ui.separator();
 
             if ui.button("Start").clicked() {
-                let store = match self.store {
-                    StoreKind::Memory => Some(StoreType::Memory),
-                    #[cfg(feature = "sqlite")]
-                    StoreKind::Sqlite => {
-                        if self.param.is_none() || self.path.is_none() {
-                            self.error_text = Some(
-                                "db file or path is not specified".to_string(),
-                            );
-                            None
-                        } else {
-                            let db_file = self.param.clone().unwrap();
-                            let file_path = self.path.clone().unwrap();
-                            Some(StoreType::Sqlite(db_file, file_path))
-                        }
-                    }
-                };
-                if let Some(s) = store {
-                    let server = if self.server_enable {
-                        Some(self.server.clone())
-                    } else {
-                        None
-                    };
-                    ui_reqs.push(UIRequest::Start(s, server));
+                if let Some(req) = self.start() {
+                    ui_reqs.push(req);
                 }
             }
             ui.separator();
@@ -157,17 +137,81 @@ impl StartPane {
         }
     }
 
+    fn use_default(&mut self) {
+        match self.store {
+            StoreKind::Memory => {}
+            #[cfg(feature = "sqlite")]
+            StoreKind::Sqlite => {
+                let db_path = dirs::data_dir()
+                    .unwrap()
+                    .join("timesman")
+                    .join("sqlite.db");
+                self.param = Some(db_path.to_string_lossy().to_string());
+
+                let file_path =
+                    dirs::data_dir().unwrap().join("timesman").join("files");
+                self.path = Some(file_path);
+            }
+        }
+    }
+
+    fn start(&mut self) -> Option<UIRequest> {
+        let store = match self.store {
+            StoreKind::Memory => Some(StoreType::Memory),
+            #[cfg(feature = "sqlite")]
+            StoreKind::Sqlite => {
+                if self.param.is_none() || self.path.is_none() {
+                    self.error_text =
+                        Some("db file or path is not specified".to_string());
+                    None
+                } else {
+                    let db_file = self.param.clone().unwrap();
+                    let file_path = self.path.clone().unwrap();
+                    Some(StoreType::Sqlite(db_file, file_path))
+                }
+            }
+        };
+        if let Some(s) = store {
+            let server = if self.server_enable {
+                Some(self.server.clone())
+            } else {
+                None
+            };
+            Some(UIRequest::Start(s, server))
+        } else {
+            None
+        }
+    }
+
     fn handle_ui_response(&self, resps: &Vec<UIResponse>) {
         for _r in resps {
             todo!();
         }
     }
 
-    fn consume_keys(&self, ctx: &egui::Context) -> Vec<UIRequest> {
+    fn consume_keys(&mut self, ctx: &egui::Context) -> Vec<UIRequest> {
         let mut reqs = vec![];
 
         if ui::consume_escape(ctx) {
             reqs.push(UIRequest::Close);
+        }
+
+        if ui::consume_key(ctx, Key::T) {
+            self.store = StoreKind::Memory;
+        }
+        #[cfg(feature = "sqlite")]
+        if ui::consume_key(ctx, Key::S) {
+            self.store = StoreKind::Sqlite;
+        }
+
+        if ui::consume_key(ctx, Key::D) {
+            self.use_default();
+        }
+
+        if ui::consume_key_with_meta(ctx, Modifiers::COMMAND, Key::Enter) {
+            if let Some(req) = self.start() {
+                reqs.push(req);
+            }
         }
 
         reqs
