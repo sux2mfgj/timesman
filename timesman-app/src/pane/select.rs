@@ -1,4 +1,4 @@
-use super::{PaneModel, PaneRequest, PaneResponse};
+use super::{PaneModel, PaneRequest, PaneResponse, TimesInfo};
 use crate::log::tmlog;
 use crate::pane::select_ui::{SelectPaneTrait, UIRequest, UIResponse};
 use timesman_type::Times;
@@ -11,7 +11,7 @@ pub struct SelectPaneModel {
     pane: Box<dyn SelectPaneTrait>,
     uresps: Vec<UIResponse>,
     preqs: Vec<PaneRequest>,
-    times_list: Vec<Times>,
+    times_list: Vec<TimesInfo>,
 }
 
 fn log(text: String) {
@@ -26,10 +26,11 @@ impl PaneModel for SelectPaneModel {
     ) -> Result<Vec<PaneRequest>, String> {
         for resp in presps {
             match resp {
-                PaneResponse::NewTimes(times, select) => {
-                    self.times_list.push(times.clone());
+                PaneResponse::NewTimes(tinfo, select) => {
+                    self.times_list.push(tinfo.clone());
                     if *select {
-                        self.preqs.push(PaneRequest::SelectTimes(times.id));
+                        self.preqs
+                            .push(PaneRequest::SelectTimes(tinfo.times.id));
                     }
                 }
                 PaneResponse::Err(e) => {
@@ -44,7 +45,11 @@ impl PaneModel for SelectPaneModel {
 
         let reqs = self
             .pane
-            .update(ctx, &self.uresps, &self.times_list)
+            .update(
+                ctx,
+                &self.uresps,
+                &self.times_list, // &self.times_list.iter().map(|t| t.times.clone()).collect(),
+            )
             .unwrap();
 
         for r in reqs {

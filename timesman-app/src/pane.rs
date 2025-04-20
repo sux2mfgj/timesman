@@ -70,9 +70,15 @@ impl std::fmt::Debug for PaneRequest {
     }
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub struct TimesInfo {
+    pub times: Times,
+    pub nposts: usize,
+}
+
 #[derive(Debug, PartialEq)]
 pub enum PaneResponse {
-    NewTimes(Times, bool),
+    NewTimes(TimesInfo, bool),
     PostCreated(Post),
     Err(String),
     FileDropped(PathBuf),

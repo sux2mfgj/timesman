@@ -16,7 +16,7 @@ use crate::config::Config;
 use crate::log::tmlog;
 use crate::pane::{
     create_select_pane, create_times_pane, init_pane, PaneModel, PaneRequest,
-    PaneResponse, UIRequest,
+    PaneResponse, TimesInfo, UIRequest,
 };
 
 pub struct App {
@@ -137,7 +137,12 @@ impl App {
                 self.rt.spawn(async move {
                     let mut store = store.lock().await;
                     let times = store.create_times(title).await.unwrap();
-                    tx.send(PaneResponse::NewTimes(times, true)).unwrap();
+                    let nposts = store.get_posts(times.id).await.unwrap().len();
+                    tx.send(PaneResponse::NewTimes(
+                        TimesInfo { times, nposts },
+                        true,
+                    ))
+                    .unwrap();
                 });
             }
             PaneRequest::GetTimes => {
@@ -151,8 +156,15 @@ impl App {
                     let mut store = store.lock().await;
                     let times = store.get_times().await.unwrap();
                     for t in times {
-                        tx.send(PaneResponse::NewTimes(t.clone(), false))
-                            .unwrap();
+                        let nposts = store.get_posts(t.id).await.unwrap().len();
+                        tx.send(PaneResponse::NewTimes(
+                            TimesInfo {
+                                times: t.clone(),
+                                nposts,
+                            },
+                            false,
+                        ))
+                        .unwrap();
                     }
                 });
             }

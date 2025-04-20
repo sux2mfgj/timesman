@@ -1,4 +1,5 @@
-use chrono::Local;
+use super::TimesInfo;
+use chrono::{DateTime, Local};
 use egui::{CentralPanel, Key, ScrollArea, TopBottomPanel};
 use timesman_type::{Tid, Times};
 
@@ -18,7 +19,7 @@ pub trait SelectPaneTrait {
         &mut self,
         ctx: &egui::Context,
         msg: &Vec<UIResponse>,
-        times: &Vec<Times>,
+        times: &Vec<TimesInfo>,
     ) -> Result<Vec<UIRequest>, String>;
 }
 
@@ -70,13 +71,19 @@ impl SelectPane {
 
     fn times_entry(
         &self,
-        times: &Times,
+        tinfo: &TimesInfo,
         ui: &mut egui::Ui,
     ) -> Option<UIRequest> {
         let mut req = None;
         ui.horizontal(|ui| {
-            ui.label(times.created_at.format("%Y-%m-%d %H:%M").to_string());
+            let times = &tinfo.times;
+            let nposts = tinfo.nposts;
+            let created_at: DateTime<Local> =
+                DateTime::from(times.created_at.and_utc());
+            ui.label(created_at.format("%Y-%m-%d %H:%M").to_string());
 
+            ui.separator();
+            ui.label(format!("{:3}", nposts));
             ui.separator();
 
             if ui.button(times.title.clone()).clicked() {
@@ -92,7 +99,7 @@ impl SelectPane {
     fn main_panel(
         &self,
         ctx: &egui::Context,
-        times: &Vec<Times>,
+        times: &Vec<TimesInfo>,
     ) -> Vec<UIRequest> {
         let mut reqs = vec![];
 
@@ -138,17 +145,21 @@ impl SelectPaneTrait for SelectPane {
         &mut self,
         ctx: &egui::Context,
         msg: &Vec<UIResponse>,
-        times: &Vec<Times>,
+        times: &Vec<TimesInfo>,
     ) -> Result<Vec<UIRequest>, String> {
         let mut ureqs = vec![];
 
-        let r = self.top_bar(ctx, times);
+        let tis = times.clone();
+
+        let times = tis.iter().map(|t| t.times.clone()).collect();
+
+        let r = self.top_bar(ctx, &times);
         ureqs = [ureqs, r].concat();
 
-        let r = self.main_panel(ctx, times);
+        let r = self.main_panel(ctx, &tis);
         ureqs = vec![ureqs, r].concat();
 
-        let r = self.consume_keys(ctx, times);
+        let r = self.consume_keys(ctx, &times);
         ureqs = vec![ureqs, r].concat();
 
         Ok(ureqs)
