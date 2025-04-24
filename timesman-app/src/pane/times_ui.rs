@@ -1,4 +1,5 @@
 use super::ui;
+use linkify::{LinkFinder, LinkKind};
 use std::fs;
 use std::io::Read;
 use std::{fs::File, path::PathBuf};
@@ -86,6 +87,28 @@ impl TimesPane {
         TopBottomPanel::top("bar").show(ctx, |_ui| {});
     }
 
+    fn show_text(text: &str, ui: &mut egui::Ui) {
+        let text = text.trim_end();
+
+        let finder = LinkFinder::new();
+        let spans: Vec<_> = finder.spans(text).collect();
+
+        ui.horizontal(|ui| {
+            if spans.len() == 0 {
+                ui.label(text);
+                return;
+            }
+
+            for span in spans {
+                if let Some(_) = span.kind() {
+                    ui.hyperlink(span.as_str());
+                } else {
+                    ui.label(span.as_str());
+                }
+            }
+        });
+    }
+
     fn post_row(&mut self, row: &mut TableRow, post: &Post) {
         row.col(|ui| {
             let localtime: DateTime<Local> =
@@ -93,7 +116,9 @@ impl TimesPane {
             ui.label(localtime.format("%Y-%m-%d %H:%M").to_string());
         });
         row.col(|ui| {
-            ui.label(post.post.clone());
+            if !post.post.is_empty() {
+                TimesPane::show_text(&post.post, ui);
+            }
 
             if let Some(file) = &post.file {
                 match &file.1 {
