@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use std::fmt;
-use std::sync::{mpsc, Arc};
+use std::sync::mpsc::{channel, Receiver, TryRecvError};
+use std::sync::Arc;
 use tokio::runtime;
 use tokio::sync::Mutex;
 
@@ -10,8 +11,7 @@ use timesman_type::{File, Post, Times};
 
 pub struct ArbiterStore {
     store: Arc<Mutex<dyn Store + Send + Sync>>,
-    // handle: JoinHandle<_>,
-    rx: Arc<Mutex<mpsc::Receiver<StoreEvent>>>,
+    rx: Arc<Mutex<Receiver<StoreEvent>>>,
 }
 
 impl ArbiterStore {
@@ -20,7 +20,7 @@ impl ArbiterStore {
         store: Arc<Mutex<dyn Store>>,
         listen: &str,
     ) -> Self {
-        let (tx, rx) = mpsc::channel();
+        let (tx, rx) = channel();
 
         let s = store.clone();
         let l = listen.to_string();
@@ -38,7 +38,23 @@ impl ArbiterStore {
 #[async_trait]
 impl Store for ArbiterStore {
     async fn check(&mut self) -> Result<(), String> {
-        todo!();
+        let mut store = self.store.lock().await;
+        store.check().await?;
+
+        let rx = self.rx.lock().await;
+        loop {
+            match rx.try_recv() {
+                Ok(_) => {
+                    todo!();
+                }
+                Err(TryRecvError::Empty) => {
+                    break;
+                }
+                Err(_e) => {}
+            }
+        }
+
+        Ok(())
     }
 
     // for Times
@@ -71,7 +87,7 @@ impl Store for ArbiterStore {
         file: Option<(String, File)>,
     ) -> Result<Post, String> {
         let mut store = self.store.lock().await;
-        store.create_post(tid, post, None).await
+        store.create_post(tid, post, file).await
     }
     async fn delete_post(&mut self, tid: u64, pid: u64) -> Result<(), String> {
         let mut store = self.store.lock().await;
