@@ -6,7 +6,6 @@ mod log;
 mod pane;
 
 use app::App;
-use egui_extras::install_image_loaders;
 
 fn main() -> Result<(), i64> {
     log::tmlog("Starting".to_string());
@@ -34,5 +33,8 @@ fn main() -> Result<(), i64> {
     );
 
     log::tmlog("Closing".to_string());
-    r.map_err(|_| 1)
+    r.map_err(|e| {
+        log::tmlog(format!("err: {e}"));
+        1
+    })
 }

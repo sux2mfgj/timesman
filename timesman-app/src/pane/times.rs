@@ -2,7 +2,6 @@ use super::times_ui::{TimesPaneTrait, UIRequest, UIResponse};
 use super::{PaneModel, PaneRequest, PaneResponse};
 
 use timesman_type::{Post, Tid};
-use tokio::runtime::Runtime;
 
 pub struct TimesPaneModel {
     pane: Box<dyn TimesPaneTrait>,

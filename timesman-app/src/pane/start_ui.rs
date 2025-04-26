@@ -1,4 +1,4 @@
-use super::{ui, PaneModel, PaneRequest, PaneResponse};
+use super::ui;
 use egui::{Key, Modifiers};
 use egui_file_dialog::FileDialog;
 use std::path::PathBuf;

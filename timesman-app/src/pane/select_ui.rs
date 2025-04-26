@@ -144,7 +144,7 @@ impl SelectPaneTrait for SelectPane {
     fn update(
         &mut self,
         ctx: &egui::Context,
-        msg: &Vec<UIResponse>,
+        _msg: &Vec<UIResponse>,
         times: &Vec<TimesInfo>,
     ) -> Result<Vec<UIRequest>, String> {
         let mut ureqs = vec![];

@@ -1,6 +1,5 @@
 use super::ui;
-use linkify::{LinkFinder, LinkKind};
-use std::fs;
+use linkify::LinkFinder;
 use std::io::Read;
 use std::{fs::File, path::PathBuf};
 

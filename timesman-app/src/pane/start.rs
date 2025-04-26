@@ -1,8 +1,6 @@
 use super::{PaneModel, PaneRequest, PaneResponse};
 use crate::pane::start_ui::{StartPaneTrait, UIRequest, UIResponse};
 
-use tokio::runtime::Runtime;
-
 pub struct StartPaneModel {
     pane: Box<dyn StartPaneTrait>,
     ui_resps: Vec<UIResponse>,
@@ -12,26 +10,19 @@ impl PaneModel for StartPaneModel {
     fn update(
         &mut self,
         ctx: &egui::Context,
-        msg_resp: &Vec<PaneResponse>,
+        _msg_resp: &Vec<PaneResponse>,
     ) -> Result<Vec<PaneRequest>, String> {
-        let reqs = self.pane.update(ctx, &self.ui_resps).unwrap();
+        let ureqs = self.pane.update(ctx, &self.ui_resps).unwrap();
 
-        let mut ui_resps = vec![];
-        let mut pane_resps = vec![];
-        for req in reqs {
-            let (ui_resp, pane_resp) = self.handle_ui_requests(req).unwrap();
-
-            if let Some(resp) = ui_resp {
-                ui_resps.push(resp);
-            }
-
-            if let Some(resp) = pane_resp {
-                pane_resps.push(resp);
-            }
+        let mut uresps = vec![];
+        let mut preqs = vec![];
+        for req in ureqs {
+            self.handle_ui_requests(req, &mut uresps, &mut preqs)
+                .unwrap();
         }
-        self.ui_resps = ui_resps;
+        self.ui_resps = uresps;
 
-        Ok(pane_resps)
+        Ok(preqs)
     }
 
     fn get_name(&self) -> String {
@@ -50,11 +41,17 @@ impl StartPaneModel {
     fn handle_ui_requests(
         &self,
         req: UIRequest,
-    ) -> Result<(Option<UIResponse>, Option<PaneRequest>), String> {
+        _uresps: &mut Vec<UIResponse>,
+        preqs: &mut Vec<PaneRequest>,
+    ) -> Result<(), String> {
         match req {
-            UIRequest::Close => Ok((None, Some(PaneRequest::Close))),
+            UIRequest::Close => {
+                preqs.push(PaneRequest::Close);
+                Ok(())
+            }
             UIRequest::Start(stype, server) => {
-                Ok((None, Some(PaneRequest::SelectStore(stype, server))))
+                preqs.push(PaneRequest::SelectStore(stype, server));
+                Ok(())
             }
         }
     }
@@ -75,8 +72,8 @@ mod tests {
     impl StartPaneTrait for DummyStartPane {
         fn update(
             &mut self,
-            ctx: &egui::Context,
-            msg: &Vec<UIResponse>,
+            _ctx: &egui::Context,
+            _msg: &Vec<UIResponse>,
         ) -> Result<Vec<UIRequest>, String> {
             let mut ui_resp = vec![];
             let queue = self.test_ui_event_queue.lock().unwrap();
@@ -108,8 +105,7 @@ mod tests {
             q.push_back(UIRequest::Close);
         }
         let ctx = egui::Context::default();
-        //let reqs = model.update(&ctx, &vec![]).unwrap();
-        //assert_eq!(reqs.len(), 1);
-        //assert_eq!(reqs[0], PaneRequest::Close);
+        let reqs = model.update(&ctx, &vec![]).unwrap();
+        assert_eq!(reqs.len(), 1);
     }
 }

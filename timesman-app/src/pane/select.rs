@@ -1,21 +1,12 @@
 use super::{PaneModel, PaneRequest, PaneResponse, TimesInfo};
-use crate::log::tmlog;
 use crate::pane::select_ui::{SelectPaneTrait, UIRequest, UIResponse};
-use timesman_type::Times;
-
-use tokio::runtime::Runtime;
 
 const PANE_NAME: &str = "SelectPane";
 
 pub struct SelectPaneModel {
     pane: Box<dyn SelectPaneTrait>,
     uresps: Vec<UIResponse>,
-    preqs: Vec<PaneRequest>,
     times_list: Vec<TimesInfo>,
-}
-
-fn log(text: String) {
-    tmlog(format!("{} {}", PANE_NAME.to_string(), text));
 }
 
 impl PaneModel for SelectPaneModel {
@@ -24,18 +15,17 @@ impl PaneModel for SelectPaneModel {
         ctx: &egui::Context,
         presps: &Vec<PaneResponse>,
     ) -> Result<Vec<PaneRequest>, String> {
+        let mut preqs = vec![];
         for resp in presps {
             match resp {
                 PaneResponse::NewTimes(tinfo, select) => {
                     self.times_list.push(tinfo.clone());
                     if *select {
-                        self.preqs
-                            .push(PaneRequest::SelectTimes(tinfo.times.id));
+                        preqs.push(PaneRequest::SelectTimes(tinfo.times.id));
                     }
                 }
                 PaneResponse::Err(e) => {
-                    log(format!("{e}"));
-                    todo!();
+                    preqs.push(PaneRequest::Log(format!("{e}")));
                 }
                 _ => {
                     todo!("unknown response found");
@@ -53,18 +43,12 @@ impl PaneModel for SelectPaneModel {
             .unwrap();
 
         for r in reqs {
-            let (uresp, preq) = self.handle_ui_request(r);
+            let uresp = self.handle_ui_request(r, &mut preqs);
 
-            if let Some(uresp) = uresp {
+            if let Some(_uresp) = uresp {
                 todo!();
             }
-            if let Some(preq) = preq {
-                self.preqs.push(preq);
-            }
         }
-
-        let preqs = self.preqs.clone();
-        self.preqs.clear();
 
         Ok(preqs)
     }
@@ -76,11 +60,9 @@ impl PaneModel for SelectPaneModel {
 
 impl SelectPaneModel {
     pub fn new(pane: Box<dyn SelectPaneTrait>) -> Self {
-        let preqs = vec![PaneRequest::GetTimes];
         Self {
             pane,
             uresps: vec![],
-            preqs,
             times_list: vec![],
         }
     }
@@ -88,17 +70,20 @@ impl SelectPaneModel {
     fn handle_ui_request(
         &mut self,
         req: UIRequest,
-    ) -> (Option<UIResponse>, Option<PaneRequest>) {
+        preqs: &mut Vec<PaneRequest>,
+    ) -> Option<UIResponse> {
         match req {
-            UIRequest::Close => (None, Some(PaneRequest::Close)),
+            UIRequest::Close => {
+                preqs.push(PaneRequest::Close);
+                None
+            }
             UIRequest::SelectTimes(tid) => {
-                log(format!("The times is selected {}", tid));
-
-                (None, Some(PaneRequest::SelectTimes(tid)))
+                preqs.push(PaneRequest::SelectTimes(tid));
+                None
             }
             UIRequest::CreateTimes(title) => {
-                let req = PaneRequest::CreateTimes(title);
-                (None, Some(req))
+                preqs.push(PaneRequest::CreateTimes(title));
+                None
             }
         }
     }

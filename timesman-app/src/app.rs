@@ -87,6 +87,42 @@ impl App {
         Ok(store)
     }
 
+    fn handle_select_store(
+        &mut self,
+        stype: StoreType,
+        server: Option<String>,
+    ) -> Result<(), String> {
+        let mut store = self.create_store(stype)?;
+        if let Some(server) = server {
+            tmlog(format!("Start server: {server}"));
+            let s = ArbiterStore::new(&self.rt, store, &server);
+            store = Arc::new(Mutex::new(s));
+        };
+        self.store = Some(store.clone());
+        let pane = create_select_pane();
+        self.pane_stack.push_front(pane);
+
+        let tx = self.tx.clone();
+
+        self.rt.spawn(async move {
+            let mut store = store.lock().await;
+            let times = store.get_times().await.unwrap();
+            for t in times {
+                let nposts = store.get_posts(t.id).await.unwrap().len();
+                tx.send(PaneResponse::NewTimes(
+                    TimesInfo {
+                        times: t.clone(),
+                        nposts,
+                    },
+                    false,
+                ))
+                .unwrap();
+            }
+        });
+
+        Ok(())
+    }
+
     fn handle_pane_event(
         &mut self,
         req: PaneRequest,
@@ -117,15 +153,7 @@ impl App {
                 });
             }
             PaneRequest::SelectStore(stype, server) => {
-                let mut store = self.create_store(stype)?;
-                if let Some(server) = server {
-                    tmlog(format!("Start server: {server}"));
-                    let s = ArbiterStore::new(&self.rt, store, &server);
-                    store = Arc::new(Mutex::new(s));
-                };
-                self.store = Some(store);
-                let pane = create_select_pane();
-                self.pane_stack.push_front(pane);
+                self.handle_select_store(stype, server)?;
             }
             PaneRequest::CreateTimes(title) => {
                 let Some(store) = self.store.clone() else {
@@ -143,29 +171,6 @@ impl App {
                         true,
                     ))
                     .unwrap();
-                });
-            }
-            PaneRequest::GetTimes => {
-                let Some(store) = self.store.clone() else {
-                    todo!();
-                };
-
-                let tx = self.tx.clone();
-
-                self.rt.spawn(async move {
-                    let mut store = store.lock().await;
-                    let times = store.get_times().await.unwrap();
-                    for t in times {
-                        let nposts = store.get_posts(t.id).await.unwrap().len();
-                        tx.send(PaneResponse::NewTimes(
-                            TimesInfo {
-                                times: t.clone(),
-                                nposts,
-                            },
-                            false,
-                        ))
-                        .unwrap();
-                    }
                 });
             }
             PaneRequest::CreatePost(tid, text, file) => {
@@ -198,7 +203,7 @@ impl App {
 }
 
 impl eframe::App for App {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let pane: &mut Box<dyn PaneModel> = match self.pane_stack.front_mut() {
             Some(pane) => pane,
             None => {
@@ -208,7 +213,7 @@ impl eframe::App for App {
 
         let name = pane.get_name().clone();
 
-        let mut reqs = match pane.update(ctx, &self.resp) {
+        let reqs = match pane.update(ctx, &self.resp) {
             Ok(reqs) => reqs,
             Err(e) => {
                 todo!("{e}");

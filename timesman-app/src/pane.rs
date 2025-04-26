@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use timesman_bstore::{Store, StoreType};
+use timesman_bstore::StoreType;
 use timesman_type::{File, Pid, Post, Tid, Times};
 
 mod ui;
@@ -16,15 +16,12 @@ use select::SelectPaneModel;
 use start::StartPaneModel;
 use times::TimesPaneModel;
 
-use tokio::runtime::Runtime;
-
 #[derive(Clone)]
 pub enum PaneRequest {
     Close,
     SelectStore(StoreType, Option<String>),
     SelectTimes(Tid),
     CreateTimes(String),
-    GetTimes,
     CreatePost(Pid, String, Option<(String, File)>), //filename and file path
     UI(UIRequest),
     Log(String),
@@ -50,9 +47,6 @@ impl std::fmt::Debug for PaneRequest {
             }
             PaneRequest::CreateTimes(name) => {
                 write!(f, "CreateTimes {name}")
-            }
-            PaneRequest::GetTimes => {
-                write!(f, "GetTimes")
             }
             PaneRequest::CreatePost(pid, text, file) => {
                 let fname = if let Some(file) = file {

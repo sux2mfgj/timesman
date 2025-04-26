@@ -87,7 +87,7 @@ impl Config {
     pub fn generate_pane_reqs(&self) -> Vec<PaneRequest> {
         let mut reqs = vec![];
 
-        reqs.push(PaneRequest::UI(UIRequest::ChangeScale((self.ui.scale))));
+        reqs.push(PaneRequest::UI(UIRequest::ChangeScale(self.ui.scale)));
         reqs.push(PaneRequest::UI(UIRequest::ChangeWindowSize(
             self.ui.window_size.height,
             self.ui.window_size.width,
