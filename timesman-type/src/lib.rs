@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 
 pub type Tid = u64;
-pub type Pid = u64;
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub struct Times {
@@ -32,6 +31,8 @@ pub enum File {
     Other(Vec<u8>),
 }
 
+pub type Pid = u64;
+
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub struct Post {
     pub id: Pid,
@@ -39,4 +40,14 @@ pub struct Post {
     pub created_at: chrono::NaiveDateTime,
     pub updated_at: Option<chrono::NaiveDateTime>,
     pub file: Option<(String, File)>,
+}
+
+pub type Tdid = u64;
+
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
+pub struct Todo {
+    pub id: Tdid,
+    pub content: String,
+    pub created_at: chrono::NaiveDateTime,
+    pub done_at: Option<chrono::NaiveDateTime>,
 }

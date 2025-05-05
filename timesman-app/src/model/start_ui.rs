@@ -1,8 +1,20 @@
 use super::ui;
 use egui::{Key, Modifiers};
-use egui_file_dialog::FileDialog;
-use std::path::PathBuf;
+
 use timesman_bstore::StoreType;
+
+#[derive(Default, PartialEq)]
+enum StoreKind {
+    #[default]
+    Memory,
+    #[cfg(feature = "sqlite")]
+    Sqlite,
+}
+
+pub struct StartUI {
+    store: StoreKind,
+    error_text: Option<String>,
+}
 
 #[derive(Clone)]
 pub enum UIRequest {
@@ -13,39 +25,20 @@ pub enum UIRequest {
 #[derive(Copy, Clone)]
 pub enum UIResponse {}
 
-pub trait StartPaneTrait {
-    fn update(
-        &mut self,
-        ctx: &egui::Context,
-        msg: &Vec<UIResponse>,
-    ) -> Result<Vec<UIRequest>, String>;
-}
+impl StartUI {
+    pub fn new() -> Self {
+        Self {
+            store: StoreKind::default(),
+            error_text: None,
+        }
+    }
 
-pub struct StartPane {
-    store: StoreKind,
-    param: Option<String>,
-    path: Option<PathBuf>,
-    server_enable: bool,
-    server: String,
-    file_dialog: FileDialog,
-    error_text: Option<String>,
-}
-
-#[derive(Default, PartialEq)]
-enum StoreKind {
-    #[default]
-    Memory,
-    #[cfg(feature = "sqlite")]
-    Sqlite,
-}
-
-impl StartPaneTrait for StartPane {
-    fn update(
+    pub fn update(
         &mut self,
         ctx: &egui::Context,
         resps: &Vec<UIResponse>,
     ) -> Result<Vec<UIRequest>, String> {
-        self.handle_ui_response(resps);
+        // self.handle_ui_response(resps);
 
         let mut ui_reqs = vec![];
 
@@ -58,6 +51,7 @@ impl StartPaneTrait for StartPane {
 
             match self.store {
                 StoreKind::Memory => {}
+                #[cfg(feature = "sqlite")]
                 StoreKind::Sqlite => {
                     ui.label("database file");
                     if let Some(db_file) = &self.param {
@@ -99,16 +93,14 @@ impl StartPaneTrait for StartPane {
                 }
             }
 
-            ui.separator();
-            ui.checkbox(&mut self.server_enable, "Enable server");
-            ui.text_edit_singleline(&mut self.server);
+            //ui.separator();
+            //ui.checkbox(&mut self.server_enable, "Enable server");
+            //ui.text_edit_singleline(&mut self.server);
 
             ui.separator();
 
             if ui.button("Start").clicked() {
-                if let Some(req) = self.start() {
-                    ui_reqs.push(req);
-                }
+                self.start(&mut ui_reqs);
             }
             ui.separator();
             if let Some(e) = &self.error_text {
@@ -116,46 +108,12 @@ impl StartPaneTrait for StartPane {
             }
         });
 
-        let r = self.consume_keys(ctx);
-        ui_reqs = vec![ui_reqs, r].concat();
+        self.consume_keys(ctx, &mut ui_reqs);
 
         Ok(ui_reqs)
     }
-}
 
-impl StartPane {
-    pub fn new() -> Self {
-        let store = StoreKind::default();
-        Self {
-            store,
-            param: None,
-            path: None,
-            server_enable: false,
-            server: "127.0.0.1:8080".to_string(),
-            file_dialog: FileDialog::new(),
-            error_text: None,
-        }
-    }
-
-    fn use_default(&mut self) {
-        match self.store {
-            StoreKind::Memory => {}
-            #[cfg(feature = "sqlite")]
-            StoreKind::Sqlite => {
-                let db_path = dirs::data_dir()
-                    .unwrap()
-                    .join("timesman")
-                    .join("sqlite.db");
-                self.param = Some(db_path.to_string_lossy().to_string());
-
-                let file_path =
-                    dirs::data_dir().unwrap().join("timesman").join("files");
-                self.path = Some(file_path);
-            }
-        }
-    }
-
-    fn start(&mut self) -> Option<UIRequest> {
+    fn start(&self, req: &mut Vec<UIRequest>) {
         let store = match self.store {
             StoreKind::Memory => Some(StoreType::Memory),
             #[cfg(feature = "sqlite")]
@@ -172,27 +130,18 @@ impl StartPane {
                 }
             }
         };
+
         if let Some(s) = store {
-            let server = if self.server_enable {
-                Some(self.server.clone())
-            } else {
-                None
-            };
-            Some(UIRequest::Start(s, server))
-        } else {
-            None
+            // let server = if self.server_enable {
+            //     Some(self.server.clone())
+            // } else {
+            //     None
+            // };
+            req.push(UIRequest::Start(s, None));
         }
     }
 
-    fn handle_ui_response(&self, resps: &Vec<UIResponse>) {
-        for _r in resps {
-            todo!();
-        }
-    }
-
-    fn consume_keys(&mut self, ctx: &egui::Context) -> Vec<UIRequest> {
-        let mut reqs = vec![];
-
+    fn consume_keys(&mut self, ctx: &egui::Context, reqs: &mut Vec<UIRequest>) {
         if ui::consume_escape(ctx) {
             reqs.push(UIRequest::Close);
         }
@@ -205,25 +154,12 @@ impl StartPane {
             self.store = StoreKind::Sqlite;
         }
 
-        if ui::consume_key(ctx, Key::D) {
-            self.use_default();
-        }
+        // if ui::consume_key(ctx, Key::D) {
+        //     self.use_default();
+        // }
 
         if ui::consume_key_with_meta(ctx, Modifiers::COMMAND, Key::Enter) {
-            if let Some(req) = self.start() {
-                reqs.push(req);
-            }
+            self.start(reqs);
         }
-
-        reqs
     }
-}
-
-#[cfg(test)]
-mod tests {
-
-    use super::*;
-
-    #[test]
-    fn test_example() {}
 }

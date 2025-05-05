@@ -1,9 +1,10 @@
 mod app;
-mod arbiter;
+//mod arbiter;
 mod config;
 mod fonts;
 mod log;
-mod pane;
+// mod pane;
+mod model;
 
 use app::App;
 

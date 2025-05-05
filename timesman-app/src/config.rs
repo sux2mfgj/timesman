@@ -5,8 +5,8 @@ use dirs;
 use serde::{Deserialize, Serialize};
 use toml;
 
+use crate::app::{AppRequest, UIRequest};
 use crate::log::tmlog;
-use crate::pane::{PaneRequest, UIRequest};
 
 #[derive(Default, Serialize, Deserialize, Clone)]
 pub struct Config {
@@ -84,11 +84,11 @@ impl Config {
         Ok(config)
     }
 
-    pub fn generate_pane_reqs(&self) -> Vec<PaneRequest> {
+    pub fn generate_pane_reqs(&self) -> Vec<AppRequest> {
         let mut reqs = vec![];
 
-        reqs.push(PaneRequest::UI(UIRequest::ChangeScale(self.ui.scale)));
-        reqs.push(PaneRequest::UI(UIRequest::ChangeWindowSize(
+        reqs.push(AppRequest::UI(UIRequest::ChangeScale(self.ui.scale)));
+        reqs.push(AppRequest::UI(UIRequest::ChangeWindowSize(
             self.ui.window_size.height,
             self.ui.window_size.width,
         )));

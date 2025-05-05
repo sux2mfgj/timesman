@@ -1,26 +1,24 @@
-use super::{File, Post, Store, Times};
-use async_trait::async_trait;
 use chrono::Local;
-use core::fmt;
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
-struct LocalTimes {
-    times: Times,
-    posts: HashMap<u64, Post>,
-    next_pid: u64,
-}
+use tokio::sync::Mutex;
+
+use async_trait::async_trait;
+
+use crate::{PostStore, TimesStore, TodoStore};
+
+use super::Store;
+use timesman_type::{File, Pid, Post, Tdid, Tid, Times, Todo};
 
 pub struct RamStore {
-    times: HashMap<u64, LocalTimes>,
-    next_tid: u64,
+    tstores: HashMap<Tid, Arc<Mutex<dyn TimesStore + Send + Sync>>>,
+    ntid: Tid,
 }
 
 impl RamStore {
     pub fn new() -> Self {
-        Self {
-            times: HashMap::new(),
-            next_tid: 0,
-        }
+        let tstores = HashMap::new();
+        Self { tstores, ntid: 0 }
     }
 }
 
@@ -30,62 +28,117 @@ impl Store for RamStore {
         Ok(())
     }
 
-    async fn get_times(&mut self) -> Result<Vec<super::Times>, String> {
-        Ok(self.times.iter().map(|t| t.1.times.clone()).collect())
-    }
-
-    async fn create_times(
+    async fn get(
         &mut self,
-        title: String,
-    ) -> Result<super::Times, String> {
-        let id = self.next_tid;
-        self.next_tid += 1;
+    ) -> Result<Vec<Arc<Mutex<dyn TimesStore + Send + Sync>>>, String> {
+        let mut pairs: Vec<(&Tid, &Arc<Mutex<dyn TimesStore + Send + Sync>>)> =
+            self.tstores.iter().collect();
 
-        let now = Local::now();
+        pairs.sort_by(|a, b| a.0.cmp(&b.0));
 
-        let times = Times {
-            id,
-            title,
-            created_at: now.naive_local(),
-            updated_at: None,
-        };
-
-        let ltimes = LocalTimes {
-            times: times.clone(),
-            posts: HashMap::new(),
-            next_pid: 0,
-        };
-
-        self.times.insert(id, ltimes);
-
+        let times = pairs.iter().map(|x| x.1.clone()).collect();
         Ok(times)
     }
 
-    async fn delete_times(&mut self, _tid: u64) -> Result<(), String> {
-        unimplemented!();
+    async fn create(
+        &mut self,
+        title: String,
+    ) -> Result<Arc<Mutex<dyn TimesStore + Send + Sync>>, String> {
+        let tid = self.ntid;
+
+        let times = Times {
+            id: tid,
+            title,
+            created_at: Local::now().naive_local(),
+            updated_at: None,
+        };
+
+        let tstore: Arc<Mutex<dyn TimesStore + Send + Sync>> =
+            Arc::new(Mutex::new(RamTimesStore::new(times.clone())));
+
+        self.ntid += 1;
+
+        self.tstores.insert(tid, tstore.clone());
+
+        Ok(tstore)
     }
 
-    async fn update_times(
-        &mut self,
-        times: super::Times,
-    ) -> Result<Times, String> {
-        if let Some(t) = self.times.get_mut(&times.id) {
-            t.times = times;
-            let now = Local::now();
-            t.times.updated_at = Some(now.naive_local());
-            Ok(t.times.clone())
+    async fn delete(&mut self, tid: Tid) -> Result<(), String> {
+        let r = self.tstores.remove(&tid);
+        if r.is_some() {
+            Ok(())
         } else {
-            return Err("times id is invalid".to_string());
+            Err("invalid tid".to_string())
+        }
+    }
+}
+
+struct RamTimesStore {
+    times: Times,
+    pstore: Arc<Mutex<dyn PostStore + Send + Sync>>,
+    tdstore: Arc<Mutex<dyn TodoStore + Send + Sync>>,
+}
+
+impl RamTimesStore {
+    pub fn new(times: Times) -> Self {
+        let pstore = Arc::new(Mutex::new(RamPostStore::new()));
+        let tdstore = Arc::new(Mutex::new(RamToDoStore::new()));
+        Self {
+            times,
+            pstore,
+            tdstore,
+        }
+    }
+}
+
+#[async_trait]
+impl TimesStore for RamTimesStore {
+    async fn get(&mut self) -> Result<Times, String> {
+        Ok(self.times.clone())
+    }
+
+    async fn update(&mut self, times: Times) -> Result<Times, String> {
+        self.times = times.clone();
+        Ok(times)
+    }
+
+    async fn pstore(
+        &mut self,
+    ) -> Result<Arc<Mutex<dyn PostStore + Send + Sync>>, String> {
+        Ok(self.pstore.clone())
+    }
+
+    async fn tdstore(
+        &mut self,
+    ) -> Result<Arc<Mutex<dyn TodoStore + Send + Sync>>, String> {
+        Ok(self.tdstore.clone())
+    }
+}
+
+struct RamPostStore {
+    posts: HashMap<Pid, Post>,
+    npid: Pid,
+}
+
+impl RamPostStore {
+    pub fn new() -> Self {
+        let posts = HashMap::new();
+        Self { posts, npid: 0 }
+    }
+}
+
+#[async_trait]
+impl PostStore for RamPostStore {
+    async fn get(&mut self, pid: Pid) -> Result<Post, String> {
+        if let Some(post) = self.posts.get(&pid) {
+            Ok(post.clone())
+        } else {
+            Err("invalid pid".to_string())
         }
     }
 
-    async fn get_posts(
-        &mut self,
-        tid: u64,
-    ) -> Result<Vec<super::Post>, String> {
-        let ltimes = self.times.get(&tid).ok_or("invalid tid")?;
-
-        let mut pairs: Vec<(&u64, &Post)> = ltimes.posts.iter().collect();
+    async fn get_all(&mut self) -> Result<Vec<Post>, String> {
+        let mut pairs: Vec<(&Tid, &Post)> = self.posts.iter().collect();
 
         pairs.sort_by(|a, b| a.0.cmp(&b.0));
 
@@ -94,83 +147,102 @@ impl Store for RamStore {
         Ok(posts)
     }
 
-    async fn create_post(
+    async fn post(
         &mut self,
-        tid: u64,
         post: String,
         file: Option<(String, File)>,
-    ) -> Result<super::Post, String> {
-        let ltimes = self.times.get_mut(&tid).ok_or("invalid tid")?;
+    ) -> Result<Post, String> {
+        let id = self.npid;
+        self.npid += 1;
 
         let post = Post {
-            id: ltimes.next_pid,
+            id,
             post,
             created_at: Local::now().naive_local(),
             updated_at: None,
             file,
         };
 
-        ltimes.posts.insert(post.id, post.clone());
-        ltimes.next_pid += 1;
+        self.posts.insert(id, post.clone());
 
         Ok(post)
     }
 
-    async fn update_post(
-        &mut self,
-        tid: u64,
-        mut post: super::Post,
-    ) -> Result<super::Post, String> {
-        let times = match self.times.get_mut(&tid) {
-            Some(t) => t,
-            None => {
-                return Err("Invalid tid".to_string());
-            }
-        };
-
-        let oldpost = match times.posts.get_mut(&post.id) {
-            Some(p) => p,
-            None => return Err("Invalid pid".to_string()),
-        };
-
-        post.updated_at = Some(Local::now().naive_local());
-
-        *oldpost = post.clone();
-
-        Ok(post)
-    }
-
-    async fn delete_post(&mut self, tid: u64, pid: u64) -> Result<(), String> {
-        if let Some(times) = self.times.get_mut(&tid) {
-            if let Some(_) = times.posts.remove(&pid) {
-                Ok(())
-            } else {
-                Err("Invalid pid".to_string())
-            }
+    async fn delete(&mut self, pid: Pid) -> Result<(), String> {
+        let r = self.posts.remove(&pid);
+        if r.is_some() {
+            Ok(())
         } else {
-            Err("Invalid tid".to_string())
+            Err("invalid pid".to_string())
         }
     }
 
-    async fn get_latest_post(
-        &mut self,
-        tid: u64,
-    ) -> Result<Option<Post>, String> {
-        if let Some(ltimes) = self.times.get(&tid) {
-            let keys: Vec<u64> = ltimes.posts.clone().into_keys().collect();
-            if let Some(latest_pid) = keys.iter().max() {
-                if let Some(post) = ltimes.posts.get(latest_pid) {
-                    return Ok(Some(post.clone()));
-                }
+    async fn update(&mut self, post: Post) -> Result<Post, String> {
+        match self.posts.get_mut(&post.id) {
+            Some(val) => {
+                *val = post.clone();
+                Ok(post)
             }
+            None => Err("invalid pid".to_string()),
         }
-
-        Ok(None)
     }
 }
 
-impl fmt::Debug for RamStore {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "TODO")
+struct RamToDoStore {
+    todos: HashMap<Tdid, Todo>,
+    ntdid: Tdid,
+}
+
+impl RamToDoStore {
+    pub fn new() -> Self {
+        let todos = HashMap::new();
+        Self { todos, ntdid: 0 }
+    }
+}
+
+#[async_trait]
+impl TodoStore for RamToDoStore {
+    async fn get(&mut self) -> Result<Vec<Todo>, String> {
+        let mut pairs: Vec<(&Tdid, &Todo)> = self.todos.iter().collect();
+
+        pairs.sort_by(|a, b| a.0.cmp(&b.0));
+
+        let todos = pairs.iter().map(|x| x.1.clone()).collect();
+
+        Ok(todos)
+    }
+
+    async fn new(&mut self, content: String) -> Result<Todo, String> {
+        let id = self.ntdid;
+        self.ntdid += 1;
+
+        let todo = Todo {
+            id,
+            content,
+            created_at: Local::now().naive_local(),
+            done_at: None,
+        };
+
+        self.todos.insert(id, todo.clone());
+
+        Ok(todo)
+    }
+
+    async fn update(&mut self, todo: Todo) -> Result<Todo, String> {
+        match self.todos.get_mut(&todo.id) {
+            Some(val) => {
+                *val = todo.clone();
+                Ok(todo)
+            }
+            None => Err("invalid pid".to_string()),
+        }
+    }
+
+    async fn delete(&mut self, tdid: Tdid) -> Result<(), String> {
+        if let Some(_) = self.todos.remove(&tdid) {
+            Ok(())
+        } else {
+            Err("invalid tdid".to_string())
+        }
     }
 }

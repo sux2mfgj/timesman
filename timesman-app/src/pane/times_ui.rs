@@ -246,7 +246,7 @@ impl TimesPane {
 
     fn handle_ui_resp(&mut self, resp: &UIResponse) {
         match resp {
-            UIResponse::PostSuccess => {
+            UIResponse::clear => {
                 self.post_text.clear();
                 self.dropped_file = None;
             }
