@@ -4,12 +4,13 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = []
+default = ["local"]
 json = ["timesman-bstore/json"]
 http = ["timesman-bstore/http"]
 sqlite = ["timesman-bstore/sqlite"]
 grpc = ["timesman-bstore/grpc"]
 server = ["timesman-server"]
+local = ["timesman-bstore/local"]
 
 [dependencies]
 timesman-type = {path = "../timesman-type"}

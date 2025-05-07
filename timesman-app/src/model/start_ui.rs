@@ -9,10 +9,13 @@ enum StoreKind {
     Memory,
     #[cfg(feature = "sqlite")]
     Sqlite,
+    #[cfg(feature = "local")]
+    Local,
 }
 
 pub struct StartUI {
     store: StoreKind,
+    param: Option<String>,
     error_text: Option<String>,
 }
 
@@ -29,6 +32,7 @@ impl StartUI {
     pub fn new() -> Self {
         Self {
             store: StoreKind::default(),
+            param: None,
             error_text: None,
         }
     }
@@ -46,6 +50,8 @@ impl StartUI {
             ui.radio_value(&mut self.store, StoreKind::Memory, "Temporay");
             #[cfg(feature = "sqlite")]
             ui.radio_value(&mut self.store, StoreKind::Sqlite, "Sqlite");
+            #[cfg(feature = "local")]
+            ui.radio_value(&mut self.store, StoreKind::Local, "Local");
 
             ui.separator();
 
@@ -91,6 +97,15 @@ impl StartUI {
                         self.path = Some(file_path);
                     }
                 }
+                #[cfg(feature = "local")]
+                StoreKind::Local => {
+                    ui.label("database file");
+                    if let Some(db_file) = &self.param {
+                        ui.label(format!("{db_file}"));
+                    } else {
+                        ui.label("Please select a db file");
+                    }
+                }
             }
 
             //ui.separator();
@@ -113,7 +128,7 @@ impl StartUI {
         Ok(ui_reqs)
     }
 
-    fn start(&self, req: &mut Vec<UIRequest>) {
+    fn start(&mut self, req: &mut Vec<UIRequest>) {
         let store = match self.store {
             StoreKind::Memory => Some(StoreType::Memory),
             #[cfg(feature = "sqlite")]
@@ -129,6 +144,17 @@ impl StartUI {
                     //Some(StoreType::Sqlite(db_file, file_path))
                 }
             }
+            #[cfg(feature = "local")]
+            StoreKind::Local => {
+                if self.param.is_none() {
+                    self.error_text =
+                        Some("db file or path is not specified".to_string());
+                    None
+                } else {
+                    let db_file = self.param.clone().unwrap();
+                    Some(StoreType::Local(db_file))
+                }
+            }
         };
 
         if let Some(s) = store {
@@ -138,6 +164,32 @@ impl StartUI {
             //     None
             // };
             req.push(UIRequest::Start(s, None));
+        }
+    }
+
+fn use_default(&mut self) {
+        match self.store {
+            StoreKind::Memory => {}
+            #[cfg(feature = "sqlite")]
+            StoreKind::Sqlite => {
+                let db_path = dirs::data_dir()
+                    .unwrap()
+                    .join("timesman")
+                    .join("sqlite.db");
+                self.param = Some(db_path.to_string_lossy().to_string());
+
+                let file_path =
+                    dirs::data_dir().unwrap().join("timesman").join("files");
+                self.path = Some(file_path);
+            }
+            #[cfg(feature = "local")]
+            StoreKind::Local => {
+                let db_path = dirs::data_dir()
+                    .unwrap()
+                    .join("timesman")
+                    .join("unqlite.db");
+                self.param = Some(db_path.to_string_lossy().to_string());
+            }
         }
     }
 
@@ -153,10 +205,14 @@ impl StartUI {
         if ui::consume_key(ctx, Key::S) {
             self.store = StoreKind::Sqlite;
         }
+        #[cfg(feature = "local")]
+        if ui::consume_key(ctx, Key::L) {
+            self.store = StoreKind::Local;
+        }
 
-        // if ui::consume_key(ctx, Key::D) {
-        //     self.use_default();
-        // }
+        if ui::consume_key(ctx, Key::D) {
+            self.use_default();
+        }
 
         if ui::consume_key_with_meta(ctx, Modifiers::COMMAND, Key::Enter) {
             self.start(reqs);

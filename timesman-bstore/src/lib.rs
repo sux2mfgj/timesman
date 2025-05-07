@@ -1,12 +1,18 @@
 mod ram;
 use ram::RamStore;
 
-//#[cfg(feature = "sqlite")]
-//mod sqlite;
-//#[cfg(feature = "sqlite")]
-//use sqlite::SqliteStore;
-//#[cfg(feature = "sqlite")]
-//use std::path::PathBuf;
+#[cfg(feature = "local")]
+mod local;
+#[cfg(feature = "local")]
+use local::LocalStore;
+
+#[cfg(feature = "sqlite")]
+mod sqlite;
+
+#[cfg(feature = "sqlite")]
+use sqlite::SqliteStore;
+#[cfg(feature = "sqlite")]
+use std::path::PathBuf;
 
 //#[cfg(feature = "grpc")]
 //mod grpc;
@@ -38,30 +44,31 @@ pub enum StoreType {
     //Json,
     //#[cfg(feature = "http")]
     //Remote,
-    //#[cfg(feature = "sqlite")]
-    //Sqlite(String, PathBuf),
+    #[cfg(feature = "sqlite")]
+    Sqlite(String, PathBuf),
     //#[cfg(feature = "grpc")]
     //Grpc(String),
+    #[cfg(feature = "local")]
+    Local(String),
 }
 
 impl StoreType {
-    pub fn to_store(&self) -> Result<Arc<Mutex<dyn Store>>, String> {
-        let store = match self {
-            Self::Memory => RamStore::new(),
+    pub async fn to_store(&self) -> Result<Arc<Mutex<dyn Store>>, String> {
+        let store: Arc<Mutex<dyn Store>> = match self {
+            Self::Memory => Arc::new(Mutex::new(RamStore::new())),
+            #[cfg(feature = "sqlite")]
+            Self::Sqlite(db_path, file_path) => Arc::new(Mutex::new(
+                SqliteStore::new(db_path, file_path).await.unwrap(),
+            )),
+            #[cfg(feature = "local")]
+            Self::Local(path) => {
+                Arc::new(Mutex::new(LocalStore::new(&path).await))
+            }
         };
 
-        Ok(Arc::new(Mutex::new(store)))
+        Ok(store)
     }
 }
-
-// pub enum StoreEvent {
-//     CreateTimes(Times),
-//     DeleteTimes(Tid),
-//     UpdateTimes(Times),
-//     CreatePost(Tid, Post),
-//     DeletePost(Tid, Pid),
-//     UpdatePost(Tid, Post),
-// }
 
 #[async_trait]
 pub trait Store: Send + Sync + 'static {

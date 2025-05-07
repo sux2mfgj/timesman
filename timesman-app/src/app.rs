@@ -25,6 +25,7 @@ use crate::log::tmlog;
 pub enum AppRequest {
     ChangeState(State),
     UI(UIRequest),
+    Log(String),
     Err(String),
 }
 
@@ -116,6 +117,10 @@ impl App {
                     Ok(())
                 }
             },
+            AppRequest::Log(log) => {
+                tmlog(log);
+                Ok(())
+            }
         }
     }
     /*
