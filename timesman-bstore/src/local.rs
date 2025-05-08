@@ -109,6 +109,7 @@ impl TimesMeta {
     }
 }
 
+// /meta.data
 #[async_trait]
 impl Store for LocalStore {
     async fn check(&mut self) -> Result<(), String> {
@@ -130,8 +131,8 @@ impl Store for LocalStore {
             return Err("Already exists".to_string());
         }
 
-        let tmeta = TimesMeta::new(title);
         let tid = self.ntid;
+        let tmeta = TimesMeta::new(title);
         let data = serde_json::to_string(&tmeta).unwrap();
 
         store
@@ -178,6 +179,7 @@ impl LocalTimesStore {
     }
 }
 
+// /{tid}/mata.data
 #[async_trait]
 impl TimesStore for LocalTimesStore {
     async fn get(&mut self) -> Result<Times, String> {
@@ -186,6 +188,7 @@ impl TimesStore for LocalTimesStore {
 
     async fn update(&mut self, times: Times) -> Result<Times, String> {
         self.times = times.clone();
+        // format!("{}/meta.data");
         todo!("update /times/_tid_/meta.data");
         Ok(times)
     }
@@ -294,6 +297,7 @@ impl PostStore for LocalPostStore {
             .kv_store(format!("{}/posts/{}", self.tid, pid), text.into_bytes())
             .unwrap();
 
+        self.pids.push(pid);
         self.npid += 1;
 
         Ok(post)

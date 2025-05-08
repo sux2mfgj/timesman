@@ -1,6 +1,7 @@
 use super::select_ui::{SelectUI, UIRequest, UIResponse};
 use super::{AppRequest, Model, State};
 
+use std::fmt::Debug;
 use std::sync::mpsc::{channel, Receiver, Sender, TryRecvError};
 use std::sync::Arc;
 
@@ -13,7 +14,27 @@ use tokio::runtime::Runtime;
 enum AsyncEvent {
     AddTimes((Times, Arc<Mutex<dyn TimesStore>>)),
     SelectTimes(Tid),
+    Close,
     Err(String),
+}
+
+impl Debug for AsyncEvent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AsyncEvent::AddTimes((times, _)) => {
+                write!(f, "AddTimes {:?}", times)
+            }
+            AsyncEvent::SelectTimes(tid) => {
+                write!(f, "SelectTimes {}", tid)
+            }
+            AsyncEvent::Close => {
+                write!(f, "Cloes")
+            }
+            AsyncEvent::Err(e) => {
+                write!(f, "Err {e}")
+            }
+        }
+    }
 }
 
 struct TimesPack {
@@ -83,6 +104,7 @@ impl SelectModel {
 
     fn handle_ureqs(&self, rt: &Runtime, ureqs: Vec<UIRequest>) {
         for r in ureqs {
+            println!("{:?}", r);
             match r {
                 UIRequest::CreateTimes(title) => {
                     let store = self.store.clone();
@@ -109,6 +131,10 @@ impl SelectModel {
                     let tx = self.tx.clone();
                     tx.send(AsyncEvent::SelectTimes(tid)).unwrap();
                 }
+                UIRequest::Close => {
+                    let tx = self.tx.clone();
+                    tx.send(AsyncEvent::Close).unwrap();
+                }
             }
         }
     }
@@ -116,26 +142,32 @@ impl SelectModel {
     fn handle_async_events(&mut self, areq: &mut Vec<AppRequest>) {
         loop {
             match self.rx.try_recv() {
-                Ok(resp) => match resp {
-                    AsyncEvent::Err(e) => {
-                        todo!();
-                    }
-                    AsyncEvent::AddTimes((times, tstore)) => {
-                        self.times.push(TimesPack { times, tstore });
-                    }
-                    AsyncEvent::SelectTimes(tid) => {
-                        let Some(tp) =
-                            self.times.iter().find(|tp| tp.times.id == tid)
-                        else {
+                Ok(resp) => {
+                    println!("{:?}", resp);
+                    match resp {
+                        AsyncEvent::Err(e) => {
                             todo!();
-                            // error
-                        };
+                        }
+                        AsyncEvent::AddTimes((times, tstore)) => {
+                            self.times.push(TimesPack { times, tstore });
+                        }
+                        AsyncEvent::SelectTimes(tid) => {
+                            let Some(tp) =
+                                self.times.iter().find(|tp| tp.times.id == tid)
+                            else {
+                                todo!();
+                                // error
+                            };
 
-                        areq.push(AppRequest::ChangeState(State::ToTimes(
-                            tp.tstore.clone(),
-                        )));
+                            areq.push(AppRequest::ChangeState(State::ToTimes(
+                                tp.tstore.clone(),
+                            )));
+                        }
+                        AsyncEvent::Close => {
+                            areq.push(AppRequest::ChangeState(State::Back));
+                        }
                     }
-                },
+                }
                 Err(TryRecvError::Empty) => {
                     break;
                 }

@@ -119,7 +119,113 @@ pub trait TodoStore: Send + Sync + 'static {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
+    use tokio::runtime::Runtime;
 
     #[test]
-    fn it_works() {}
+    fn test_ram_store() {
+        let rt = Runtime::new().unwrap();
+        rt.block_on(async {
+            let mut store = RamStore::new();
+
+            // Test creating a TimesStore
+            let title = "Test Times".to_string();
+            let times_store = store.create(title.clone()).await.unwrap();
+
+            // Test retrieving TimesStore
+            let times_list = store.get().await.unwrap();
+            assert_eq!(times_list.len(), 1);
+
+            let times = times_list[0].lock().await.get().await.unwrap();
+            assert_eq!(times.title, title);
+
+            // Test deleting TimesStore
+            let tid = times.id;
+            store.delete(tid).await.unwrap();
+            let times_list = store.get().await.unwrap();
+            assert!(times_list.is_empty());
+        });
+    }
+
+    #[test]
+    fn test_local_store() {
+        let rt = Runtime::new().unwrap();
+        rt.block_on(async {
+            let mut store = LocalStore::new(":mem:").await;
+
+            // Test creating a TimesStore
+            let title = "Test Local Times".to_string();
+            let times_store = store.create(title.clone()).await.unwrap();
+
+            // Test retrieving TimesStore
+            let times_list = store.get().await.unwrap();
+            assert_eq!(times_list.len(), 1);
+
+            let times = times_list[0].lock().await.get().await.unwrap();
+            assert_eq!(times.title, title);
+
+            // Test deleting TimesStore
+            let tid = times.id;
+            store.delete(tid).await.unwrap();
+            let times_list = store.get().await.unwrap();
+            assert!(times_list.is_empty());
+        });
+    }
+
+    #[test]
+    fn test_local_store_with_times_post_todo() {
+        let rt = Runtime::new().unwrap();
+        rt.block_on(async {
+            let mut store = LocalStore::new(":mem:").await;
+
+            // Test creating a TimesStore
+            let title = "Test Times".to_string();
+            let times_store = store.create(title.clone()).await.unwrap();
+
+            // Test TimesStore operations
+            let times = times_store.lock().await.get().await.unwrap();
+            assert_eq!(times.title, title);
+
+            /*
+                        let updated_title = "Updated Times".to_string();
+                        let mut updated_times = times.clone();
+                        updated_times.title = updated_title.clone();
+                        let updated = times_store
+                            .lock()
+                            .await
+                            .update(updated_times)
+                            .await
+                            .unwrap();
+                        assert_eq!(updated.title, updated_title);
+            */
+
+            // Test PostStore operations
+            let post_store = times_store.lock().await.pstore().await.unwrap();
+            let post_content = "Test Post".to_string();
+            let post = post_store
+                .lock()
+                .await
+                .post(post_content.clone(), None)
+                .await
+                .unwrap();
+            assert_eq!(post.post, post_content);
+
+            let posts = post_store.lock().await.get_all().await.unwrap();
+            assert_eq!(posts.len(), 1);
+
+            // Test TodoStore operations
+            //let todo_store = times_store.lock().await.tdstore().await.unwrap();
+            //let todo_content = "Test Todo".to_string();
+            //let todo = todo_store
+            //    .lock()
+            //    .await
+            //    .new(todo_content.clone())
+            //    .await
+            //    .unwrap();
+            //assert_eq!(todo.content, todo_content);
+
+            //let todos = todo_store.lock().await.get().await.unwrap();
+            //assert_eq!(todos.len(), 1);
+        });
+    }
 }
