@@ -49,6 +49,8 @@ pub struct SelectModel {
     times: Vec<TimesPack>,
     tx: Sender<AsyncEvent>,
     rx: Receiver<AsyncEvent>,
+
+    uresp: Vec<UIResponse>,
 }
 
 async fn load_times(
@@ -93,12 +95,15 @@ impl SelectModel {
             });
         }
 
+        let uresp = vec![];
+
         Self {
             store,
             ui,
             times,
             tx,
             rx,
+            uresp,
         }
     }
 
@@ -155,9 +160,13 @@ impl SelectModel {
                             let Some(tp) =
                                 self.times.iter().find(|tp| tp.times.id == tid)
                             else {
-                                todo!();
-                                // error
+                                self.uresp.push(UIResponse::SelectErr(
+                                    format!("id({}) is not found", tid),
+                                ));
+                                continue;
                             };
+
+                            self.uresp.push(UIResponse::SelectOk);
 
                             areq.push(AppRequest::ChangeState(State::ToTimes(
                                 tp.tstore.clone(),
@@ -189,7 +198,9 @@ impl Model for SelectModel {
         let mut req = vec![];
 
         let times = self.times.iter().map(|t| t.times.clone()).collect();
-        let ureqs = self.ui.update(ctx, &times).unwrap();
+        let ureqs = self.ui.update(ctx, &times, &self.uresp).unwrap();
+
+        self.uresp.clear();
 
         self.handle_ureqs(rt, ureqs);
         self.handle_async_events(&mut req);

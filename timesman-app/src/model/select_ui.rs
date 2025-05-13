@@ -5,7 +5,6 @@ use super::ui;
 use chrono::{DateTime, Local};
 
 use egui_extras::{Column, TableBuilder, TableRow};
-use egui_modal::DialogBuilder;
 
 #[derive(Debug)]
 pub enum UIRequest {
@@ -14,11 +13,17 @@ pub enum UIRequest {
     Close,
 }
 #[derive(Debug)]
-pub enum UIResponse {}
+pub enum UIResponse {
+    SelectErr(String),
+    SelectOk,
+}
 
 pub struct SelectUI {
-    new_title: String,
     new: bool,
+    new_title: String,
+    open: bool,
+    open_id: String,
+    open_err_msg: Option<String>,
 }
 
 // TODO: maybe this function can return the reference of Times in Vec<times>.
@@ -33,8 +38,11 @@ fn get_times(title: &String, times: &Vec<Times>) -> Option<Times> {
 impl SelectUI {
     pub fn new() -> Self {
         Self {
-            new_title: "".to_string(),
             new: false,
+            new_title: "".to_string(),
+            open: false,
+            open_id: "".to_string(),
+            open_err_msg: None,
         }
     }
 
@@ -42,6 +50,7 @@ impl SelectUI {
         &mut self,
         ctx: &egui::Context,
         times: &Vec<Times>,
+        resp: &Vec<UIResponse>,
     ) -> Result<Vec<UIRequest>, String> {
         let mut ureq = vec![];
 
@@ -53,6 +62,12 @@ impl SelectUI {
             self.show_title_input_window(ctx, &mut ureq);
         }
 
+        if self.open {
+            self.show_open_input_window(ctx, &mut ureq);
+        }
+
+        self.handle_ui_resp(resp);
+
         Ok(ureq)
     }
 
@@ -62,6 +77,10 @@ impl SelectUI {
         row: &mut TableRow,
     ) -> Option<UIRequest> {
         let mut req = None;
+
+        row.col(|ui| {
+            ui.label(format!("{}", times.id));
+        });
 
         row.col(|ui| {
             let created_at: DateTime<Local> =
@@ -92,8 +111,9 @@ impl SelectUI {
                 .auto_shrink(false)
                 .max_scroll_height(height_available)
                 .resizable(true)
-                .column(Column::auto().at_least(100f32))
-                .column(Column::remainder());
+                .column(Column::auto().at_least(20f32)) // for #
+                .column(Column::auto().at_least(100f32)) // for created_at
+                .column(Column::remainder()); // for title
 
             builder.body(|mut body| {
                 for t in times {
@@ -151,6 +171,12 @@ impl SelectUI {
 
             return Ok(());
         }
+        if self.open {
+            if ui::consume_escape(ctx) {
+                self.open = false;
+            }
+            return Ok(());
+        }
 
         if ui::consume_escape(ctx) {
             ureq.push(UIRequest::Close);
@@ -162,6 +188,10 @@ impl SelectUI {
 
         if ui::consume_key(ctx, Key::N) {
             self.new = true;
+        }
+
+        if ui::consume_key(ctx, Key::O) {
+            self.open = true;
         }
 
         Ok(())
@@ -183,5 +213,46 @@ impl SelectUI {
                 self.new_title.clear();
             }
         });
+    }
+
+    fn show_open_input_window(
+        &mut self,
+        ctx: &egui::Context,
+        ureq: &mut Vec<UIRequest>,
+    ) {
+        egui::Window::new("open").title_bar(false).show(ctx, |ui| {
+            ui.label("input the times id to open:");
+            let resp = ui.add(TextEdit::singleline(&mut self.open_id));
+            resp.request_focus();
+
+            if let Some(err) = &self.open_err_msg {
+                ui.label(err);
+            }
+
+            if ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                let Ok(tid) = self.open_id.parse() else {
+                    self.open_err_msg =
+                        Some("Invalid input. please check it".to_string());
+                    return;
+                };
+
+                ureq.push(UIRequest::SelectTimes(tid));
+            }
+        });
+    }
+
+    fn handle_ui_resp(&mut self, resp: &Vec<UIResponse>) {
+        for r in resp {
+            match r {
+                UIResponse::SelectErr(err) => {
+                    self.open_err_msg = Some(err.to_string());
+                }
+                UIResponse::SelectOk => {
+                    self.open = false;
+                    self.open_err_msg = None;
+                    self.open_id.clear();
+                }
+            }
+        }
     }
 }
