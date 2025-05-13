@@ -4,6 +4,8 @@ use timesman_type::{Tid, Times};
 use super::ui;
 use chrono::{DateTime, Local};
 
+use egui_extras::{Column, TableBuilder, TableRow};
+
 #[derive(Debug)]
 pub enum UIRequest {
     SelectTimes(Tid),
@@ -46,23 +48,19 @@ impl SelectUI {
     fn times_entry(
         &self,
         times: &Times,
-        ui: &mut egui::Ui,
+        row: &mut TableRow,
     ) -> Option<UIRequest> {
         let mut req = None;
-        ui.horizontal(|ui| {
+
+        row.col(|ui| {
             let created_at: DateTime<Local> =
                 DateTime::from(times.created_at.and_utc());
             ui.label(created_at.format("%Y-%m-%d %H:%M").to_string());
-
-            // ui.separator();
-            // ui.label(format!("{:3}", nposts));
-            ui.separator();
-
+        });
+        row.col(|ui| {
             if ui.button(times.title.clone()).clicked() {
                 req = Some(UIRequest::SelectTimes(times.id));
             }
-
-            // TODO: show the latest post
         });
 
         req
@@ -75,16 +73,25 @@ impl SelectUI {
         ureq: &mut Vec<UIRequest>,
     ) -> Result<(), String> {
         CentralPanel::default().show(ctx, |ui| {
-            let scroll_area = ScrollArea::vertical()
+            let height_available = ui.available_height();
+            let builder = TableBuilder::new(ui)
+                .striped(true)
+                .resizable(false)
+                .stick_to_bottom(true)
                 .auto_shrink(false)
-                .max_height(ui.available_height());
+                .max_scroll_height(height_available)
+                .resizable(true)
+                .column(Column::auto().at_least(100f32))
+                .column(Column::remainder());
 
-            scroll_area.show(ui, |ui| {
+            builder.body(|mut body| {
                 for t in times {
-                    let r = self.times_entry(&t, ui);
-                    if let Some(r) = r {
-                        ureq.push(r);
-                    }
+                    body.row(20f32, |mut row| {
+                        let r = self.times_entry(&t, &mut row);
+                        if let Some(r) = r {
+                            ureq.push(r);
+                        }
+                    });
                 }
             });
         });
