@@ -180,7 +180,7 @@ impl TimesUI {
     }
 
     fn post(&mut self, ureqs: &mut Vec<UIRequest>) {
-        if !self.post_text.is_empty() || self.dropped_file.is_some() {
+        if self.post_text.is_empty() {
             return;
         }
 
