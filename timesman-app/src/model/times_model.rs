@@ -4,7 +4,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use super::times_ui::{TimesUI, UIRequest, UIResponse};
-use super::{AppRequest, Model, State};
+use super::{AppRequest, AppResponse, Model, State};
 use serde::Serialize;
 
 use timesman_bstore::{PostStore, TimesStore};
@@ -171,6 +171,20 @@ impl TimesModel {
 
         ures
     }
+
+    fn handle_app_resp(
+        &self,
+        resp: &Vec<AppResponse>,
+        ures: &mut Vec<UIResponse>,
+    ) {
+        for r in resp {
+            match r {
+                AppResponse::FileDropped(path) => {
+                    ures.push(UIResponse::FileDropped(path.clone()));
+                }
+            }
+        }
+    }
 }
 
 impl Model for TimesModel {
@@ -178,11 +192,12 @@ impl Model for TimesModel {
         &mut self,
         ctx: &egui::Context,
         rt: &Runtime,
-        resp: Vec<crate::app::AppResponse>,
-    ) -> Result<Vec<crate::app::AppRequest>, String> {
+        resp: Vec<AppResponse>,
+    ) -> Result<Vec<AppRequest>, String> {
         let mut areqs = vec![];
 
-        let ures = self.gen_ures_vec();
+        let mut ures = self.gen_ures_vec();
+        self.handle_app_resp(&resp, &mut ures);
 
         let ureqs = self.ui.update(ctx, &self.posts, ures);
 
