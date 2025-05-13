@@ -7,8 +7,6 @@ use timesman_bstore::StoreType;
 enum StoreKind {
     #[default]
     Memory,
-    #[cfg(feature = "sqlite")]
-    Sqlite,
     #[cfg(feature = "local")]
     Local,
 }
@@ -48,8 +46,6 @@ impl StartUI {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.radio_value(&mut self.store, StoreKind::Memory, "Temporay");
-            #[cfg(feature = "sqlite")]
-            ui.radio_value(&mut self.store, StoreKind::Sqlite, "Sqlite");
             #[cfg(feature = "local")]
             ui.radio_value(&mut self.store, StoreKind::Local, "Local");
 
@@ -57,46 +53,6 @@ impl StartUI {
 
             match self.store {
                 StoreKind::Memory => {}
-                #[cfg(feature = "sqlite")]
-                StoreKind::Sqlite => {
-                    ui.label("database file");
-                    if let Some(db_file) = &self.param {
-                        ui.label(format!("File: {db_file}"));
-                    } else {
-                        ui.label("Please select a db file");
-                    }
-                    if ui.button("Select").clicked() {
-                        self.file_dialog.select_file();
-                    }
-                    if let Some(db_file_path) =
-                        self.file_dialog.update(ctx).selected()
-                    {
-                        self.param =
-                            Some(db_file_path.to_string_lossy().to_string());
-                    }
-
-                    ui.label("file path");
-                    if let Some(file_path) = &self.path {
-                        ui.label(format!("File: {:?}", file_path));
-                    } else {
-                        ui.label("Please select a file path");
-                    }
-
-                    if ui.button("Default").clicked() {
-                        let db_path = dirs::data_dir()
-                            .unwrap()
-                            .join("timesman")
-                            .join("sqlite.db");
-                        self.param =
-                            Some(db_path.to_string_lossy().to_string());
-
-                        let file_path = dirs::data_dir()
-                            .unwrap()
-                            .join("timesman")
-                            .join("files");
-                        self.path = Some(file_path);
-                    }
-                }
                 #[cfg(feature = "local")]
                 StoreKind::Local => {
                     ui.label("database file");
@@ -131,19 +87,6 @@ impl StartUI {
     fn start(&mut self, req: &mut Vec<UIRequest>) {
         let store = match self.store {
             StoreKind::Memory => Some(StoreType::Memory),
-            #[cfg(feature = "sqlite")]
-            StoreKind::Sqlite => {
-                if self.param.is_none() || self.path.is_none() {
-                    self.error_text =
-                        Some("db file or path is not specified".to_string());
-                    None
-                } else {
-                    let db_file = self.param.clone().unwrap();
-                    let file_path = self.path.clone().unwrap();
-                    todo!();
-                    //Some(StoreType::Sqlite(db_file, file_path))
-                }
-            }
             #[cfg(feature = "local")]
             StoreKind::Local => {
                 if self.param.is_none() {
@@ -170,18 +113,6 @@ impl StartUI {
 fn use_default(&mut self) {
         match self.store {
             StoreKind::Memory => {}
-            #[cfg(feature = "sqlite")]
-            StoreKind::Sqlite => {
-                let db_path = dirs::data_dir()
-                    .unwrap()
-                    .join("timesman")
-                    .join("sqlite.db");
-                self.param = Some(db_path.to_string_lossy().to_string());
-
-                let file_path =
-                    dirs::data_dir().unwrap().join("timesman").join("files");
-                self.path = Some(file_path);
-            }
             #[cfg(feature = "local")]
             StoreKind::Local => {
                 let db_path = dirs::data_dir()
@@ -201,10 +132,7 @@ fn use_default(&mut self) {
         if ui::consume_key(ctx, Key::T) {
             self.store = StoreKind::Memory;
         }
-        #[cfg(feature = "sqlite")]
-        if ui::consume_key(ctx, Key::S) {
-            self.store = StoreKind::Sqlite;
-        }
+        
         #[cfg(feature = "local")]
         if ui::consume_key(ctx, Key::L) {
             self.store = StoreKind::Local;
