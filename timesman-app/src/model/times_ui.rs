@@ -6,7 +6,9 @@ use super::ui;
 use timesman_type::Post;
 
 use chrono::{DateTime, Local};
-use egui::{CentralPanel, Key, Modifiers, TextEdit, TopBottomPanel};
+use egui::{
+    Align, CentralPanel, Key, Layout, Modifiers, TextEdit, TopBottomPanel,
+};
 use egui_extras::{Column, TableBuilder, TableRow};
 use linkify::LinkFinder;
 
@@ -29,25 +31,16 @@ pub struct TimesUI {
 }
 
 fn show_text(text: &str, ui: &mut egui::Ui) {
-    let text = text.trim_end();
-
     let finder = LinkFinder::new();
     let spans: Vec<_> = finder.spans(text).collect();
 
-    ui.horizontal(|ui| {
-        if spans.len() == 0 {
-            ui.label(text);
-            return;
+    for span in spans {
+        if let Some(_) = span.kind() {
+            ui.hyperlink(span.as_str());
+        } else {
+            ui.label(span.as_str().trim_end());
         }
-
-        for span in spans {
-            if let Some(_) = span.kind() {
-                ui.hyperlink(span.as_str());
-            } else {
-                ui.label(span.as_str());
-            }
-        }
-    });
+    }
 }
 
 impl TimesUI {

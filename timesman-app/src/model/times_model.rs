@@ -32,7 +32,7 @@ async fn load_posts(
 ) {
     let mut pstore = pstore.lock().await;
 
-    let posts = pstore.get_aul().await.unwrap();
+    let posts = pstore.get_all().await.unwrap();
 
     for post in posts {
         tx.send(AsyncEvent::AddPost(post.clone())).unwrap();
