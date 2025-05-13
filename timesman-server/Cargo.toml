@@ -6,9 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = ["grpc", "sqlite"]
+default = ["grpc", "local"]
 grpc = [ 'timesman-grpc', 'tonic']
-sqlite = ["timesman-bstore/sqlite"]
+local = ["timesman-bstore/local"]
 
 [dependencies]
 timesman-grpc = {path = "../timesman-grpc", optional = true}
