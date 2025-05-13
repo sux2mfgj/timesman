@@ -38,7 +38,7 @@ impl StartUI {
     pub fn update(
         &mut self,
         ctx: &egui::Context,
-        resps: &Vec<UIResponse>,
+        _resps: &Vec<UIResponse>,
     ) -> Result<Vec<UIRequest>, String> {
         // self.handle_ui_response(resps);
 
@@ -110,7 +110,7 @@ impl StartUI {
         }
     }
 
-fn use_default(&mut self) {
+    fn use_default(&mut self) {
         match self.store {
             StoreKind::Memory => {}
             #[cfg(feature = "local")]
@@ -132,7 +132,7 @@ fn use_default(&mut self) {
         if ui::consume_key(ctx, Key::T) {
             self.store = StoreKind::Memory;
         }
-        
+
         #[cfg(feature = "local")]
         if ui::consume_key(ctx, Key::L) {
             self.store = StoreKind::Local;

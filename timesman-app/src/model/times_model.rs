@@ -163,7 +163,7 @@ impl TimesModel {
                 Err(TryRecvError::Empty) => {
                     break;
                 }
-                Err(e) => {
+                Err(_e) => {
                     todo!();
                 }
             }

@@ -50,7 +50,9 @@ impl StartModel {
                 });
             }
             UIRequest::Close => {
-                self.artx.send(AppRequest::ChangeState(State::Back));
+                self.artx
+                    .send(AppRequest::ChangeState(State::Back))
+                    .unwrap();
             }
         }
     }
@@ -61,7 +63,7 @@ impl Model for StartModel {
         &mut self,
         ctx: &egui::Context,
         rt: &Runtime,
-        resp: Vec<AppResponse>,
+        _resp: Vec<AppResponse>,
     ) -> Result<Vec<AppRequest>, String> {
         let ureqs = self.ui.update(ctx, &self.uresp).unwrap();
 
@@ -81,7 +83,10 @@ impl Model for StartModel {
                 Err(TryRecvError::Empty) => {
                     break;
                 }
-                Err(e) => {}
+                Err(e) => {
+                    preq.push(AppRequest::Err(format!("{}", e)));
+                    break;
+                }
             }
         }
 
