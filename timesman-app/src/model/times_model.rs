@@ -1,12 +1,14 @@
+use std::fs;
 use std::sync::mpsc::{channel, Receiver, Sender, TryRecvError};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use super::times_ui::{TimesUI, UIRequest, UIResponse};
 use super::{AppRequest, Model, State};
+use serde::Serialize;
 
 use timesman_bstore::{PostStore, TimesStore};
-use timesman_type::Post;
+use timesman_type::{Post, Times};
 use tokio::runtime::Runtime;
 
 #[derive(Debug)]
@@ -41,7 +43,6 @@ async fn load_posts(
 
 impl TimesModel {
     pub fn new(tstore: Arc<Mutex<dyn TimesStore>>, rt: &Runtime) -> Self {
-        let ui = TimesUI::new();
         let posts = vec![];
 
         let (aetx, aerx) = channel();
@@ -64,6 +65,16 @@ impl TimesModel {
         }
 
         let (urtx, urrx) = channel();
+
+        let times = {
+            let tstore = tstore.clone();
+            rt.block_on(async move {
+                let mut tstore = tstore.lock().await;
+                tstore.get().await.unwrap()
+            })
+        };
+
+        let ui = TimesUI::new(times.title);
 
         Self {
             ui,
@@ -99,6 +110,18 @@ impl TimesModel {
                             .unwrap();
                         aetx.send(AsyncEvent::AddPost(post)).unwrap();
                         urtx.send(UIResponse::ClearText).unwrap();
+                    });
+                }
+                UIRequest::Dump(path) => {
+                    let tstore = self.tstore.clone();
+                    let posts = self.posts.clone();
+                    let mut file = fs::File::create(path).unwrap();
+                    rt.spawn(async move {
+                        let mut tstore = tstore.lock().await;
+                        let times = tstore.get().await.unwrap();
+
+                        let dump = DumpData { times, posts };
+                        serde_json::to_writer(&mut file, &dump).unwrap();
                     });
                 }
                 UIRequest::Close => {
@@ -168,4 +191,10 @@ impl Model for TimesModel {
 
         Ok(areqs)
     }
+}
+
+#[derive(Serialize)]
+struct DumpData {
+    times: Times,
+    posts: Vec<Post>,
 }

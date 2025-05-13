@@ -6,15 +6,16 @@ use super::ui;
 use timesman_type::Post;
 
 use chrono::{DateTime, Local};
-use egui::{
-    Align, CentralPanel, Key, Layout, Modifiers, TextEdit, TopBottomPanel,
-};
+use dirs;
+use egui::{CentralPanel, Key, Modifiers, TextEdit, TopBottomPanel};
 use egui_extras::{Column, TableBuilder, TableRow};
+use egui_file_dialog::FileDialog;
 use linkify::LinkFinder;
 
 #[derive(Debug)]
 pub enum UIRequest {
     Post(String, Option<(String, timesman_type::File)>),
+    Dump(PathBuf),
     Close,
 }
 
@@ -25,9 +26,11 @@ pub enum UIResponse {
 }
 
 pub struct TimesUI {
+    title: String,
     post_text: String,
     dropped_file: Option<PathBuf>,
     preview: Option<(String, Vec<u8>)>,
+    file_dialog: FileDialog,
 }
 
 fn show_text(text: &str, ui: &mut egui::Ui) {
@@ -44,11 +47,19 @@ fn show_text(text: &str, ui: &mut egui::Ui) {
 }
 
 impl TimesUI {
-    pub fn new() -> Self {
+    pub fn new(title: String) -> Self {
         Self {
+            title: title.clone(),
             post_text: String::from(""),
             dropped_file: None,
             preview: None,
+            file_dialog: FileDialog::new().default_file_name(
+                dirs::download_dir()
+                    .unwrap()
+                    .join(format!("{title}.json"))
+                    .to_str()
+                    .unwrap(),
+            ),
         }
     }
 
@@ -68,11 +79,15 @@ impl TimesUI {
 
         self.consume_keys(ctx, &mut ureq);
 
+        self.handle_file_dialog(ctx, &mut ureq);
+
         ureq
     }
 
     fn top_bar(&self, ctx: &egui::Context) {
-        TopBottomPanel::top("bar").show(ctx, |_ui| {});
+        TopBottomPanel::top("bar").show(ctx, |ui| {
+            ui.label(&self.title);
+        });
     }
 
     fn bottom(&mut self, ctx: &egui::Context) {
@@ -164,42 +179,48 @@ impl TimesUI {
         });
     }
 
+    fn post(&mut self, ureqs: &mut Vec<UIRequest>) {
+        if !self.post_text.is_empty() || self.dropped_file.is_some() {
+            return;
+        }
+
+        let txt = self.post_text.clone();
+        let file = if let Some(file) = self.dropped_file.clone() {
+            let name = file.file_name().unwrap().to_string_lossy().to_string();
+
+            let ext = file.extension().unwrap().to_string_lossy().to_string();
+
+            let mut data = vec![];
+            let mut file = File::open(file).unwrap();
+            file.read_to_end(&mut data).unwrap();
+
+            let f = match &*ext {
+                "png" | "jpg" | "jpeg" => timesman_type::File::Image(data),
+                "txt" => {
+                    timesman_type::File::Text(String::from_utf8(data).unwrap())
+                }
+                _ => timesman_type::File::Other(data),
+            };
+
+            Some((name, f))
+        } else {
+            None
+        };
+
+        ureqs.push(UIRequest::Post(txt, file));
+    }
+
     fn consume_keys(
         &mut self,
         ctx: &egui::Context,
         ureqs: &mut Vec<UIRequest>,
     ) {
-        let cmd_enter =
-            ctx.input_mut(|i| i.consume_key(Modifiers::COMMAND, Key::Enter));
-        if cmd_enter
-            && (!self.post_text.is_empty() || self.dropped_file.is_some())
-        {
-            let txt = self.post_text.clone();
-            let file = if let Some(file) = self.dropped_file.clone() {
-                let name =
-                    file.file_name().unwrap().to_string_lossy().to_string();
+        if ui::consume_key_with_meta(ctx, Modifiers::COMMAND, Key::Enter) {
+            self.post(ureqs);
+        }
 
-                let ext =
-                    file.extension().unwrap().to_string_lossy().to_string();
-
-                let mut data = vec![];
-                let mut file = File::open(file).unwrap();
-                file.read_to_end(&mut data).unwrap();
-
-                let f = match &*ext {
-                    "png" | "jpg" | "jpeg" => timesman_type::File::Image(data),
-                    "txt" => timesman_type::File::Text(
-                        String::from_utf8(data).unwrap(),
-                    ),
-                    _ => timesman_type::File::Other(data),
-                };
-
-                Some((name, f))
-            } else {
-                None
-            };
-
-            ureqs.push(UIRequest::Post(txt, file));
+        if ui::consume_key_with_meta(ctx, Modifiers::COMMAND, Key::D) {
+            self.file_dialog.save_file();
         }
 
         if ui::consume_escape(ctx) {
@@ -208,6 +229,17 @@ impl TimesUI {
             } else {
                 ureqs.push(UIRequest::Close);
             }
+        }
+    }
+
+    fn handle_file_dialog(
+        &mut self,
+        ctx: &egui::Context,
+        ureqs: &mut Vec<UIRequest>,
+    ) {
+        self.file_dialog.update(ctx);
+        if let Some(dump_file) = self.file_dialog.take_selected() {
+            ureqs.push(UIRequest::Dump(dump_file.to_path_buf()));
         }
     }
 
