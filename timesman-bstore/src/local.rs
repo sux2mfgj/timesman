@@ -94,7 +94,7 @@ impl TimesMeta {
             title,
             // npid: 0,
             // ntdid: 0,
-            created_at: chrono::Local::now().naive_local(),
+            created_at: chrono::Utc::now().naive_local(),
             updated_at: None,
         }
     }
@@ -305,7 +305,7 @@ impl PostStore for LocalPostStore {
         let post = Post {
             id: pid,
             post,
-            created_at: chrono::Local::now().naive_local(),
+            created_at: chrono::Utc::now().naive_local(),
             updated_at: None,
             file,
         };
