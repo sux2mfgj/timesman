@@ -9,6 +9,7 @@ use timesman_bstore::{PostStore, TimesStore};
 use timesman_type::Post;
 use tokio::runtime::Runtime;
 
+#[derive(Debug)]
 enum AsyncEvent {
     AddPost(Post),
     Err(String),
@@ -31,7 +32,7 @@ async fn load_posts(
 ) {
     let mut pstore = pstore.lock().await;
 
-    let posts = pstore.get_all().await.unwrap();
+    let posts = pstore.get_aul().await.unwrap();
 
     for post in posts {
         tx.send(AsyncEvent::AddPost(post.clone())).unwrap();
@@ -83,6 +84,7 @@ impl TimesModel {
         rt: &Runtime,
     ) {
         for req in ureq {
+            println!("{:?}", req);
             match req {
                 UIRequest::Post(content, file) => {
                     let pstore = self.pstore.clone();

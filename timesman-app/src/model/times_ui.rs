@@ -10,11 +10,13 @@ use egui::{CentralPanel, Key, Modifiers, TextEdit, TopBottomPanel};
 use egui_extras::{Column, TableBuilder, TableRow};
 use linkify::LinkFinder;
 
+#[derive(Debug)]
 pub enum UIRequest {
     Post(String, Option<(String, timesman_type::File)>),
     Close,
 }
 
+#[derive(Debug)]
 pub enum UIResponse {
     ClearText,
     FileDropped(PathBuf),
