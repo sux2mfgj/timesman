@@ -5,10 +5,12 @@ use std::path::PathBuf;
 use super::ui;
 use timesman_type::Post;
 
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Local, Timelike};
 use dirs;
-use egui::{CentralPanel, Key, Modifiers, TextEdit, TopBottomPanel};
-use egui_extras::{Column, TableBuilder, TableRow};
+use egui::{
+    Align, CentralPanel, Key, Layout, Modifiers, TextEdit, TopBottomPanel,
+};
+use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use egui_file_dialog::FileDialog;
 use linkify::LinkFinder;
 
@@ -113,6 +115,42 @@ impl TimesUI {
         });
     }
 
+    fn insert_separater_row(
+        &mut self,
+        last_posted: &mut u32,
+        p: &Post,
+        body: &mut TableBody,
+    ) {
+        let posted_at = p.created_at.hour();
+        if last_posted != &posted_at {
+            *last_posted = posted_at;
+            body.row(20f32, |mut row| {
+                row.col(|_| {});
+                row.col(|ui| {
+                    ui.with_layout(Layout::right_to_left(Align::RIGHT), |ui| {
+                        ui.label(p.created_at.format("%H:00").to_string());
+                    });
+                });
+                row.col(|_| {});
+            });
+        }
+    }
+
+    fn insert_post_row(&mut self, p: &Post, body: &mut TableBody) {
+        let hight = if let Some(a) = &p.file {
+            match a.1 {
+                timesman_type::File::Image(_) => 100f32,
+                _ => 20f32,
+            }
+        } else {
+            20f32
+        };
+
+        body.row(hight, |mut row| {
+            self.post_row(&mut row, &p);
+        })
+    }
+
     fn main_panel_table(&mut self, ctx: &egui::Context, posts: &Vec<Post>) {
         CentralPanel::default().show(ctx, |ui| {
             let height_available = ui.available_height();
@@ -127,21 +165,16 @@ impl TimesUI {
                 .column(Column::auto().at_least(100f32)) // for created_at
                 .column(Column::remainder()); // for post
 
+            let mut last_posted = if posts.is_empty() {
+                return;
+            } else {
+                posts[0].created_at.hour()
+            };
+
             builder.body(|mut body| {
                 for p in posts {
-                    // TODO: function
-                    let hight = if let Some(a) = &p.file {
-                        match a.1 {
-                            timesman_type::File::Image(_) => 100f32,
-                            _ => 20f32,
-                        }
-                    } else {
-                        20f32
-                    };
-
-                    body.row(hight, |mut row| {
-                        self.post_row(&mut row, &p);
-                    })
+                    self.insert_separater_row(&mut last_posted, p, &mut body);
+                    self.insert_post_row(p, &mut body);
                 }
             });
         });
@@ -155,7 +188,9 @@ impl TimesUI {
         row.col(|ui| {
             let localtime: DateTime<Local> =
                 DateTime::from(post.created_at.and_utc());
-            ui.label(localtime.format("%Y-%m-%d %H:%M").to_string());
+            ui.with_layout(Layout::right_to_left(Align::RIGHT), |ui| {
+                ui.label(localtime.format("%Y-%m-%d %H:%M").to_string());
+            });
         });
         row.col(|ui| {
             if !post.post.is_empty() {
