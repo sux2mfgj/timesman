@@ -1,10 +1,11 @@
-use egui::{CentralPanel, Key, ScrollArea, TopBottomPanel};
+use egui::{CentralPanel, Key, ScrollArea, TextEdit, TopBottomPanel};
 use timesman_type::{Tid, Times};
 
 use super::ui;
 use chrono::{DateTime, Local};
 
 use egui_extras::{Column, TableBuilder, TableRow};
+use egui_modal::DialogBuilder;
 
 #[derive(Debug)]
 pub enum UIRequest {
@@ -15,7 +16,10 @@ pub enum UIRequest {
 #[derive(Debug)]
 pub enum UIResponse {}
 
-pub struct SelectUI {}
+pub struct SelectUI {
+    new_title: String,
+    new: bool,
+}
 
 // TODO: maybe this function can return the reference of Times in Vec<times>.
 fn get_times(title: &String, times: &Vec<Times>) -> Option<Times> {
@@ -28,7 +32,10 @@ fn get_times(title: &String, times: &Vec<Times>) -> Option<Times> {
 
 impl SelectUI {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            new_title: "".to_string(),
+            new: false,
+        }
     }
 
     pub fn update(
@@ -41,6 +48,10 @@ impl SelectUI {
         self.top_bar(ctx, &times, &mut ureq)?;
         self.main_panel(ctx, &times, &mut ureq)?;
         self.consume_keys(ctx, &times, &mut ureq)?;
+
+        if self.new {
+            self.show_title_input_window(ctx, &mut ureq);
+        }
 
         Ok(ureq)
     }
@@ -132,6 +143,15 @@ impl SelectUI {
         times: &Vec<Times>,
         ureq: &mut Vec<UIRequest>,
     ) -> Result<(), String> {
+        // on window
+        if self.new {
+            if ui::consume_escape(ctx) {
+                self.new = false;
+            }
+
+            return Ok(());
+        }
+
         if ui::consume_escape(ctx) {
             ureq.push(UIRequest::Close);
         }
@@ -140,6 +160,28 @@ impl SelectUI {
             ureq.push(self.select_today(times));
         }
 
+        if ui::consume_key(ctx, Key::N) {
+            self.new = true;
+        }
+
         Ok(())
+    }
+
+    fn show_title_input_window(
+        &mut self,
+        ctx: &egui::Context,
+        ureq: &mut Vec<UIRequest>,
+    ) {
+        egui::Window::new("new").title_bar(false).show(ctx, |ui| {
+            ui.label("new title: ");
+            let resp = ui.add(TextEdit::singleline(&mut self.new_title));
+            resp.request_focus();
+
+            if ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                self.new = false;
+                ureq.push(UIRequest::CreateTimes(self.new_title.clone()));
+                self.new_title.clear();
+            }
+        });
     }
 }
