@@ -1,4 +1,3 @@
-use chrono::Local;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::sync::Arc;
@@ -7,7 +6,7 @@ use tokio::sync::Mutex;
 use async_trait::async_trait;
 use unqlite::{UnQLite, KV};
 
-use timesman_type::{File, Pid, Post, Tdid, Tid, Times, Todo};
+use timesman_type::{File, Pid, Post, Tid, Times};
 
 use super::{PostStore, Store, TimesStore, TodoStore};
 
