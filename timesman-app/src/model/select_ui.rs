@@ -1,4 +1,4 @@
-use egui::{CentralPanel, Key, ScrollArea, TextEdit, TopBottomPanel};
+use egui::{CentralPanel, Key, Modifiers, TextEdit, TopBottomPanel};
 use timesman_type::{Tid, Times};
 
 use super::ui;
@@ -11,7 +11,15 @@ pub enum UIRequest {
     SelectTimes(Tid),
     CreateTimes(String),
     Close,
+    Sort(Sort /* key */, bool /* is reverse */),
 }
+
+#[derive(Debug)]
+pub enum Sort {
+    ID,
+    Name,
+}
+
 #[derive(Debug)]
 pub enum UIResponse {
     SelectErr(String),
@@ -192,6 +200,27 @@ impl SelectUI {
 
         if ui::consume_key(ctx, Key::O) {
             self.open = true;
+        }
+
+        if ui::consume_key(ctx, Key::L) {
+            let t = times.iter().reduce(|a, p| {
+                if a.created_at > p.created_at {
+                    a
+                } else {
+                    p
+                }
+            });
+
+            if let Some(t) = t {
+                ureq.push(UIRequest::SelectTimes(t.id));
+            }
+        }
+
+        if ui::consume_key_with_meta(ctx, Modifiers::SHIFT, Key::S) {
+            ureq.push(UIRequest::Sort(Sort::ID, true));
+        }
+        if ui::consume_key(ctx, Key::S) {
+            ureq.push(UIRequest::Sort(Sort::ID, false))
         }
 
         Ok(())

@@ -1,4 +1,4 @@
-use super::select_ui::{SelectUI, UIRequest, UIResponse};
+use super::select_ui::{SelectUI, Sort, UIRequest, UIResponse};
 use super::{AppRequest, Model, State};
 
 use std::fmt::Debug;
@@ -107,7 +107,7 @@ impl SelectModel {
         }
     }
 
-    fn handle_ureqs(&self, rt: &Runtime, ureqs: Vec<UIRequest>) {
+    fn handle_ureqs(&mut self, rt: &Runtime, ureqs: Vec<UIRequest>) {
         for r in ureqs {
             println!("{:?}", r);
             match r {
@@ -140,6 +140,21 @@ impl SelectModel {
                     let tx = self.tx.clone();
                     tx.send(AsyncEvent::Close).unwrap();
                 }
+                UIRequest::Sort(key, reverse) => match key {
+                    Sort::ID => {
+                        if reverse {
+                            self.times.sort_by(|a, b| {
+                                a.times.id.cmp(&b.times.id).reverse()
+                            })
+                        } else {
+                            self.times
+                                .sort_by(|a, b| a.times.id.cmp(&b.times.id));
+                        }
+                    }
+                    Sort::Name => {
+                        todo!();
+                    }
+                },
             }
         }
     }
