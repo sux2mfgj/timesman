@@ -123,8 +123,9 @@ impl TimesUI {
                 .auto_shrink(false)
                 .max_scroll_height(height_available)
                 .resizable(true)
-                .column(Column::auto().at_least(100f32))
-                .column(Column::remainder());
+                .column(Column::auto()) // for #
+                .column(Column::auto().at_least(100f32)) // for created_at
+                .column(Column::remainder()); // for post
 
             builder.body(|mut body| {
                 for p in posts {
@@ -147,6 +148,10 @@ impl TimesUI {
     }
 
     fn post_row(&mut self, row: &mut TableRow, post: &Post) {
+        row.col(|ui| {
+            ui.label(format!("{}", post.id));
+        });
+
         row.col(|ui| {
             let localtime: DateTime<Local> =
                 DateTime::from(post.created_at.and_utc());
