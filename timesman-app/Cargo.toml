@@ -7,7 +7,6 @@ edition = "2021"
 default = ["local"]
 json = ["timesman-bstore/json"]
 http = ["timesman-bstore/http"]
-sqlite = ["timesman-bstore/sqlite"]
 grpc = ["timesman-bstore/grpc"]
 server = ["timesman-server"]
 local = ["timesman-bstore/local"]
