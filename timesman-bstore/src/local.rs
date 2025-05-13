@@ -162,7 +162,7 @@ impl Store for LocalStore {
         Ok(tstore)
     }
 
-    async fn delete(&mut self, tid: Tid) -> Result<(), String> {
+    async fn delete(&mut self, _tid: Tid) -> Result<(), String> {
         todo!();
     }
 }
@@ -187,9 +187,7 @@ impl TimesStore for LocalTimesStore {
 
     async fn update(&mut self, times: Times) -> Result<Times, String> {
         self.times = times.clone();
-        // format!("{}/meta.data");
-        todo!("update /times/_tid_/meta.data");
-        Ok(times)
+        todo!("update /times/{}/meta.data", times.id);
     }
 
     async fn pstore(
@@ -273,9 +271,10 @@ struct PostMeta {
 
 #[async_trait]
 impl PostStore for LocalPostStore {
-    async fn get(&mut self, pid: Pid) -> Result<Post, String> {
+    async fn get(&mut self, _pid: Pid) -> Result<Post, String> {
         todo!();
     }
+
     async fn get_all(&mut self) -> Result<Vec<Post>, String> {
         let store = self.store.lock().await;
         let mut posts = vec![];
@@ -295,7 +294,7 @@ impl PostStore for LocalPostStore {
         post: String,
         file: Option<(String, File)>,
     ) -> Result<Post, String> {
-        if let Some(file) = &file {
+        if let Some(_file) = &file {
             todo!();
         }
 
@@ -328,11 +327,11 @@ impl PostStore for LocalPostStore {
         Ok(post)
     }
 
-    async fn delete(&mut self, pid: Pid) -> Result<(), String> {
+    async fn delete(&mut self, _pid: Pid) -> Result<(), String> {
         todo!();
     }
 
-    async fn update(&mut self, post: Post) -> Result<Post, String> {
+    async fn update(&mut self, _post: Post) -> Result<Post, String> {
         todo!();
     }
 }

@@ -2,35 +2,39 @@ use super::{Store, TimesStore};
 use async_trait::async_trait;
 use timesman_type::Tid;
 
-use std::{fs, path::PathBuf};
+// use std::fs;
+use std::path::PathBuf;
 
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 pub struct JsonStore {
-    path: PathBuf,
-    file: fs::File,
+    // path: PathBuf,
+    // file: fs::File,
 }
 
 impl JsonStore {
-    pub fn new(path: PathBuf, is_create: bool) -> Result<Self, String> {
-        let file = if is_create {
-            if path.exists() {
-                return Err(format!("The file {:?} already exists", path));
-            }
+    pub fn new(_path: PathBuf, _is_create: bool) -> Result<Self, String> {
+        /*
+                let file = if is_create {
+                    if path.exists() {
+                        return Err(format!("The file {:?} already exists", path));
+                    }
 
-            fs::File::open(&path).map_err(|e| format!("{e}"))?
-        } else {
-            if !path.exists() {
-                return Err(format!("The file {:?} is not found", path));
-            }
+                    fs::File::open(&path).map_err(|e| format!("{e}"))?
+                } else {
+                    if !path.exists() {
+                        return Err(format!("The file {:?} is not found", path));
+                    }
 
-            fs::File::create(&path).map_err(|e| format!("{e}"))?
-        };
+                    fs::File::create(&path).map_err(|e| format!("{e}"))?
+                };
 
-        let store = Self { path, file };
+                let store = Self { path, file };
 
-        Ok(store)
+                Ok(store)
+        */
+        Ok(Self {})
     }
 }
 
@@ -48,12 +52,12 @@ impl Store for JsonStore {
 
     async fn create(
         &mut self,
-        title: String,
+        _title: String,
     ) -> Result<Arc<Mutex<dyn TimesStore + Send + Sync>>, String> {
         todo!();
     }
 
-    async fn delete(&mut self, tid: Tid) -> Result<(), String> {
+    async fn delete(&mut self, _tid: Tid) -> Result<(), String> {
         todo!();
     }
 }
