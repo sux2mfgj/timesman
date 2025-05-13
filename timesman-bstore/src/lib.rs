@@ -6,23 +6,17 @@ mod local;
 #[cfg(feature = "local")]
 use local::LocalStore;
 
-#[cfg(feature = "sqlite")]
-mod sqlite;
-
-#[cfg(feature = "sqlite")]
-use sqlite::SqliteStore;
-#[cfg(feature = "sqlite")]
-use std::path::PathBuf;
-
 //#[cfg(feature = "grpc")]
 //mod grpc;
 //#[cfg(feature = "grpc")]
 //use grpc::GrpcStore;
 
-//#[cfg(feature = "json")]
-//mod json;
-//#[cfg(feature = "json")]
-//use json::JsonStore;
+#[cfg(feature = "json")]
+mod json;
+#[cfg(feature = "json")]
+use json::JsonStore;
+#[cfg(feature = "json")]
+use std::path::PathBuf;
 
 //#[cfg(feature = "http")]
 //mod remote;
@@ -40,12 +34,10 @@ use timesman_type::{File, Pid, Post, Tdid, Tid, Times, Todo};
 pub enum StoreType {
     #[default]
     Memory,
-    //#[cfg(feature = "json")]
-    //Json,
+    #[cfg(feature = "json")]
+    Json(PathBuf, bool),
     //#[cfg(feature = "http")]
     //Remote,
-    #[cfg(feature = "sqlite")]
-    Sqlite(String, PathBuf),
     //#[cfg(feature = "grpc")]
     //Grpc(String),
     #[cfg(feature = "local")]
@@ -56,9 +48,9 @@ impl StoreType {
     pub async fn to_store(&self) -> Result<Arc<Mutex<dyn Store>>, String> {
         let store: Arc<Mutex<dyn Store>> = match self {
             Self::Memory => Arc::new(Mutex::new(RamStore::new())),
-            #[cfg(feature = "sqlite")]
-            Self::Sqlite(db_path, file_path) => Arc::new(Mutex::new(
-                SqliteStore::new(db_path, file_path).await.unwrap(),
+            #[cfg(feature = "json")]
+            Self::Json(path, is_create) => Arc::new(Mutex::new(
+                JsonStore::new(path.clone(), *is_create).unwrap(),
             )),
             #[cfg(feature = "local")]
             Self::Local(path) => {
@@ -122,110 +114,120 @@ mod tests {
     use std::path::PathBuf;
     use tokio::runtime::Runtime;
 
+    async fn test_store(mut store: Box<dyn Store>) {
+        // Test creating a TimesStore
+        let title = "Test Times".to_string();
+        let times_store = store.create(title.clone()).await.unwrap();
+
+        // Test retrieving TimesStore
+        let times_list = store.get().await.unwrap();
+        assert_eq!(times_list.len(), 1);
+
+        let times = times_list[0].lock().await.get().await.unwrap();
+        assert_eq!(times.title, title);
+
+        // Test deleting TimesStore
+        let tid = times.id;
+        store.delete(tid).await.unwrap();
+        let times_list = store.get().await.unwrap();
+        assert!(times_list.is_empty());
+    }
+
     #[test]
-    fn test_ram_store() {
+    fn test_times_ram_store() {
         let rt = Runtime::new().unwrap();
         rt.block_on(async {
-            let mut store = RamStore::new();
+            let store = Box::new(RamStore::new());
+            test_store(store).await;
+        });
+    }
 
-            // Test creating a TimesStore
-            let title = "Test Times".to_string();
-            let times_store = store.create(title.clone()).await.unwrap();
+    #[cfg(feature = "local")]
+    #[test]
+    fn test_times_local_store() {
+        let rt = Runtime::new().unwrap();
+        rt.block_on(async {
+            let store = Box::new(LocalStore::new(":mem:").await);
+            test_store(store).await;
+        });
+    }
 
-            // Test retrieving TimesStore
-            let times_list = store.get().await.unwrap();
-            assert_eq!(times_list.len(), 1);
+    async fn test_posts(mut store: Box<dyn Store>) {
+        let tstore = store.create("post test".to_string()).await.unwrap();
 
-            let times = times_list[0].lock().await.get().await.unwrap();
-            assert_eq!(times.title, title);
+        let mut tstore = tstore.lock().await;
+        let pstore = tstore.pstore().await.unwrap();
+        let mut pstore = pstore.lock().await;
 
-            // Test deleting TimesStore
-            let tid = times.id;
-            store.delete(tid).await.unwrap();
-            let times_list = store.get().await.unwrap();
-            assert!(times_list.is_empty());
+        let posts = pstore.get_all().await.unwrap();
+        assert!(posts.len() == 0);
+
+        let text = "hello".to_string();
+        let post = pstore.post(text.clone(), None).await.unwrap();
+        assert_eq!(post.post, text);
+
+        let posts = pstore.get_all().await.unwrap();
+        assert!(posts.len() == 1);
+    }
+
+    #[test]
+    fn test_post_ram_store() {
+        let rt = Runtime::new().unwrap();
+        rt.block_on(async {
+            let store = Box::new(LocalStore::new(":mem:").await);
+            test_posts(store).await;
+        });
+    }
+
+    #[cfg(feature = "local")]
+    #[test]
+    fn test_post_local_store() {
+        let rt = Runtime::new().unwrap();
+        rt.block_on(async {
+            let store = Box::new(LocalStore::new(":mem:").await);
+            test_posts(store).await;
+        });
+    }
+
+    async fn test_recreate_pstore(mut store: Box<dyn Store>) {
+        let tstore = store.create("post test".to_string()).await.unwrap();
+
+        let mut tstore = tstore.lock().await;
+        {
+            let pstore = tstore.pstore().await.unwrap();
+            let mut pstore = pstore.lock().await;
+
+            let posts = pstore.get_all().await.unwrap();
+            assert!(posts.len() == 0);
+
+            let text = "hello".to_string();
+            let post = pstore.post(text.clone(), None).await.unwrap();
+            assert_eq!(post.post, text);
+        }
+        {
+            let pstore = tstore.pstore().await.unwrap();
+            let mut pstore = pstore.lock().await;
+
+            let posts = pstore.get_all().await.unwrap();
+            assert!(posts.len() == 1);
+        }
+    }
+
+    #[test]
+    fn test_recreate_ram_pstore() {
+        let rt = Runtime::new().unwrap();
+        rt.block_on(async {
+            let store = Box::new(LocalStore::new(":mem:").await);
+            test_recreate_pstore(store).await;
         });
     }
 
     #[test]
-    fn test_local_store() {
+    fn test_recreate_local_pstore() {
         let rt = Runtime::new().unwrap();
         rt.block_on(async {
-            let mut store = LocalStore::new(":mem:").await;
-
-            // Test creating a TimesStore
-            let title = "Test Local Times".to_string();
-            let times_store = store.create(title.clone()).await.unwrap();
-
-            // Test retrieving TimesStore
-            let times_list = store.get().await.unwrap();
-            assert_eq!(times_list.len(), 1);
-
-            let times = times_list[0].lock().await.get().await.unwrap();
-            assert_eq!(times.title, title);
-
-            // Test deleting TimesStore
-            let tid = times.id;
-            store.delete(tid).await.unwrap();
-            let times_list = store.get().await.unwrap();
-            assert!(times_list.is_empty());
-        });
-    }
-
-    #[test]
-    fn test_local_store_with_times_post_todo() {
-        let rt = Runtime::new().unwrap();
-        rt.block_on(async {
-            let mut store = LocalStore::new(":mem:").await;
-
-            // Test creating a TimesStore
-            let title = "Test Times".to_string();
-            let times_store = store.create(title.clone()).await.unwrap();
-
-            // Test TimesStore operations
-            let times = times_store.lock().await.get().await.unwrap();
-            assert_eq!(times.title, title);
-
-            /*
-                        let updated_title = "Updated Times".to_string();
-                        let mut updated_times = times.clone();
-                        updated_times.title = updated_title.clone();
-                        let updated = times_store
-                            .lock()
-                            .await
-                            .update(updated_times)
-                            .await
-                            .unwrap();
-                        assert_eq!(updated.title, updated_title);
-            */
-
-            // Test PostStore operations
-            let post_store = times_store.lock().await.pstore().await.unwrap();
-            let post_content = "Test Post".to_string();
-            let post = post_store
-                .lock()
-                .await
-                .post(post_content.clone(), None)
-                .await
-                .unwrap();
-            assert_eq!(post.post, post_content);
-
-            let posts = post_store.lock().await.get_all().await.unwrap();
-            assert_eq!(posts.len(), 1);
-
-            // Test TodoStore operations
-            //let todo_store = times_store.lock().await.tdstore().await.unwrap();
-            //let todo_content = "Test Todo".to_string();
-            //let todo = todo_store
-            //    .lock()
-            //    .await
-            //    .new(todo_content.clone())
-            //    .await
-            //    .unwrap();
-            //assert_eq!(todo.content, todo_content);
-
-            //let todos = todo_store.lock().await.get().await.unwrap();
-            //assert_eq!(todos.len(), 1);
+            let store = Box::new(LocalStore::new(":mem:").await);
+            test_recreate_pstore(store).await;
         });
     }
 }

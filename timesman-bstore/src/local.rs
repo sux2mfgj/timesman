@@ -218,12 +218,17 @@ struct LocalPostStore {
     store: Arc<Mutex<UnQLite>>,
 }
 
+fn get_pmeta_path(tid: Tid) -> String {
+    format!("{}/posts/meta.data", tid)
+}
+
 impl LocalPostStore {
     pub async fn new(tid: Tid, store: Arc<Mutex<UnQLite>>) -> Self {
         let pmeta = {
             let store = store.lock().await;
             let meta_path = format!("{}/posts/meta.data", tid);
             if !store.kv_contains(&meta_path) {
+                println!("{meta_path} is not found");
                 let meta = PostMeta {
                     npid: 0,
                     pids: vec![],
@@ -232,10 +237,12 @@ impl LocalPostStore {
                 store.kv_store(&meta_path, data.into_bytes()).unwrap();
                 meta
             } else {
+                println!("{meta_path} is already exists");
                 let data = store.kv_fetch(&meta_path).unwrap();
                 serde_json::from_slice(&data).unwrap()
             }
         };
+        println!("{:?}", pmeta);
 
         Self {
             tid,
@@ -244,9 +251,22 @@ impl LocalPostStore {
             store,
         }
     }
+
+    async fn sync_meta(&self) {
+        let pmeta = PostMeta {
+            npid: self.npid,
+            pids: self.pids.clone(),
+        };
+        let data = serde_json::to_string(&pmeta).unwrap();
+
+        let store = self.store.lock().await;
+        store
+            .kv_store(get_pmeta_path(self.tid), data.into_bytes())
+            .unwrap();
+    }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 struct PostMeta {
     npid: Pid,
     pids: Vec<Pid>,
@@ -276,8 +296,6 @@ impl PostStore for LocalPostStore {
         post: String,
         file: Option<(String, File)>,
     ) -> Result<Post, String> {
-        let store = self.store.lock().await;
-
         if let Some(file) = &file {
             todo!();
         }
@@ -293,12 +311,20 @@ impl PostStore for LocalPostStore {
         };
 
         let text = serde_json::to_string(&post).unwrap();
-        store
-            .kv_store(format!("{}/posts/{}", self.tid, pid), text.into_bytes())
-            .unwrap();
+        {
+            let store = self.store.lock().await;
+            store
+                .kv_store(
+                    format!("{}/posts/{}", self.tid, pid),
+                    text.into_bytes(),
+                )
+                .unwrap();
+        }
 
         self.pids.push(pid);
         self.npid += 1;
+
+        self.sync_meta().await;
 
         Ok(post)
     }
