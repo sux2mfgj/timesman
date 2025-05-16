@@ -1,9 +1,10 @@
-use std::fs::File;
+use std::fs;
 use std::io::Read;
 use std::path::PathBuf;
 
 use super::ui;
-use timesman_type::Post;
+use infer::Infer;
+use timesman_type::{File, FileType, Post};
 
 use chrono::{DateTime, Local, Timelike};
 use dirs;
@@ -16,7 +17,7 @@ use linkify::LinkFinder;
 
 #[derive(Debug)]
 pub enum UIRequest {
-    Post(String, Option<(String, timesman_type::File)>),
+    Post(String, Option<File>),
     Dump(PathBuf),
     Sort(bool),
     Close,
@@ -32,7 +33,7 @@ pub struct TimesUI {
     title: String,
     post_text: String,
     dropped_file: Option<PathBuf>,
-    preview: Option<(String, Vec<u8>)>,
+    preview: Option<File>,
     file_dialog: FileDialog,
 }
 
@@ -83,6 +84,8 @@ impl TimesUI {
         self.consume_keys(ctx, &mut ureq);
 
         self.handle_file_dialog(ctx, &mut ureq);
+
+        self.show_preview(ctx);
 
         ureq
     }
@@ -143,9 +146,9 @@ impl TimesUI {
     }
 
     fn insert_post_row(&mut self, p: &Post, body: &mut TableBody) {
-        let hight = if let Some(a) = &p.file {
-            match a.1 {
-                timesman_type::File::Image(_) => 100f32,
+        let hight = if let Some(file) = &p.file {
+            match file.ftype {
+                FileType::Image => 100f32,
                 _ => 20f32,
             }
         } else {
@@ -204,29 +207,36 @@ impl TimesUI {
             }
 
             if let Some(file) = &post.file {
-                match &file.1 {
-                    timesman_type::File::Image(data) => {
-                        let img = egui::Image::from_bytes(
-                            format!("bytes://{}", file.0),
-                            data.clone(),
-                        );
-                        let img_ui = ui.add(
-                            img.max_height(200.0).sense(egui::Sense::click()),
-                        );
+                let infer = Infer::new();
+                if let Some(ftype) = infer.get(&file.data) {
+                    match ftype.matcher_type() {
+                        infer::MatcherType::Image => {
+                            let img = egui::Image::from_bytes(
+                                format!("bytes://{}", file.name),
+                                file.data.clone(),
+                            );
+                            let img_ui = ui.add(
+                                img.max_height(200.0)
+                                    .sense(egui::Sense::click()),
+                            );
 
-                        if img_ui.clicked() {
-                            self.preview = Some((file.0.clone(), data.clone()));
+                            if img_ui.clicked() {
+                                self.preview = Some(file.clone());
+                            }
+                        }
+                        _ => {
+                            ui.label(file.name.clone());
                         }
                     }
-                    timesman_type::File::Text(_txt) => {}
-                    timesman_type::File::Other(_data) => {}
+                } else {
+                    ui.label(file.name.clone());
                 }
             }
         });
     }
 
     fn post(&mut self, ureqs: &mut Vec<UIRequest>) {
-        if self.post_text.is_empty() {
+        if self.post_text.is_empty() && self.dropped_file.is_none() {
             return;
         }
 
@@ -234,21 +244,22 @@ impl TimesUI {
         let file = if let Some(file) = self.dropped_file.clone() {
             let name = file.file_name().unwrap().to_string_lossy().to_string();
 
-            let ext = file.extension().unwrap().to_string_lossy().to_string();
-
             let mut data = vec![];
-            let mut file = File::open(file).unwrap();
+            let mut file = fs::File::open(file).unwrap();
             file.read_to_end(&mut data).unwrap();
 
-            let f = match &*ext {
-                "png" | "jpg" | "jpeg" => timesman_type::File::Image(data),
-                "txt" => {
-                    timesman_type::File::Text(String::from_utf8(data).unwrap())
+            let infer = infer::Infer::new();
+            let ftype = if let Some(ftype) = infer.get(&data) {
+                match ftype.matcher_type() {
+                    infer::MatcherType::Image => FileType::Image,
+                    infer::MatcherType::Text => FileType::Text,
+                    _ => FileType::Other,
                 }
-                _ => timesman_type::File::Other(data),
+            } else {
+                FileType::Other
             };
 
-            Some((name, f))
+            Some(File { name, data, ftype })
         } else {
             None
         };
@@ -268,7 +279,6 @@ impl TimesUI {
         if ui::consume_key_with_meta(ctx, Modifiers::COMMAND, Key::D) {
             self.file_dialog.save_file();
         }
-
 
         if ui::consume_key_with_meta(ctx, Modifiers::SHIFT, Key::S) {
             ureqs.push(UIRequest::Sort(true));
@@ -296,6 +306,24 @@ impl TimesUI {
         if let Some(dump_file) = self.file_dialog.take_selected() {
             ureqs.push(UIRequest::Dump(dump_file.to_path_buf()));
         }
+    }
+
+    fn show_preview(&self, ctx: &egui::Context) {
+        let Some(file) = &self.preview else {
+            return;
+        };
+
+        let img = egui::Image::from_bytes(
+            format!("bytes://{}", &file.name),
+            file.data.clone(),
+        );
+
+        egui::Window::new(&file.name)
+            .title_bar(false)
+            .collapsible(false)
+            .show(ctx, |ui| {
+                ui.add(img);
+            });
     }
 
     fn handle_ui_resp(&mut self, resps: Vec<UIResponse>) {
