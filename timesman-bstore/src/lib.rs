@@ -94,7 +94,7 @@ pub trait PostStore: Send + Sync + 'static {
     async fn post(
         &mut self,
         post: String,
-        file: Option<(String, File)>,
+        file: Option<File>,
     ) -> Result<Post, String>;
     async fn delete(&mut self, pid: Pid) -> Result<(), String>;
     async fn update(&mut self, post: Post) -> Result<Post, String>;

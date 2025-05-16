@@ -25,7 +25,7 @@ pub struct LocalStore {
 
 impl LocalStore {
     pub async fn new(path: &str) -> Self {
-        let store = UnQLite::create(path);
+        let store = UnQLite::create(&path);
 
         let meta = if !store.kv_contains("meta.data") {
             let meta = RootMeta {
@@ -225,7 +225,6 @@ impl LocalPostStore {
             let store = store.lock().await;
             let meta_path = format!("{}/posts/meta.data", tid);
             if !store.kv_contains(&meta_path) {
-                println!("{meta_path} is not found");
                 let meta = PostMeta {
                     npid: 0,
                     pids: vec![],
@@ -234,12 +233,10 @@ impl LocalPostStore {
                 store.kv_store(&meta_path, data.into_bytes()).unwrap();
                 meta
             } else {
-                println!("{meta_path} is already exists");
                 let data = store.kv_fetch(&meta_path).unwrap();
                 serde_json::from_slice(&data).unwrap()
             }
         };
-        println!("{:?}", pmeta);
 
         Self {
             tid,
@@ -292,12 +289,8 @@ impl PostStore for LocalPostStore {
     async fn post(
         &mut self,
         post: String,
-        file: Option<(String, File)>,
+        file: Option<File>,
     ) -> Result<Post, String> {
-        if let Some(_file) = &file {
-            todo!();
-        }
-
         let pid = self.npid;
 
         let post = Post {

@@ -150,7 +150,7 @@ impl PostStore for RamPostStore {
     async fn post(
         &mut self,
         post: String,
-        file: Option<(String, File)>,
+        file: Option<File>,
     ) -> Result<Post, String> {
         let id = self.npid;
         self.npid += 1;
