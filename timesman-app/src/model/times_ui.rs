@@ -18,6 +18,7 @@ use linkify::LinkFinder;
 pub enum UIRequest {
     Post(String, Option<(String, timesman_type::File)>),
     Dump(PathBuf),
+    Sort(bool),
     Close,
 }
 
@@ -95,10 +96,11 @@ impl TimesUI {
     fn bottom(&mut self, ctx: &egui::Context) {
         TopBottomPanel::bottom("input").show(ctx, |ui| {
             ui.vertical(|ui| {
-                TextEdit::multiline(&mut self.post_text)
-                    .hint_text("write here")
-                    .desired_width(f32::INFINITY)
-                    .show(ui);
+                ui.add(
+                    TextEdit::multiline(&mut self.post_text)
+                        .hint_text("write here")
+                        .desired_width(f32::INFINITY),
+                );
 
                 if let Some(path) = self.dropped_file.clone() {
                     ui.horizontal(|ui| {
@@ -261,6 +263,15 @@ impl TimesUI {
 
         if ui::consume_key_with_meta(ctx, Modifiers::COMMAND, Key::D) {
             self.file_dialog.save_file();
+        }
+
+
+        if ui::consume_key_with_meta(ctx, Modifiers::SHIFT, Key::S) {
+            ureqs.push(UIRequest::Sort(true));
+        }
+
+        if ui::consume_key(ctx, Key::S) {
+            ureqs.push(UIRequest::Sort(false));
         }
 
         if ui::consume_escape(ctx) {

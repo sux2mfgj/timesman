@@ -26,6 +26,7 @@ pub struct TimesModel {
     aerx: Receiver<AsyncEvent>,
     urtx: Sender<UIResponse>,
     urrx: Receiver<UIResponse>,
+    sort_reverse: bool,
 }
 
 async fn load_posts(
@@ -85,6 +86,15 @@ impl TimesModel {
             aerx,
             urtx,
             urrx,
+            sort_reverse: false,
+        }
+    }
+
+    fn sort_post(&mut self) {
+        if self.sort_reverse {
+            self.posts.sort_by(|a, b| a.id.cmp(&b.id).reverse());
+        } else {
+            self.posts.sort_by(|a, b| a.id.cmp(&b.id));
         }
     }
 
@@ -124,6 +134,10 @@ impl TimesModel {
                         serde_json::to_writer(&mut file, &dump).unwrap();
                     });
                 }
+                UIRequest::Sort(reverse) => {
+                    self.sort_reverse = reverse;
+                    self.sort_post();
+                }
                 UIRequest::Close => {
                     areq.push(AppRequest::ChangeState(State::Back));
                 }
@@ -137,7 +151,7 @@ impl TimesModel {
                 Ok(event) => match event {
                     AsyncEvent::AddPost(post) => {
                         self.posts.push(post);
-                        self.posts.sort_by(|a, b| a.id.cmp(&b.id));
+                        self.sort_post();
                     }
                     AsyncEvent::Err(e) => {
                         areq.push(AppRequest::Err(e));
