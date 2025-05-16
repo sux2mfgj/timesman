@@ -25,10 +25,17 @@ impl std::fmt::Display for Times {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum File {
-    Image(Vec<u8>),
-    Text(String),
-    Other(Vec<u8>),
+pub enum FileType {
+    Image,
+    Text,
+    Other,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct File {
+    pub name: String,
+    pub data: Vec<u8>,
+    pub ftype: FileType,
 }
 
 pub type Pid = u64;
@@ -39,7 +46,7 @@ pub struct Post {
     pub post: String,
     pub created_at: chrono::NaiveDateTime,
     pub updated_at: Option<chrono::NaiveDateTime>,
-    pub file: Option<(String, File)>,
+    pub file: Option<File>,
 }
 
 pub type Tdid = u64;
