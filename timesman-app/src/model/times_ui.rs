@@ -123,14 +123,18 @@ impl TimesUI {
         p: &Post,
         body: &mut TableBody,
     ) {
+        let local_created_at: DateTime<Local> =
+            DateTime::from(p.created_at.and_utc());
+
         let posted_at = p.created_at.hour();
+
         if last_posted != &posted_at {
             *last_posted = posted_at;
             body.row(20f32, |mut row| {
                 row.col(|_| {});
                 row.col(|ui| {
                     ui.with_layout(Layout::right_to_left(Align::RIGHT), |ui| {
-                        ui.label(p.created_at.format("%H:00").to_string());
+                        ui.label(local_created_at.format("%H:00").to_string());
                     });
                 });
                 row.col(|_| {});
