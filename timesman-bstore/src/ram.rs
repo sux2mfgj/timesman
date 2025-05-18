@@ -1,4 +1,4 @@
-use chrono::Local;
+use chrono::Utc;
 use std::{collections::HashMap, sync::Arc};
 
 use tokio::sync::Mutex;
@@ -49,7 +49,7 @@ impl Store for RamStore {
         let times = Times {
             id: tid,
             title,
-            created_at: Local::now().naive_local(),
+            created_at: Utc::now().naive_local(),
             updated_at: None,
         };
 
@@ -158,7 +158,7 @@ impl PostStore for RamPostStore {
         let post = Post {
             id,
             post,
-            created_at: Local::now().naive_local(),
+            created_at: Utc::now().naive_local(),
             updated_at: None,
             file,
         };
@@ -219,7 +219,7 @@ impl TodoStore for RamToDoStore {
         let todo = Todo {
             id,
             content,
-            created_at: Local::now().naive_local(),
+            created_at: Utc::now().naive_local(),
             done_at: None,
         };
 
