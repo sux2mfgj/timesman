@@ -3,7 +3,6 @@ mod app;
 mod config;
 mod fonts;
 mod log;
-// mod pane;
 mod model;
 
 use app::App;
