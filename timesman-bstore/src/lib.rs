@@ -30,6 +30,11 @@ use async_trait::async_trait;
 
 use timesman_type::{File, Pid, Post, Tdid, Tid, Times, Todo};
 
+#[derive(Debug)]
+pub enum StoreErrorr {
+    NotSupported,
+}
+
 #[derive(PartialEq, Default, Debug, Clone)]
 pub enum StoreType {
     #[default]
@@ -104,6 +109,7 @@ pub trait PostStore: Send + Sync + 'static {
 pub trait TodoStore: Send + Sync + 'static {
     async fn get(&mut self) -> Result<Vec<Todo>, String>;
     async fn new(&mut self, content: String) -> Result<Todo, String>;
+    async fn done(&mut self, tdid: Tdid, done: bool) -> Result<Todo, String>;
     async fn update(&mut self, todo: Todo) -> Result<Todo, String>;
     async fn delete(&mut self, tdid: Tdid) -> Result<(), String>;
 }

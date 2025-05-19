@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use super::ui;
 use infer::Infer;
-use timesman_type::{File, FileType, Post};
+use timesman_type::{File, FileType, Post, Tdid, Todo};
 
 use chrono::{DateTime, Local, Timelike};
 use dirs;
@@ -15,17 +15,23 @@ use egui_extras::{Column, TableBody, TableBuilder, TableRow};
 use egui_file_dialog::FileDialog;
 use linkify::LinkFinder;
 
+mod side_panel;
+use side_panel::SidePanel;
+
 #[derive(Debug)]
 pub enum UIRequest {
     Post(String, Option<File>),
     Dump(PathBuf),
     Sort(bool),
+    Todo(String),
+    TodoDone(Tdid, bool),
     Close,
 }
 
 #[derive(Debug)]
 pub enum UIResponse {
     ClearText,
+    ClearTodoText,
     FileDropped(PathBuf),
 }
 
@@ -35,6 +41,7 @@ pub struct TimesUI {
     dropped_file: Option<PathBuf>,
     preview: Option<File>,
     file_dialog: FileDialog,
+    side_panel: SidePanel,
 }
 
 fn show_text(text: &str, ui: &mut egui::Ui) {
@@ -64,6 +71,7 @@ impl TimesUI {
                     .to_str()
                     .unwrap(),
             ),
+            side_panel: SidePanel::new(),
         }
     }
 
@@ -71,6 +79,7 @@ impl TimesUI {
         &mut self,
         ctx: &egui::Context,
         posts: &Vec<Post>,
+        todos: &Vec<Todo>,
         ures: Vec<UIResponse>,
     ) -> Vec<UIRequest> {
         let mut ureq = vec![];
@@ -80,6 +89,7 @@ impl TimesUI {
         self.top_bar(ctx);
         self.bottom(ctx);
         self.main_panel_table(ctx, posts);
+        self.right_side_panel(ctx, todos, &mut ureq);
 
         self.consume_keys(ctx, &mut ureq);
 
@@ -189,6 +199,15 @@ impl TimesUI {
         });
     }
 
+    fn right_side_panel(
+        &mut self,
+        ctx: &egui::Context,
+        todo: &Vec<Todo>,
+        ureq: &mut Vec<UIRequest>,
+    ) {
+        self.side_panel.update(ctx, todo, ureq);
+    }
+
     fn post_row(&mut self, row: &mut TableRow, post: &Post) {
         row.col(|ui| {
             ui.label(format!("{}", post.id));
@@ -288,6 +307,11 @@ impl TimesUI {
             ureqs.push(UIRequest::Sort(false));
         }
 
+        if ui::consume_key(ctx, Key::O) {
+            self.side_panel
+                .select_side_panel(Some(side_panel::SidePanelType::Todo));
+        }
+
         if ui::consume_escape(ctx) {
             if self.preview.is_some() {
                 self.preview = None;
@@ -332,6 +356,9 @@ impl TimesUI {
                 UIResponse::ClearText => {
                     self.post_text.clear();
                     self.dropped_file = None;
+                }
+                UIResponse::ClearTodoText => {
+                    self.side_panel.clear_todo_text();
                 }
                 UIResponse::FileDropped(path) => {
                     self.dropped_file = Some(path.clone());

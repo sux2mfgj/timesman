@@ -7,13 +7,15 @@ use super::times_ui::{TimesUI, UIRequest, UIResponse};
 use super::{AppRequest, AppResponse, Model, State};
 use serde::Serialize;
 
-use timesman_bstore::{PostStore, TimesStore};
-use timesman_type::{Post, Times};
+use timesman_bstore::{PostStore, TimesStore, TodoStore};
+use timesman_type::{Post, Times, Todo};
 use tokio::runtime::Runtime;
 
 #[derive(Debug)]
 enum AsyncEvent {
     AddPost(Post),
+    AddTodo(Todo),
+    UpdateTodo(Todo),
     Err(String),
 }
 
@@ -22,6 +24,8 @@ pub struct TimesModel {
     tstore: Arc<Mutex<dyn TimesStore>>,
     pstore: Arc<Mutex<dyn PostStore>>,
     posts: Vec<Post>,
+    tdstore: Arc<Mutex<dyn TodoStore>>,
+    todos: Vec<Todo>,
     aetx: Sender<AsyncEvent>,
     aerx: Receiver<AsyncEvent>,
     urtx: Sender<UIResponse>,
@@ -42,10 +46,38 @@ async fn load_posts(
     }
 }
 
+fn todo_setup(
+    tstore: Arc<Mutex<dyn TimesStore>>,
+    tx: Sender<AsyncEvent>,
+    rt: &Runtime,
+) -> Arc<Mutex<dyn TodoStore>> {
+    let tdstore = {
+        rt.block_on(async move {
+            let mut tstore = tstore.lock().await;
+            let tdstore = tstore.tdstore().await.unwrap();
+            tdstore
+        })
+    };
+
+    {
+        let tdstore = tdstore.clone();
+
+        rt.spawn(async move {
+            let mut tdstore = tdstore.lock().await;
+
+            let todos = tdstore.get().await.unwrap();
+
+            for todo in todos {
+                tx.send(AsyncEvent::AddTodo(todo.clone())).unwrap();
+            }
+        });
+    }
+
+    tdstore
+}
+
 impl TimesModel {
     pub fn new(tstore: Arc<Mutex<dyn TimesStore>>, rt: &Runtime) -> Self {
-        let posts = vec![];
-
         let (aetx, aerx) = channel();
 
         let pstore = {
@@ -65,6 +97,8 @@ impl TimesModel {
             rt.spawn(async move { load_posts(pstore, &tx).await });
         }
 
+        let tdstore = todo_setup(tstore.clone(), aetx.clone(), rt);
+
         let (urtx, urrx) = channel();
 
         let times = {
@@ -81,7 +115,9 @@ impl TimesModel {
             ui,
             tstore,
             pstore,
-            posts,
+            posts: vec![],
+            tdstore,
+            todos: vec![],
             aetx,
             aerx,
             urtx,
@@ -122,6 +158,51 @@ impl TimesModel {
                         urtx.send(UIResponse::ClearText).unwrap();
                     });
                 }
+                UIRequest::Todo(todo) => {
+                    let tdstore = self.tdstore.clone();
+                    let pstore = self.pstore.clone();
+                    let aetx = self.aetx.clone();
+                    let urtx = self.urtx.clone();
+                    rt.spawn(async move {
+                        let mut tdstore = tdstore.lock().await;
+                        let todo = tdstore.new(todo).await.unwrap();
+
+                        let mut pstore = pstore.lock().await;
+                        let post = pstore
+                            .post(
+                                format!("todo ({}) is created", todo.content),
+                                None,
+                            )
+                            .await
+                            .unwrap();
+
+                        aetx.send(AsyncEvent::AddTodo(todo)).unwrap();
+                        aetx.send(AsyncEvent::AddPost(post)).unwrap();
+                        urtx.send(UIResponse::ClearTodoText).unwrap();
+                    });
+                }
+                UIRequest::TodoDone(tdid, done) => {
+                    let tdstore = self.tdstore.clone();
+                    let pstore = self.pstore.clone();
+                    let aetx = self.aetx.clone();
+
+                    rt.spawn(async move {
+                        let mut tdstore = tdstore.lock().await;
+                        let todo = tdstore.done(tdid, done).await.unwrap();
+
+                        let mut pstore = pstore.lock().await;
+                        let post = pstore
+                            .post(
+                                format!("todo ({}) is done", &todo.content),
+                                None,
+                            )
+                            .await
+                            .unwrap();
+
+                        aetx.send(AsyncEvent::UpdateTodo(todo)).unwrap();
+                        aetx.send(AsyncEvent::AddPost(post)).unwrap();
+                    });
+                }
                 UIRequest::Dump(path) => {
                     let tstore = self.tstore.clone();
                     let posts = self.posts.clone();
@@ -153,8 +234,17 @@ impl TimesModel {
                         self.posts.push(post);
                         self.sort_post();
                     }
+                    AsyncEvent::AddTodo(todo) => {
+                        self.todos.push(todo);
+                    }
                     AsyncEvent::Err(e) => {
                         areq.push(AppRequest::Err(e));
+                    }
+                    AsyncEvent::UpdateTodo(todo) => {
+                        self.todos
+                            .iter_mut()
+                            .filter(|t| t.id == todo.id)
+                            .for_each(|t| *t = todo.clone());
                     }
                 },
                 Err(TryRecvError::Empty) => {
@@ -213,7 +303,7 @@ impl Model for TimesModel {
         let mut ures = self.gen_ures_vec();
         self.handle_app_resp(&resp, &mut ures);
 
-        let ureqs = self.ui.update(ctx, &self.posts, ures);
+        let ureqs = self.ui.update(ctx, &self.posts, &self.todos, ures);
 
         self.handle_ureqs(ureqs, &mut areqs, rt);
         self.handle_async_event(&mut areqs);

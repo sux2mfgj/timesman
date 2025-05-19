@@ -238,6 +238,26 @@ impl TodoStore for RamToDoStore {
         }
     }
 
+    async fn done(&mut self, tdid: Tdid, done: bool) -> Result<Todo, String> {
+        let Some(todo) = self.todos.get_mut(&tdid) else {
+            return Err("invalid tdid".to_string());
+        };
+
+        if todo.done_at.is_some() == done {
+            return Err("invalid state".to_string());
+        }
+
+        todo.done_at = if done {
+            Some(chrono::Utc::now().naive_local())
+        } else {
+            None
+        };
+
+        let new = todo.clone();
+
+        Ok(new)
+    }
+
     async fn delete(&mut self, tdid: Tdid) -> Result<(), String> {
         if let Some(_) = self.todos.remove(&tdid) {
             Ok(())
