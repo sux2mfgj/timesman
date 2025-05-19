@@ -6,9 +6,18 @@ use tokio::sync::Mutex;
 use async_trait::async_trait;
 use unqlite::{UnQLite, KV};
 
-use timesman_type::{File, Pid, Post, Tid, Times};
+use timesman_type::{File, Pid, Post, Tdid, Tid, Times, Todo};
 
 use super::{PostStore, Store, TimesStore, TodoStore};
+
+mod times;
+use times::LocalTimesStore;
+
+mod post;
+use post::LocalPostStore;
+
+mod todo;
+use todo::LocalTodoStore;
 
 #[derive(Serialize, Deserialize)]
 struct RootMeta {
@@ -76,11 +85,7 @@ impl LocalStore {
 
 #[derive(Serialize, Deserialize)]
 struct TimesMeta {
-    // pids: Vec<Pid>,
-    // tdids: Vec<Tdid>,
     title: String,
-    // npid: u64,
-    // ntdid: u64,
     created_at: chrono::NaiveDateTime,
     updated_at: Option<chrono::NaiveDateTime>,
 }
@@ -88,11 +93,7 @@ struct TimesMeta {
 impl TimesMeta {
     pub fn new(title: String) -> Self {
         Self {
-            // pids: vec![],
-            // tdids: vec![],
             title,
-            // npid: 0,
-            // ntdid: 0,
             created_at: chrono::Utc::now().naive_local(),
             updated_at: None,
         }
@@ -163,168 +164,6 @@ impl Store for LocalStore {
     }
 
     async fn delete(&mut self, _tid: Tid) -> Result<(), String> {
-        todo!();
-    }
-}
-
-struct LocalTimesStore {
-    times: Times,
-    store: Arc<Mutex<UnQLite>>,
-}
-
-impl LocalTimesStore {
-    pub fn new(times: Times, store: Arc<Mutex<UnQLite>>) -> Self {
-        Self { times, store }
-    }
-}
-
-// /{tid}/mata.data
-#[async_trait]
-impl TimesStore for LocalTimesStore {
-    async fn get(&mut self) -> Result<Times, String> {
-        Ok(self.times.clone())
-    }
-
-    async fn update(&mut self, times: Times) -> Result<Times, String> {
-        self.times = times.clone();
-        todo!("update /times/{}/meta.data", times.id);
-    }
-
-    async fn pstore(
-        &mut self,
-    ) -> Result<Arc<Mutex<dyn PostStore + Send + Sync>>, String> {
-        let pstore: Arc<Mutex<dyn PostStore + Send + Sync>> =
-            Arc::new(Mutex::new(
-                LocalPostStore::new(self.times.id, self.store.clone()).await,
-            ));
-
-        Ok(pstore)
-    }
-
-    async fn tdstore(
-        &mut self,
-    ) -> Result<Arc<Mutex<dyn TodoStore + Send + Sync>>, String> {
-        todo!();
-    }
-}
-
-struct LocalPostStore {
-    tid: Tid,
-    npid: Pid,
-    pids: Vec<Pid>,
-    store: Arc<Mutex<UnQLite>>,
-}
-
-fn get_pmeta_path(tid: Tid) -> String {
-    format!("{}/posts/meta.data", tid)
-}
-
-impl LocalPostStore {
-    pub async fn new(tid: Tid, store: Arc<Mutex<UnQLite>>) -> Self {
-        let pmeta = {
-            let store = store.lock().await;
-            let meta_path = format!("{}/posts/meta.data", tid);
-            if !store.kv_contains(&meta_path) {
-                let meta = PostMeta {
-                    npid: 0,
-                    pids: vec![],
-                };
-                let data = serde_json::to_string(&meta).unwrap();
-                store.kv_store(&meta_path, data.into_bytes()).unwrap();
-                meta
-            } else {
-                let data = store.kv_fetch(&meta_path).unwrap();
-                serde_json::from_slice(&data).unwrap()
-            }
-        };
-
-        Self {
-            tid,
-            npid: pmeta.npid,
-            pids: pmeta.pids,
-            store,
-        }
-    }
-
-    async fn sync_meta(&self) {
-        let pmeta = PostMeta {
-            npid: self.npid,
-            pids: self.pids.clone(),
-        };
-        let data = serde_json::to_string(&pmeta).unwrap();
-
-        let store = self.store.lock().await;
-        store
-            .kv_store(get_pmeta_path(self.tid), data.into_bytes())
-            .unwrap();
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct PostMeta {
-    npid: Pid,
-    pids: Vec<Pid>,
-}
-
-#[async_trait]
-impl PostStore for LocalPostStore {
-    async fn get(&mut self, _pid: Pid) -> Result<Post, String> {
-        todo!();
-    }
-
-    async fn get_all(&mut self) -> Result<Vec<Post>, String> {
-        let store = self.store.lock().await;
-        let mut posts = vec![];
-        for pid in &self.pids {
-            let data = store
-                .kv_fetch(format!("{}/posts/{}", self.tid, pid))
-                .unwrap();
-            let post: Post = serde_json::from_slice(&data).unwrap();
-            posts.push(post);
-        }
-
-        Ok(posts)
-    }
-
-    async fn post(
-        &mut self,
-        post: String,
-        file: Option<File>,
-    ) -> Result<Post, String> {
-        let pid = self.npid;
-
-        let post = Post {
-            id: pid,
-            post,
-            created_at: chrono::Utc::now().naive_local(),
-            updated_at: None,
-            file,
-        };
-
-        let text = serde_json::to_string(&post).unwrap();
-        {
-            let store = self.store.lock().await;
-            store
-                .kv_store(
-                    format!("{}/posts/{}", self.tid, pid),
-                    text.into_bytes(),
-                )
-                .unwrap();
-        }
-
-        self.pids.push(pid);
-        self.npid += 1;
-
-        self.sync_meta().await;
-
-        Ok(post)
-    }
-
-    async fn delete(&mut self, _pid: Pid) -> Result<(), String> {
-        todo!();
-    }
-
-    async fn update(&mut self, _post: Post) -> Result<Post, String> {
         todo!();
     }
 }
