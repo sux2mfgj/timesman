@@ -80,7 +80,6 @@ impl TodoStore for LocalTodoStore {
             let data = store.kv_fetch(get_todo_path(self.tid, *id)).unwrap();
             let todo = serde_json::from_slice(&data).unwrap();
             resp.push(todo);
-            println!("{} {}", line!(), id);
         }
 
         Ok(resp)
@@ -89,7 +88,6 @@ impl TodoStore for LocalTodoStore {
     async fn new(&mut self, content: String) -> Result<Todo, String> {
         let id = self.meta.ntdid;
 
-        println!("{}", line!());
         let todo = Todo {
             id,
             content,
@@ -105,12 +103,10 @@ impl TodoStore for LocalTodoStore {
                 .unwrap();
         }
 
-        println!("{}", line!());
         self.meta.ntdid += 1;
         self.meta.tdids.push(id);
 
         self.sync_meta().await;
-        println!("{}", line!());
 
         Ok(todo)
     }
