@@ -133,11 +133,11 @@ impl Store for LocalStore {
 
         let tid = self.ntid;
         let tmeta = TimesMeta::new(title);
-        let data = serde_json::to_string(&tmeta).unwrap();
+        let data = serde_json::to_string(&tmeta).map_err(|e| format!("{e}"))?;
 
         store
             .kv_store(format!("{}", tid), data.into_bytes())
-            .unwrap();
+            .map_err(|e| format!("{e}"))?;
 
         let tstore = Arc::new(Mutex::new(LocalTimesStore::new(
             tmeta.to_times(tid),
@@ -152,8 +152,10 @@ impl Store for LocalStore {
             ntid: self.ntid,
             tids: self.tids.clone(),
         };
-        let data = serde_json::to_string(&rmeta).unwrap();
-        store.kv_store("meta.data", data.into_bytes()).unwrap();
+        let data = serde_json::to_string(&rmeta).map_err(|e| format!("{e}"))?;
+        store
+            .kv_store("meta.data", data.into_bytes())
+            .map_err(|e| format!("{e}"))?;
 
         let data = serde_json::to_string(&tmeta).unwrap();
         store
