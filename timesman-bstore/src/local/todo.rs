@@ -112,7 +112,30 @@ impl TodoStore for LocalTodoStore {
     }
 
     async fn done(&mut self, tdid: Tdid, done: bool) -> Result<Todo, String> {
-        todo!()
+        let store = self.store.lock().await;
+
+        let Ok(data) = store.kv_fetch(get_todo_path(self.tid, tdid)) else {
+            return Err("invalid tid".to_string());
+        };
+        let mut todo: Todo =
+            serde_json::from_slice(&data).map_err(|e| format!("{e}"))?;
+
+        if todo.done_at.is_some() == done {
+            return Err("invalid state".to_string());
+        }
+
+        todo.done_at = if done {
+            Some(chrono::Utc::now().naive_local())
+        } else {
+            None
+        };
+
+        let text = serde_json::to_string(&todo).unwrap();
+        store
+            .kv_store(get_todo_path(self.tid, tdid), text.into_bytes())
+            .map_err(|e| format!("{e}"))?;
+
+        Ok(todo)
     }
 
     async fn update(&mut self, todo: Todo) -> Result<Todo, String> {
