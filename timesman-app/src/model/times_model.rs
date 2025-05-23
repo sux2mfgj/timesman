@@ -251,7 +251,7 @@ impl TimesModel {
                         let mut tstore = tstore.lock().await;
                         let times = tstore.get().await.unwrap();
 
-                        let dump = DumpData { times, posts };
+                        let dump = DumpData::build(times, posts);
                         serde_json::to_writer(&mut file, &dump).unwrap();
                     });
                 }
@@ -368,4 +368,16 @@ impl Model for TimesModel {
 struct DumpData {
     times: Times,
     posts: Vec<Post>,
+}
+
+impl DumpData {
+    pub fn build(times: Times, posts: Vec<Post>) -> Self {
+        let mut modified_post = posts.clone();
+        modified_post.iter_mut().for_each(|p| p.file = None);
+
+        Self {
+            times,
+            posts: modified_post,
+        }
+    }
 }
