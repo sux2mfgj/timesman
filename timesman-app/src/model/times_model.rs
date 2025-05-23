@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs;
 use std::sync::mpsc::{channel, Receiver, Sender, TryRecvError};
 use std::sync::Arc;
@@ -8,13 +9,15 @@ use super::{AppRequest, AppResponse, Model, State};
 use serde::Serialize;
 
 use timesman_bstore::{PostStore, TimesStore, TodoStore};
-use timesman_type::{Post, Times, Todo};
+use timesman_type::{Post, Tag, TagId, Times, Todo};
 use tokio::runtime::Runtime;
 
 #[derive(Debug)]
 enum AsyncEvent {
     AddPost(Post),
+    UpdatePost(Post),
     AddTodo(Todo),
+    AddTag(Tag),
     UpdateTodo(Todo),
     Err(String),
 }
@@ -26,6 +29,7 @@ pub struct TimesModel {
     posts: Vec<Post>,
     tdstore: Arc<Mutex<dyn TodoStore>>,
     todos: Vec<Todo>,
+    tags: HashMap<TagId, Tag>,
     aetx: Sender<AsyncEvent>,
     aerx: Receiver<AsyncEvent>,
     urtx: Sender<UIResponse>,
@@ -43,6 +47,15 @@ async fn load_posts(
 
     for post in posts {
         tx.send(AsyncEvent::AddPost(post.clone())).unwrap();
+    }
+}
+
+async fn load_tags(pstore: Arc<Mutex<dyn PostStore>>, tx: &Sender<AsyncEvent>) {
+    let mut pstore = pstore.lock().await;
+    let tags = pstore.get_tags().await.unwrap();
+
+    for tag in tags {
+        tx.send(AsyncEvent::AddTag(tag.clone())).unwrap();
     }
 }
 
@@ -96,6 +109,11 @@ impl TimesModel {
 
             rt.spawn(async move { load_posts(pstore, &tx).await });
         }
+        {
+            let pstore = pstore.clone();
+            let tx = aetx.clone();
+            rt.spawn(async move { load_tags(pstore, &tx).await });
+        }
 
         let tdstore = todo_setup(tstore.clone(), aetx.clone(), rt);
 
@@ -118,6 +136,7 @@ impl TimesModel {
             posts: vec![],
             tdstore,
             todos: vec![],
+            tags: HashMap::new(),
             aetx,
             aerx,
             urtx,
@@ -145,7 +164,6 @@ impl TimesModel {
             match req {
                 UIRequest::Post(content, file) => {
                     let pstore = self.pstore.clone();
-
                     let aetx = self.aetx.clone();
                     let urtx = self.urtx.clone();
                     rt.spawn(async move {
@@ -156,6 +174,28 @@ impl TimesModel {
                             .unwrap();
                         aetx.send(AsyncEvent::AddPost(post)).unwrap();
                         urtx.send(UIResponse::ClearText).unwrap();
+                    });
+                }
+                UIRequest::UpdatePost(post) => {
+                    let pstore = self.pstore.clone();
+                    let aetx = self.aetx.clone();
+                    let urtx = self.urtx.clone();
+                    rt.spawn(async move {
+                        let mut pstore = pstore.lock().await;
+                        let post = pstore.update(post).await.unwrap();
+                        aetx.send(AsyncEvent::UpdatePost(post)).unwrap();
+                    });
+                }
+                UIRequest::Tag(name) => {
+                    let pstore = self.pstore.clone();
+                    let aetx = self.aetx.clone();
+                    let urtx = self.urtx.clone();
+
+                    rt.spawn(async move {
+                        let mut pstore = pstore.lock().await;
+                        let tag = pstore.create_tag(name).await.unwrap();
+                        aetx.send(AsyncEvent::AddTag(tag)).unwrap();
+                        urtx.send(UIResponse::ClearTextSidePane).unwrap();
                     });
                 }
                 UIRequest::Todo(todo) => {
@@ -178,7 +218,7 @@ impl TimesModel {
 
                         aetx.send(AsyncEvent::AddTodo(todo)).unwrap();
                         aetx.send(AsyncEvent::AddPost(post)).unwrap();
-                        urtx.send(UIResponse::ClearTodoText).unwrap();
+                        urtx.send(UIResponse::ClearTextSidePane).unwrap();
                     });
                 }
                 UIRequest::TodoDone(tdid, done) => {
@@ -234,8 +274,18 @@ impl TimesModel {
                         self.posts.push(post);
                         self.sort_post();
                     }
+                    AsyncEvent::UpdatePost(post) => {
+                        self.posts.iter_mut().for_each(|p| {
+                            if p.id == post.id {
+                                *p = post.clone();
+                            }
+                        });
+                    }
                     AsyncEvent::AddTodo(todo) => {
                         self.todos.push(todo);
+                    }
+                    AsyncEvent::AddTag(tag) => {
+                        self.tags.insert(tag.id, tag);
                     }
                     AsyncEvent::Err(e) => {
                         areq.push(AppRequest::Err(e));
@@ -303,7 +353,9 @@ impl Model for TimesModel {
         let mut ures = self.gen_ures_vec();
         self.handle_app_resp(&resp, &mut ures);
 
-        let ureqs = self.ui.update(ctx, &self.posts, &self.todos, ures);
+        let ureqs =
+            self.ui
+                .update(ctx, &self.posts, &self.todos, &self.tags, ures);
 
         self.handle_ureqs(ureqs, &mut areqs, rt);
         self.handle_async_event(&mut areqs);

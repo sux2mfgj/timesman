@@ -1,10 +1,10 @@
-use std::fs;
 use std::io::Read;
 use std::path::PathBuf;
+use std::{collections::HashMap, fs};
 
 use super::ui;
 use infer::Infer;
-use timesman_type::{File, FileType, Post, Tdid, Todo};
+use timesman_type::{File, FileType, Post, Tag, TagId, Tdid, Todo};
 
 use chrono::{DateTime, Local, Timelike};
 use dirs;
@@ -21,9 +21,11 @@ use side_panel::SidePanel;
 #[derive(Debug)]
 pub enum UIRequest {
     Post(String, Option<File>),
+    UpdatePost(Post),
     Dump(PathBuf),
     Sort(bool),
     Todo(String),
+    Tag(String),
     TodoDone(Tdid, bool),
     Close,
 }
@@ -31,8 +33,14 @@ pub enum UIRequest {
 #[derive(Debug)]
 pub enum UIResponse {
     ClearText,
-    ClearTodoText,
+    ClearTextSidePane,
     FileDropped(PathBuf),
+}
+
+#[derive(PartialEq)]
+enum UIState {
+    Normal,
+    TagAssign,
 }
 
 pub struct TimesUI {
@@ -42,6 +50,7 @@ pub struct TimesUI {
     preview: Option<File>,
     file_dialog: FileDialog,
     side_panel: SidePanel,
+    state: UIState,
 }
 
 fn show_text(text: &str, ui: &mut egui::Ui) {
@@ -72,6 +81,7 @@ impl TimesUI {
                     .unwrap(),
             ),
             side_panel: SidePanel::new(),
+            state: UIState::Normal,
         }
     }
 
@@ -80,6 +90,7 @@ impl TimesUI {
         ctx: &egui::Context,
         posts: &Vec<Post>,
         todos: &Vec<Todo>,
+        tags: &HashMap<TagId, Tag>,
         ures: Vec<UIResponse>,
     ) -> Vec<UIRequest> {
         let mut ureq = vec![];
@@ -88,8 +99,8 @@ impl TimesUI {
 
         self.top_bar(ctx);
         self.bottom(ctx);
-        self.main_panel_table(ctx, posts);
-        self.right_side_panel(ctx, todos, &mut ureq);
+        self.main_panel_table(ctx, posts, tags, &mut ureq);
+        self.right_side_panel(ctx, todos, tags, &mut ureq);
 
         self.consume_keys(ctx, &mut ureq);
 
@@ -155,7 +166,13 @@ impl TimesUI {
         }
     }
 
-    fn insert_post_row(&mut self, p: &Post, body: &mut TableBody) {
+    fn insert_post_row(
+        &mut self,
+        p: &Post,
+        tags: &HashMap<TagId, Tag>,
+        ureq: &mut Vec<UIRequest>,
+        body: &mut TableBody,
+    ) {
         let hight = if let Some(file) = &p.file {
             match file.ftype {
                 FileType::Image => 100f32,
@@ -166,11 +183,17 @@ impl TimesUI {
         };
 
         body.row(hight, |mut row| {
-            self.post_row(&mut row, &p);
+            self.post_row(&mut row, &p, tags, ureq);
         })
     }
 
-    fn main_panel_table(&mut self, ctx: &egui::Context, posts: &Vec<Post>) {
+    fn main_panel_table(
+        &mut self,
+        ctx: &egui::Context,
+        posts: &Vec<Post>,
+        tags: &HashMap<TagId, Tag>,
+        ureq: &mut Vec<UIRequest>,
+    ) {
         CentralPanel::default().show(ctx, |ui| {
             let height_available = ui.available_height();
             let builder = TableBuilder::new(ui)
@@ -182,6 +205,7 @@ impl TimesUI {
                 .resizable(true)
                 .column(Column::auto()) // for #
                 .column(Column::auto().at_least(100f32)) // for created_at
+                .column(Column::auto()) // tag
                 .column(Column::remainder()); // for post
 
             let mut last_posted = if posts.is_empty() {
@@ -193,7 +217,7 @@ impl TimesUI {
             builder.body(|mut body| {
                 for p in posts {
                     self.insert_separater_row(&mut last_posted, p, &mut body);
-                    self.insert_post_row(p, &mut body);
+                    self.insert_post_row(p, tags, ureq, &mut body);
                 }
             });
         });
@@ -203,12 +227,19 @@ impl TimesUI {
         &mut self,
         ctx: &egui::Context,
         todo: &Vec<Todo>,
+        tag: &HashMap<TagId, Tag>,
         ureq: &mut Vec<UIRequest>,
     ) {
-        self.side_panel.update(ctx, todo, ureq);
+        self.side_panel.update(ctx, todo, tag, ureq);
     }
 
-    fn post_row(&mut self, row: &mut TableRow, post: &Post) {
+    fn post_row(
+        &mut self,
+        row: &mut TableRow,
+        post: &Post,
+        tags: &HashMap<TagId, Tag>,
+        ureq: &mut Vec<UIRequest>,
+    ) {
         row.col(|ui| {
             ui.label(format!("{}", post.id));
         });
@@ -220,6 +251,31 @@ impl TimesUI {
                 ui.label(localtime.format("%Y-%m-%d %H:%M").to_string());
             });
         });
+
+        // tag
+        row.col(|ui| {
+            ui.horizontal(|ui| {
+                if self.state == UIState::TagAssign {
+                    if ui.button("x").clicked() {
+                        if let Some(tag) = &self.side_panel.selected_tag {
+                            let mut npost = post.clone();
+                            npost.tag = Some(tag.id);
+
+                            ureq.push(UIRequest::UpdatePost(npost));
+                        }
+                    };
+                }
+
+                if let Some(tagid) = post.tag {
+                    if let Some(tag) = tags.get(&tagid) {
+                        ui.label(&tag.name);
+                    } else {
+                        ui.label(format!("Error"));
+                    }
+                }
+            });
+        });
+
         row.col(|ui| {
             if !post.post.is_empty() {
                 show_text(&post.post, ui);
@@ -248,7 +304,7 @@ impl TimesUI {
                         }
                     }
                 } else {
-                    ui.label(file.name.clone());
+                    ui.label(format!("File: {}", file.name.clone()));
                 }
             }
         });
@@ -299,22 +355,28 @@ impl TimesUI {
             self.file_dialog.save_file();
         }
 
-        if ui::consume_key_with_meta(ctx, Modifiers::SHIFT, Key::S) {
-            ureqs.push(UIRequest::Sort(true));
-        }
-
-        if ui::consume_key(ctx, Key::S) {
-            ureqs.push(UIRequest::Sort(false));
-        }
-
-        if ui::consume_key(ctx, Key::O) {
+        if ui::consume_key_with_meta(ctx, Modifiers::COMMAND, Key::O) {
             self.side_panel
                 .select_side_panel(Some(side_panel::SidePanelType::Todo));
+        }
+
+        if ui::consume_key_with_meta(ctx, Modifiers::COMMAND, Key::A) {
+            self.side_panel
+                .select_side_panel(Some(side_panel::SidePanelType::Tag));
+        }
+
+        if ui::consume_key_with_meta(ctx, Modifiers::COMMAND, Key::S) {
+            self.side_panel
+                .select_side_panel(Some(side_panel::SidePanelType::TagAssigne));
+            self.state = UIState::TagAssign;
         }
 
         if ui::consume_escape(ctx) {
             if self.preview.is_some() {
                 self.preview = None;
+            }
+            if self.state == UIState::TagAssign {
+                self.state = UIState::Normal;
             } else {
                 ureqs.push(UIRequest::Close);
             }
@@ -357,8 +419,8 @@ impl TimesUI {
                     self.post_text.clear();
                     self.dropped_file = None;
                 }
-                UIResponse::ClearTodoText => {
-                    self.side_panel.clear_todo_text();
+                UIResponse::ClearTextSidePane => {
+                    self.side_panel.clear_text();
                 }
                 UIResponse::FileDropped(path) => {
                     self.dropped_file = Some(path.clone());

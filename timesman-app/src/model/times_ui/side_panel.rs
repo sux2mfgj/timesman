@@ -1,23 +1,31 @@
-use timesman_type::Todo;
+use std::collections::HashMap;
+
+use egui::ComboBox;
+use timesman_type::{Tag, TagId, Todo};
 
 use super::UIRequest;
 
 #[derive(Copy, Clone)]
 pub enum SidePanelType {
     Todo,
-    // Tag,
+    Tag,
+    TagAssigne,
 }
 
 pub struct SidePanel {
     ptype: Option<SidePanelType>,
-    new_todo: String,
+    new: String,
+    selected_tagid: u64,
+    pub selected_tag: Option<Tag>,
 }
 
 impl SidePanel {
     pub fn new() -> Self {
         Self {
             ptype: None,
-            new_todo: "".to_string(),
+            new: "".to_string(),
+            selected_tagid: 0,
+            selected_tag: None,
         }
     }
 
@@ -25,6 +33,7 @@ impl SidePanel {
         &mut self,
         ctx: &egui::Context,
         todo: &Vec<Todo>,
+        tags: &HashMap<TagId, Tag>,
         ureq: &mut Vec<UIRequest>,
     ) {
         let Some(ptype) = self.ptype else {
@@ -34,6 +43,12 @@ impl SidePanel {
         match ptype {
             SidePanelType::Todo => {
                 self.update_todo(ctx, todo, ureq);
+            }
+            SidePanelType::Tag => {
+                self.update_tag(ctx, tags, ureq);
+            }
+            SidePanelType::TagAssigne => {
+                self.update_assign_tag(ctx, tags, ureq);
             }
         }
     }
@@ -57,17 +72,73 @@ impl SidePanel {
                 }
             }
 
-            ui.text_edit_singleline(&mut self.new_todo);
-            if !self.new_todo.is_empty()
+            ui.text_edit_singleline(&mut self.new);
+            if !self.new.is_empty()
                 && ui.input(|i| i.key_pressed(egui::Key::Enter))
             {
-                ureq.push(UIRequest::Todo(self.new_todo.clone()))
+                ureq.push(UIRequest::Todo(self.new.clone()))
             }
         });
     }
 
-    pub fn clear_todo_text(&mut self) {
-        self.new_todo.clear();
+    fn update_tag(
+        &mut self,
+        ctx: &egui::Context,
+        tags: &HashMap<TagId, Tag>,
+        ureq: &mut Vec<UIRequest>,
+    ) {
+        egui::SidePanel::right("tag").show(ctx, |ui| {
+            ui.label("Tag List");
+
+            for (_, tag) in tags {
+                ui.label(&tag.name);
+            }
+
+            ui.text_edit_singleline(&mut self.new);
+            if !self.new.is_empty()
+                && ui.input(|i| i.key_pressed(egui::Key::Enter))
+            {
+                ureq.push(UIRequest::Tag(self.new.clone()));
+            }
+        });
+    }
+
+    fn update_assign_tag(
+        &mut self,
+        ctx: &egui::Context,
+        tags: &HashMap<TagId, Tag>,
+        ureq: &mut Vec<UIRequest>,
+    ) {
+        if tags.is_empty() {
+            return;
+        }
+
+        egui::SidePanel::right("assign_tag").show(ctx, |ui| {
+            ui.label("Assigne Tag");
+
+            let selected_text =
+                if let Some(selected_tag) = tags.get(&self.selected_tagid) {
+                    self.selected_tag = Some(selected_tag.clone());
+                    selected_tag.name.clone()
+                } else {
+                    "Select a tag".to_string()
+                };
+            ComboBox::from_label("Assign Tag")
+                .selected_text(selected_text)
+                .show_ui(ui, |ui| {
+                    for (id, tag) in tags {
+                        ui.selectable_value(
+                            &mut self.selected_tagid,
+                            *id,
+                            tag.name.clone(),
+                        );
+                    }
+                });
+        });
+    }
+
+    pub fn clear_text(&mut self) {
+        self.new.clear();
     }
 
     pub fn select_side_panel(&mut self, ptype: Option<SidePanelType>) {
