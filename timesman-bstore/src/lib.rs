@@ -28,7 +28,7 @@ use tokio::sync::Mutex;
 
 use async_trait::async_trait;
 
-use timesman_type::{File, Pid, Post, Tdid, Tid, Times, Todo};
+use timesman_type::{File, Pid, Post, Tag, Tdid, Tid, Times, Todo};
 
 #[derive(Debug)]
 pub enum StoreErrorr {
@@ -96,6 +96,8 @@ pub trait TimesStore: Send + Sync + 'static {
 pub trait PostStore: Send + Sync + 'static {
     async fn get(&mut self, pid: Pid) -> Result<Post, String>;
     async fn get_all(&mut self) -> Result<Vec<Post>, String>;
+    async fn get_tags(&mut self) -> Result<Vec<Tag>, String>;
+    async fn create_tag(&mut self, name: String) -> Result<Tag, String>;
     async fn post(
         &mut self,
         post: String,

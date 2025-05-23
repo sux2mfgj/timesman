@@ -47,6 +47,15 @@ pub struct Post {
     pub created_at: chrono::NaiveDateTime,
     pub updated_at: Option<chrono::NaiveDateTime>,
     pub file: Option<File>,
+    pub tag: Option<TagId>,
+}
+
+pub type TagId = u64;
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct Tag {
+    pub id: TagId,
+    pub name: String,
 }
 
 pub type Tdid = u64;

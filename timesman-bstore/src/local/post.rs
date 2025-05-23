@@ -1,65 +1,129 @@
 use super::serde_json;
 use super::PostStore;
 use super::{async_trait, Arc, Mutex, UnQLite, KV};
-use super::{File, Pid, Post, Tid};
+use super::{File, Pid, Post, Tag, TagId, Tid};
 use serde::{Deserialize, Serialize};
 
 pub struct LocalPostStore {
     tid: Tid,
-    npid: Pid,
-    pids: Vec<Pid>,
     store: Arc<Mutex<UnQLite>>,
+    pmeta: PostMeta,
+    tag_meta: TagMeta,
 }
 
 fn get_pmeta_path(tid: Tid) -> String {
     format!("{}/posts/meta.data", tid)
 }
 
+fn get_post_path(tid: Tid, pid: Pid) -> String {
+    format!("{tid}/posts/${pid}")
+}
+
+fn get_tag_meta_path(tid: Tid) -> String {
+    format!("{tid}/tag/meta.data")
+}
+
+fn get_tag_path(tid: Tid, tagid: TagId) -> String {
+    format!("{tid}/tag/${tagid}")
+}
+
 impl LocalPostStore {
-    pub async fn new(tid: Tid, store: Arc<Mutex<UnQLite>>) -> Self {
-        let pmeta = {
-            let store = store.lock().await;
-            let meta_path = format!("{}/posts/meta.data", tid);
-            if !store.kv_contains(&meta_path) {
-                let meta = PostMeta {
-                    npid: 0,
-                    pids: vec![],
-                };
-                let data = serde_json::to_string(&meta).unwrap();
-                store.kv_store(&meta_path, data.into_bytes()).unwrap();
-                meta
-            } else {
-                let data = store.kv_fetch(&meta_path).unwrap();
-                serde_json::from_slice(&data).unwrap()
-            }
+    async fn load_pmeta(
+        tid: Tid,
+        store: Arc<Mutex<UnQLite>>,
+    ) -> Result<PostMeta, String> {
+        let store = store.lock().await;
+        let meta_path = get_pmeta_path(tid);
+
+        let meta = if !store.kv_contains(&meta_path) {
+            let meta = PostMeta::default();
+            let data = serde_json::to_string(&meta).unwrap();
+            store.kv_store(&meta_path, data.into_bytes()).unwrap();
+            meta
+        } else {
+            let data = store.kv_fetch(&meta_path).unwrap();
+            serde_json::from_slice(&data).unwrap()
         };
+
+        Ok(meta)
+    }
+
+    async fn load_tag_meta(
+        tid: Tid,
+        store: Arc<Mutex<UnQLite>>,
+    ) -> Result<TagMeta, String> {
+        let meta_path = get_tag_meta_path(tid);
+
+        let store = store.lock().await;
+
+        let tag_meta = if !store.kv_contains(&meta_path) {
+            let meta = TagMeta::default();
+            let data = serde_json::to_string(&meta).unwrap();
+            store.kv_store(&meta_path, data.into_bytes()).unwrap();
+            meta
+        } else {
+            let data = store.kv_fetch(&meta_path).unwrap();
+            serde_json::from_slice(&data).unwrap()
+        };
+
+        Ok(tag_meta)
+    }
+
+    pub async fn new(tid: Tid, store: Arc<Mutex<UnQLite>>) -> Self {
+        let pmeta = Self::load_pmeta(tid, store.clone()).await.unwrap();
+        let tag_meta = Self::load_tag_meta(tid, store.clone()).await.unwrap();
 
         Self {
             tid,
-            npid: pmeta.npid,
-            pids: pmeta.pids,
             store,
+            pmeta,
+            tag_meta,
         }
     }
 
-    async fn sync_meta(&self) {
-        let pmeta = PostMeta {
-            npid: self.npid,
-            pids: self.pids.clone(),
-        };
-        let data = serde_json::to_string(&pmeta).unwrap();
+    async fn sync_post_meta(&self) {
+        let data = serde_json::to_string(&self.pmeta).unwrap();
 
         let store = self.store.lock().await;
         store
             .kv_store(get_pmeta_path(self.tid), data.into_bytes())
             .unwrap();
     }
+
+    async fn sync_tag_meta(&self) {
+        let data = serde_json::to_string(&self.tag_meta).unwrap();
+
+        let store = self.store.lock().await;
+        store
+            .kv_store(get_tag_meta_path(self.tid), data.into_bytes())
+            .unwrap();
+    }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 struct PostMeta {
     npid: Pid,
     pids: Vec<Pid>,
+}
+
+impl PostMeta {
+    pub fn append(&mut self, pid: Pid) {
+        self.pids.push(pid);
+        self.npid += 1;
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Default)]
+struct TagMeta {
+    ntagid: TagId,
+    tagids: Vec<TagId>,
+}
+
+impl TagMeta {
+    pub fn append(&mut self, tagid: TagId) {
+        self.tagids.push(tagid);
+        self.ntagid += 1;
+    }
 }
 
 #[async_trait]
@@ -71,10 +135,9 @@ impl PostStore for LocalPostStore {
     async fn get_all(&mut self) -> Result<Vec<Post>, String> {
         let store = self.store.lock().await;
         let mut posts = vec![];
-        for pid in &self.pids {
-            let data = store
-                .kv_fetch(format!("{}/posts/{}", self.tid, pid))
-                .unwrap();
+        for pid in &self.pmeta.pids {
+            println!("{} {} {pid}", line!(), self.tid);
+            let data = store.kv_fetch(get_post_path(self.tid, *pid)).unwrap();
             let post: Post = serde_json::from_slice(&data).unwrap();
             posts.push(post);
         }
@@ -82,12 +145,45 @@ impl PostStore for LocalPostStore {
         Ok(posts)
     }
 
+    async fn get_tags(&mut self) -> Result<Vec<Tag>, String> {
+        let store = self.store.lock().await;
+
+        let mut tags = vec![];
+        for tagid in &self.tag_meta.tagids {
+            let data = store.kv_fetch(get_tag_path(self.tid, *tagid)).unwrap();
+            let tag: Tag = serde_json::from_slice(&data).unwrap();
+            tags.push(tag)
+        }
+
+        Ok(tags)
+    }
+
+    async fn create_tag(&mut self, name: String) -> Result<Tag, String> {
+        let id = self.tag_meta.ntagid;
+
+        let tag = Tag { id, name };
+
+        {
+            let text = serde_json::to_string(&tag).unwrap();
+            let store = self.store.lock().await;
+            store
+                .kv_store(get_tag_path(self.tid, tag.id), text.into_bytes())
+                .unwrap();
+        }
+
+        self.tag_meta.append(tag.id);
+
+        self.sync_tag_meta().await;
+
+        Ok(tag)
+    }
+
     async fn post(
         &mut self,
         post: String,
         file: Option<File>,
     ) -> Result<Post, String> {
-        let pid = self.npid;
+        let pid = self.pmeta.npid;
 
         let post = Post {
             id: pid,
@@ -95,6 +191,7 @@ impl PostStore for LocalPostStore {
             created_at: chrono::Utc::now().naive_local(),
             updated_at: None,
             file,
+            tag: None,
         };
 
         let text = serde_json::to_string(&post).unwrap();
@@ -102,17 +199,13 @@ impl PostStore for LocalPostStore {
         {
             let store = self.store.lock().await;
             store
-                .kv_store(
-                    format!("{}/posts/{}", self.tid, pid),
-                    text.into_bytes(),
-                )
+                .kv_store(get_post_path(self.tid, pid), text.into_bytes())
                 .unwrap();
         }
 
-        self.pids.push(pid);
-        self.npid += 1;
+        self.pmeta.append(pid);
 
-        self.sync_meta().await;
+        self.sync_post_meta().await;
 
         Ok(post)
     }
@@ -121,7 +214,15 @@ impl PostStore for LocalPostStore {
         todo!();
     }
 
-    async fn update(&mut self, _post: Post) -> Result<Post, String> {
-        todo!();
+    async fn update(&mut self, post: Post) -> Result<Post, String> {
+        let text = serde_json::to_string(&post).unwrap();
+        {
+            let store = self.store.lock().await;
+            store
+                .kv_store(get_post_path(self.tid, post.id), text.into_bytes())
+                .unwrap();
+        }
+
+        Ok(post)
     }
 }

@@ -6,7 +6,7 @@ use tokio::sync::Mutex;
 use async_trait::async_trait;
 use unqlite::{UnQLite, KV};
 
-use timesman_type::{File, Pid, Post, Tdid, Tid, Times, Todo};
+use timesman_type::{File, Pid, Post, Tag, TagId, Tdid, Tid, Times, Todo};
 
 use super::{PostStore, Store, TimesStore, TodoStore};
 

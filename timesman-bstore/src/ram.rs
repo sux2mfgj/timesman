@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use crate::{PostStore, TimesStore, TodoStore};
 
 use super::Store;
-use timesman_type::{File, Pid, Post, Tdid, Tid, Times, Todo};
+use timesman_type::{File, Pid, Post, Tag, TagId, Tdid, Tid, Times, Todo};
 
 pub struct RamStore {
     tstores: HashMap<Tid, Arc<Mutex<dyn TimesStore + Send + Sync>>>,
@@ -118,12 +118,20 @@ impl TimesStore for RamTimesStore {
 struct RamPostStore {
     posts: HashMap<Pid, Post>,
     npid: Pid,
+    tags: HashMap<TagId, Tag>,
+    ntagid: TagId,
 }
 
 impl RamPostStore {
     pub fn new() -> Self {
         let posts = HashMap::new();
-        Self { posts, npid: 0 }
+        let tags = HashMap::new();
+        Self {
+            posts,
+            npid: 0,
+            tags,
+            ntagid: 0,
+        }
     }
 }
 
@@ -147,6 +155,25 @@ impl PostStore for RamPostStore {
         Ok(posts)
     }
 
+    async fn get_tags(&mut self) -> Result<Vec<Tag>, String> {
+        let mut pairs: Vec<(&TagId, &Tag)> = self.tags.iter().collect();
+
+        pairs.sort_by(|a, b| a.0.cmp(&b.0));
+
+        let tags = pairs.iter().map(|x| x.1.clone()).collect();
+
+        Ok(tags)
+    }
+
+    async fn create_tag(&mut self, name: String) -> Result<Tag, String> {
+        let id = self.ntagid;
+        let tag = Tag { id, name };
+        self.tags.insert(id, tag.clone());
+        self.ntagid += 1;
+
+        Ok(tag)
+    }
+
     async fn post(
         &mut self,
         post: String,
@@ -161,6 +188,7 @@ impl PostStore for RamPostStore {
             created_at: Utc::now().naive_local(),
             updated_at: None,
             file,
+            tag: None,
         };
 
         self.posts.insert(id, post.clone());
