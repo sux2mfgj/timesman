@@ -246,12 +246,16 @@ impl TimesModel {
                 UIRequest::Dump(path) => {
                     let tstore = self.tstore.clone();
                     let posts = self.posts.clone();
+                    let tags: Vec<Tag> =
+                        self.tags.iter().fold(vec![], |mut a, t| {
+                            a.push(t.1.clone());
+                            a
+                        });
                     let mut file = fs::File::create(path).unwrap();
                     rt.spawn(async move {
                         let mut tstore = tstore.lock().await;
                         let times = tstore.get().await.unwrap();
-
-                        let dump = DumpData::build(times, posts);
+                        let dump = DumpData::build(times, posts, tags);
                         serde_json::to_writer(&mut file, &dump).unwrap();
                     });
                 }
@@ -368,16 +372,18 @@ impl Model for TimesModel {
 struct DumpData {
     times: Times,
     posts: Vec<Post>,
+    tags: Vec<Tag>,
 }
 
 impl DumpData {
-    pub fn build(times: Times, posts: Vec<Post>) -> Self {
+    pub fn build(times: Times, posts: Vec<Post>, tags: Vec<Tag>) -> Self {
         let mut modified_post = posts.clone();
         modified_post.iter_mut().for_each(|p| p.file = None);
 
         Self {
             times,
             posts: modified_post,
+            tags,
         }
     }
 }
