@@ -61,7 +61,10 @@ fn show_text(text: &str, ui: &mut egui::Ui) {
         if let Some(_) = span.kind() {
             ui.hyperlink(span.as_str());
         } else {
-            ui.label(span.as_str().trim_end());
+            let text = span.as_str().trim_end();
+            if !text.is_empty() {
+                ui.label(text);
+            }
         }
     }
 }
