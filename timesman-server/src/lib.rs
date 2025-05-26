@@ -1,8 +1,6 @@
 //pub mod http;
 
-use std::sync::mpsc;
 use std::sync::Arc;
-use timesman_bstore::StoreEvent;
 use tokio::sync::Mutex;
 
 //#[cfg(feature = "grpc")]
@@ -12,14 +10,9 @@ use tokio::sync::Mutex;
 
 use async_trait::async_trait;
 
-use timesman_bstore::TimesStore;
+use timesman_bstore::Store;
 
 #[async_trait]
 pub trait TimesManServer {
-    async fn run(
-        &self,
-        listen: &str,
-        store: Arc<Mutex<dyn TimesStore>>,
-        tx: Option<mpsc::Sender<StoreEvent>>,
-    );
+    async fn run(&self, listen: &str, store: Arc<Mutex<dyn Store>>);
 }

@@ -3,16 +3,13 @@ mod config;
 //mod grpc;
 //mod http;
 
+use config::FrontType;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use clap::Parser;
-//#[cfg(feature = "sqlite")]
-//use timesman_bstore::SqliteStore;
-use timesman_bstore::TimesStore;
+use timesman_bstore::StoreType;
 use timesman_server::TimesManServer;
-
-use timesman_bstore::RamStore;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -31,35 +28,18 @@ async fn main() -> std::io::Result<()> {
 
     let config = config::Config::load(args.config.into()).unwrap();
 
-    let store = match &*config.store_type {
-        //#[cfg(feature = "sqlite")]
-        //"sqlite" => SqliteStore::new(&config.store_param, true).await,
-        _ => RamStore::new(),
-    };
+    let store = StoreType::to_store(&config.store_type).await.unwrap();
 
-    let store = Arc::new(Mutex::new(store));
-
-    let server: Box<dyn TimesManServer> = match &*config.front_type {
-        "default" => {
+    let server: Box<dyn TimesManServer> = match config.front_type {
+        FrontType::Grpc => {
             todo!();
         }
-        //#[cfg(feature = "grpc")]
-        //"grpc" => {
-        //    let grpc_srv: Box<dyn TimesManServer> =
-        //        Box::new(grpc::GrpcServer {});
-        //    grpc_srv
-        //}
-        //"http" => {
-        //    let http_srv: Box<dyn TimesManServer> =
-        //        Box::new(http::HttpServer {});
-        //    http_srv
-        //}
-        _ => {
-            panic!("unsupported server type. See the parameter of config.front_type");
+        FrontType::Http => {
+            todo!();
         }
     };
 
-    server.run(&config.listen, store, None).await;
+    server.run(&config.listen, store).await;
 
     Ok(())
 }

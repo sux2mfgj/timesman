@@ -1,14 +1,21 @@
 use serde::{Deserialize, Serialize};
 use std::io::Read;
 use std::{default::Default, fs::File, path::PathBuf};
+use timesman_bstore::StoreType;
 
 use toml;
 
 #[derive(Deserialize, Serialize, Clone)]
+pub enum FrontType {
+    Http,
+    Grpc,
+}
+
+#[derive(Deserialize, Serialize, Clone)]
 pub struct Config {
     pub listen: String,
-    pub front_type: String,
-    pub store_type: String,
+    pub front_type: FrontType,
+    pub store_type: StoreType,
     pub store_param: String,
 }
 
@@ -16,8 +23,8 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             listen: "localhost:8080".to_string(),
-            front_type: "http".to_string(),
-            store_type: "sqlite".to_string(),
+            front_type: FrontType::Grpc,
+            store_type: StoreType::Memory,
             store_param: "./database.db".to_string(),
         }
     }

@@ -18,6 +18,8 @@ use json::JsonStore;
 #[cfg(feature = "json")]
 use std::path::PathBuf;
 
+use serde::{Deserialize, Serialize};
+
 //#[cfg(feature = "http")]
 //mod remote;
 //#[cfg(feature = "http")]
@@ -35,7 +37,7 @@ pub enum StoreErrorr {
     NotSupported,
 }
 
-#[derive(PartialEq, Default, Debug, Clone)]
+#[derive(PartialEq, Default, Debug, Clone, Serialize, Deserialize)]
 pub enum StoreType {
     #[default]
     Memory,
