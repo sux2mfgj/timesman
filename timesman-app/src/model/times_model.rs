@@ -179,7 +179,6 @@ impl TimesModel {
                 UIRequest::UpdatePost(post) => {
                     let pstore = self.pstore.clone();
                     let aetx = self.aetx.clone();
-                    let urtx = self.urtx.clone();
                     rt.spawn(async move {
                         let mut pstore = pstore.lock().await;
                         let post = pstore.update(post).await.unwrap();
