@@ -6,10 +6,10 @@ mod local;
 #[cfg(feature = "local")]
 use local::LocalStore;
 
-//#[cfg(feature = "grpc")]
-//mod grpc;
-//#[cfg(feature = "grpc")]
-//use grpc::GrpcStore;
+#[cfg(feature = "grpc")]
+mod grpc;
+#[cfg(feature = "grpc")]
+use grpc::GrpcStore;
 
 #[cfg(feature = "json")]
 mod json;
