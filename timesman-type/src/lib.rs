@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use serde::{Deserialize, Serialize};
 
 pub type Tid = u64;
@@ -24,17 +26,32 @@ impl std::fmt::Display for Times {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub enum FileType {
-    Image,
-    Text,
-    Other,
+    Image(Vec<u8>),
+    Text(String),
+    Other(Vec<u8>),
+}
+
+impl Debug for FileType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self {
+            FileType::Image(img) => {
+                write!(f, "Image file: size {}", img.len())
+            }
+            FileType::Text(txt) => {
+                write!(f, "Text file:  size {}", txt.len())
+            }
+            FileType::Other(data) => {
+                write!(f, "Unknown file:  size {}", data.len())
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct File {
     pub name: String,
-    pub data: Vec<u8>,
     pub ftype: FileType,
 }
 
@@ -66,4 +83,20 @@ pub struct Todo {
     pub content: String,
     pub created_at: chrono::NaiveDateTime,
     pub done_at: Option<chrono::NaiveDateTime>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn debug_file() {
+        println!(
+            "{:?}",
+            File {
+                name: "hello".to_string(),
+                ftype: FileType::Image(vec![0x12, 0x34, 0x56, 0x78])
+            }
+        )
+    }
 }
