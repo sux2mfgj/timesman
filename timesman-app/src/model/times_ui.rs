@@ -30,6 +30,32 @@ pub enum UIRequest {
     Close,
 }
 
+fn load_dropped_file(file_path: PathBuf) -> Option<File> {
+    let name = file_path.file_name().unwrap().to_string_lossy().to_string();
+
+    let mut data = vec![];
+    let mut file = fs::File::open(file_path).unwrap();
+    file.read_to_end(&mut data).unwrap();
+
+    let infer = Infer::new();
+
+    let ftype = if let Some(ftype) = infer.get(&data) {
+        println!("file type: {:?}", ftype.matcher_type());
+        match ftype.matcher_type() {
+            infer::MatcherType::Image => FileType::Image(data),
+            infer::MatcherType::Text => {
+                FileType::Text(String::from_utf8(data).unwrap())
+            }
+            _ => FileType::Other(data),
+        }
+    } else {
+        println!("failed the infer.get");
+        FileType::Other(data)
+    };
+
+    Some(File { name, ftype })
+}
+
 #[derive(Debug)]
 pub enum UIResponse {
     ClearText,
@@ -46,7 +72,7 @@ enum UIState {
 pub struct TimesUI {
     title: String,
     post_text: String,
-    dropped_file: Option<PathBuf>,
+    dropped_file: Option<File>,
     preview: Option<File>,
     file_dialog: FileDialog,
     side_panel: SidePanel,
@@ -129,14 +155,12 @@ impl TimesUI {
                         .desired_width(f32::INFINITY),
                 );
 
-                if let Some(path) = self.dropped_file.clone() {
+                if let Some(dfile) = self.dropped_file.clone() {
                     ui.horizontal(|ui| {
-                        if let Some(name) = path.file_name() {
-                            ui.label(format!("{}", name.to_str().unwrap()));
-
-                            if ui.button("clear").clicked() {
-                                self.dropped_file = None;
-                            };
+                        ui.label(format!("File: {}", dfile.name));
+                        let resp = ui.button("clear");
+                        if resp.clicked() {
+                            self.dropped_file = None;
                         }
                     });
                 }
@@ -178,7 +202,7 @@ impl TimesUI {
     ) {
         let hight = if let Some(file) = &p.file {
             match file.ftype {
-                FileType::Image => 100f32,
+                FileType::Image(_) => 100f32,
                 _ => 20f32,
             }
         } else {
@@ -236,6 +260,40 @@ impl TimesUI {
         self.side_panel.update(ctx, todo, tag, ureq);
     }
 
+    fn show_file_row(
+        &mut self,
+        file: &File,
+        ui: &mut egui::Ui,
+        ureq: &mut Vec<UIRequest>,
+    ) {
+        match &file.ftype {
+            FileType::Image(image) => {
+                let img = egui::Image::from_bytes(
+                    format!("bytes://{}", file.name),
+                    image.clone(),
+                );
+                let img_ui =
+                    ui.add(img.max_height(200.0).sense(egui::Sense::click()));
+
+                if img_ui.clicked() {
+                    self.preview = Some(file.clone());
+                }
+
+                ui.label(format!("File(image) {}", file.name));
+            }
+            FileType::Text(_) => {
+                let resp = ui.label(format!("File(text): {}", file.name));
+
+                if resp.clicked() {
+                    self.preview = Some(file.clone());
+                }
+            }
+            FileType::Other(_) => {
+                ui.label(format!("File: {}", file.name));
+            }
+        }
+    }
+
     fn post_row(
         &mut self,
         row: &mut TableRow,
@@ -285,30 +343,7 @@ impl TimesUI {
             }
 
             if let Some(file) = &post.file {
-                let infer = Infer::new();
-                if let Some(ftype) = infer.get(&file.data) {
-                    match ftype.matcher_type() {
-                        infer::MatcherType::Image => {
-                            let img = egui::Image::from_bytes(
-                                format!("bytes://{}", file.name),
-                                file.data.clone(),
-                            );
-                            let img_ui = ui.add(
-                                img.max_height(200.0)
-                                    .sense(egui::Sense::click()),
-                            );
-
-                            if img_ui.clicked() {
-                                self.preview = Some(file.clone());
-                            }
-                        }
-                        _ => {
-                            ui.label(file.name.clone());
-                        }
-                    }
-                } else {
-                    ui.label(format!("File: {}", file.name.clone()));
-                }
+                self.show_file_row(file, ui, ureq);
             }
         });
     }
@@ -319,30 +354,8 @@ impl TimesUI {
         }
 
         let txt = self.post_text.clone();
-        let file = if let Some(file) = self.dropped_file.clone() {
-            let name = file.file_name().unwrap().to_string_lossy().to_string();
 
-            let mut data = vec![];
-            let mut file = fs::File::open(file).unwrap();
-            file.read_to_end(&mut data).unwrap();
-
-            let infer = infer::Infer::new();
-            let ftype = if let Some(ftype) = infer.get(&data) {
-                match ftype.matcher_type() {
-                    infer::MatcherType::Image => FileType::Image,
-                    infer::MatcherType::Text => FileType::Text,
-                    _ => FileType::Other,
-                }
-            } else {
-                FileType::Other
-            };
-
-            Some(File { name, data, ftype })
-        } else {
-            None
-        };
-
-        ureqs.push(UIRequest::Post(txt, file));
+        ureqs.push(UIRequest::Post(txt, self.dropped_file.clone()));
     }
 
     fn consume_keys(
@@ -402,17 +415,29 @@ impl TimesUI {
             return;
         };
 
-        let img = egui::Image::from_bytes(
-            format!("bytes://{}", &file.name),
-            file.data.clone(),
-        );
-
-        egui::Window::new(&file.name)
-            .title_bar(false)
-            .collapsible(false)
-            .show(ctx, |ui| {
-                ui.add(img);
-            });
+        match &file.ftype {
+            FileType::Image(data) => {
+                let img = egui::Image::from_bytes(
+                    format!("bytes://{}", &file.name),
+                    data.clone(),
+                );
+                egui::Window::new(&file.name)
+                    .title_bar(false)
+                    .collapsible(false)
+                    .show(ctx, |ui| {
+                        ui.add(img);
+                    });
+            }
+            FileType::Text(text) => {
+                //egui::Window::new(&file.name)
+                //    .title_bar(false)
+                //    .collapsible(false)
+                //    .show(ctx, |ui| {});
+            }
+            FileType::Other(_) => {
+                return;
+            }
+        }
     }
 
     fn handle_ui_resp(&mut self, resps: Vec<UIResponse>) {
@@ -426,7 +451,7 @@ impl TimesUI {
                     self.side_panel.clear_text();
                 }
                 UIResponse::FileDropped(path) => {
-                    self.dropped_file = Some(path.clone());
+                    self.dropped_file = load_dropped_file(path);
                 }
             }
         }
