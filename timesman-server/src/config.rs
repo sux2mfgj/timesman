@@ -12,11 +12,18 @@ pub enum FrontType {
 }
 
 #[derive(Deserialize, Serialize, Clone)]
+pub struct StoreConfig {
+    #[serde(rename = "type")]
+    pub store_type: String,
+    pub path: Option<String>,
+    pub create: Option<bool>,
+}
+
+#[derive(Deserialize, Serialize, Clone)]
 pub struct Config {
     pub listen: String,
     pub front_type: FrontType,
-    pub store_type: StoreType,
-    pub store_param: String,
+    pub store: StoreConfig,
 }
 
 impl Default for Config {
@@ -24,8 +31,47 @@ impl Default for Config {
         Self {
             listen: "localhost:8080".to_string(),
             front_type: FrontType::Grpc,
-            store_type: StoreType::Memory,
-            store_param: "./database.db".to_string(),
+            store: StoreConfig {
+                store_type: "Memory".to_string(),
+                path: None,
+                create: None,
+            },
+        }
+    }
+}
+
+impl StoreConfig {
+    fn expand_path(path: &str) -> String {
+        if path.starts_with("~/") {
+            if let Ok(home) = std::env::var("HOME") {
+                path.replacen("~", &home, 1)
+            } else {
+                path.to_string()
+            }
+        } else {
+            path.to_string()
+        }
+    }
+
+    pub fn to_store_type(&self) -> Result<StoreType, String> {
+        match self.store_type.as_str() {
+            "Memory" => Ok(StoreType::Memory),
+            #[cfg(feature = "local")]
+            "Local" => {
+                let path = self.path.as_ref()
+                    .ok_or_else(|| "Local store requires path parameter".to_string())?;
+                let expanded_path = Self::expand_path(path);
+                Ok(StoreType::Local(expanded_path))
+            }
+            #[cfg(feature = "json")]
+            "Json" => {
+                let path = self.path.as_ref()
+                    .ok_or_else(|| "Json store requires path parameter".to_string())?;
+                let expanded_path = Self::expand_path(path);
+                let create = self.create.unwrap_or(false);
+                Ok(StoreType::Json(expanded_path.into(), create))
+            }
+            _ => Err(format!("Unknown store type: {}", self.store_type))
         }
     }
 }

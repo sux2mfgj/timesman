@@ -1,5 +1,22 @@
 listen = "127.0.0.1:8080"
-front_type = "grpc"
-store_type = "sqlite"
-#store_param = "./database.db" #../../timesman/database.db"
-store_param = "/Users/shunsukemie/.local/share/timesman/database.db"
+front_type = "Grpc"
+
+# Store configuration options:
+# Memory - In-memory storage (no persistence)
+# Local - Local UnQLite database
+# Json - JSON file storage
+
+[store]
+type = "Local"
+path = "~/Library/Application Support/timesman/unqlite.db"
+
+# Alternative configurations:
+# Memory store (no persistence)
+# [store]
+# type = "Memory"
+
+# JSON file store
+# [store] 
+# type = "Json"
+# path = "./timesman_data.json"
+# create = true

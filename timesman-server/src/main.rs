@@ -6,7 +6,6 @@ mod config;
 use config::FrontType;
 
 use clap::Parser;
-use timesman_bstore::StoreType;
 use timesman_server::TimesManServer;
 
 #[derive(Parser, Debug)]
@@ -26,7 +25,8 @@ async fn main() -> std::io::Result<()> {
 
     let config = config::Config::load(args.config.into()).unwrap();
 
-    let store = StoreType::to_store(&config.store_type).await.unwrap();
+    let store_type = config.store.to_store_type().unwrap();
+    let store = store_type.to_store().await.unwrap();
 
     let server: Box<dyn TimesManServer> = match config.front_type {
         FrontType::Grpc => {
