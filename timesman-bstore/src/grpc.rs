@@ -22,10 +22,11 @@ pub struct GrpcStore {
 }
 
 impl GrpcStore {
-    pub async fn new(server: String) -> Self {
-        let tclient = TimesManClient::connect(server).await.unwrap();
+    pub async fn new(server: String) -> Result<Self, String> {
+        let tclient = TimesManClient::connect(server).await
+            .map_err(|e| format!("Failed to connect to gRPC server: {}", e))?;
         let client = Arc::new(Mutex::new(tclient));
-        Self { client }
+        Ok(Self { client })
     }
 
     fn new_times_store(

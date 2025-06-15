@@ -41,6 +41,8 @@ pub enum StoreType {
     Json(PathBuf, bool),
     #[cfg(feature = "local")]
     Local(String),
+    #[cfg(feature = "grpc")]
+    Grpc(String),
 }
 
 impl StoreType {
@@ -54,6 +56,11 @@ impl StoreType {
             #[cfg(feature = "local")]
             Self::Local(path) => {
                 Arc::new(Mutex::new(LocalStore::new(&path).await))
+            }
+            #[cfg(feature = "grpc")]
+            Self::Grpc(server_url) => {
+                let grpc_store = GrpcStore::new(server_url.clone()).await?;
+                Arc::new(Mutex::new(grpc_store))
             }
         };
 
