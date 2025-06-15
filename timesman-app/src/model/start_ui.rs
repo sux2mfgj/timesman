@@ -9,6 +9,8 @@ enum StoreKind {
     Memory,
     #[cfg(feature = "local")]
     Local,
+    #[cfg(feature = "grpc")]
+    Grpc,
 }
 
 pub struct StartUI {
@@ -23,8 +25,10 @@ pub enum UIRequest {
     Close,
 }
 
-#[derive(Copy, Clone)]
-pub enum UIResponse {}
+#[derive(Clone)]
+pub enum UIResponse {
+    Error(String),
+}
 
 impl StartUI {
     pub fn new() -> Self {
@@ -38,9 +42,9 @@ impl StartUI {
     pub fn update(
         &mut self,
         ctx: &egui::Context,
-        _resps: &Vec<UIResponse>,
+        resps: &Vec<UIResponse>,
     ) -> Result<Vec<UIRequest>, String> {
-        // self.handle_ui_response(resps);
+        self.handle_ui_response(resps);
 
         let mut ui_reqs = vec![];
 
@@ -48,6 +52,8 @@ impl StartUI {
             ui.radio_value(&mut self.store, StoreKind::Memory, "Temporay");
             #[cfg(feature = "local")]
             ui.radio_value(&mut self.store, StoreKind::Local, "Local");
+            #[cfg(feature = "grpc")]
+            ui.radio_value(&mut self.store, StoreKind::Grpc, "gRPC Server");
 
             ui.separator();
 
@@ -60,6 +66,14 @@ impl StartUI {
                         ui.label(format!("{db_file}"));
                     } else {
                         ui.label("Please select a db file");
+                    }
+                }
+                #[cfg(feature = "grpc")]
+                StoreKind::Grpc => {
+                    ui.label("server URL");
+                    let mut server_url = self.param.clone().unwrap_or_else(|| "http://127.0.0.1:8080".to_string());
+                    if ui.text_edit_singleline(&mut server_url).changed() {
+                        self.param = Some(server_url);
                     }
                 }
             }
@@ -84,7 +98,20 @@ impl StartUI {
         Ok(ui_reqs)
     }
 
+    fn handle_ui_response(&mut self, resps: &Vec<UIResponse>) {
+        for resp in resps {
+            match resp {
+                UIResponse::Error(err) => {
+                    self.error_text = Some(err.clone());
+                }
+            }
+        }
+    }
+
     fn start(&mut self, req: &mut Vec<UIRequest>) {
+        // Clear any previous error messages
+        self.error_text = None;
+        
         let store = match self.store {
             StoreKind::Memory => Some(StoreType::Memory),
             #[cfg(feature = "local")]
@@ -97,6 +124,11 @@ impl StartUI {
                     let db_file = self.param.clone().unwrap();
                     Some(StoreType::Local(db_file))
                 }
+            }
+            #[cfg(feature = "grpc")]
+            StoreKind::Grpc => {
+                let server_url = self.param.clone().unwrap_or_else(|| "http://127.0.0.1:8080".to_string());
+                Some(StoreType::Grpc(server_url))
             }
         };
 
@@ -121,6 +153,10 @@ impl StartUI {
                     .join("unqlite.db");
                 self.param = Some(db_path.to_string_lossy().to_string());
             }
+            #[cfg(feature = "grpc")]
+            StoreKind::Grpc => {
+                self.param = Some("http://127.0.0.1:8080".to_string());
+            }
         }
     }
 
@@ -136,6 +172,11 @@ impl StartUI {
         #[cfg(feature = "local")]
         if ui::consume_key(ctx, Key::L) {
             self.store = StoreKind::Local;
+        }
+
+        #[cfg(feature = "grpc")]
+        if ui::consume_key(ctx, Key::G) {
+            self.store = StoreKind::Grpc;
         }
 
         if ui::consume_key(ctx, Key::D) {
