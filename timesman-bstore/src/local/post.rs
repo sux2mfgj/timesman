@@ -136,7 +136,6 @@ impl PostStore for LocalPostStore {
         let store = self.store.lock().await;
         let mut posts = vec![];
         for pid in &self.pmeta.pids {
-            println!("{} {} {pid}", line!(), self.tid);
             let data = store.kv_fetch(get_post_path(self.tid, *pid)).unwrap();
             let post: Post = serde_json::from_slice(&data).unwrap();
             posts.push(post);

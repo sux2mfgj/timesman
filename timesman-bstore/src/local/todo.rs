@@ -138,11 +138,11 @@ impl TodoStore for LocalTodoStore {
         Ok(todo)
     }
 
-    async fn update(&mut self, todo: Todo) -> Result<Todo, String> {
+    async fn update(&mut self, _todo: Todo) -> Result<Todo, String> {
         todo!()
     }
 
-    async fn delete(&mut self, tdid: Tdid) -> Result<(), String> {
+    async fn delete(&mut self, _tdid: Tdid) -> Result<(), String> {
         todo!()
     }
 }

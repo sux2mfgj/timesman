@@ -82,7 +82,7 @@ struct RamTimesStore {
 impl RamTimesStore {
     pub fn new(times: Times) -> Self {
         let pstore = Arc::new(Mutex::new(RamPostStore::new()));
-        let tdstore = Arc::new(Mutex::new(RamToDoStore::new()));
+        let tdstore = Arc::new(Mutex::new(RamTodoStore::new()));
         Self {
             times,
             pstore,
@@ -216,12 +216,12 @@ impl PostStore for RamPostStore {
     }
 }
 
-struct RamToDoStore {
+struct RamTodoStore {
     todos: HashMap<Tdid, Todo>,
     ntdid: Tdid,
 }
 
-impl RamToDoStore {
+impl RamTodoStore {
     pub fn new() -> Self {
         let todos = HashMap::new();
         Self { todos, ntdid: 0 }
@@ -229,7 +229,7 @@ impl RamToDoStore {
 }
 
 #[async_trait]
-impl TodoStore for RamToDoStore {
+impl TodoStore for RamTodoStore {
     async fn get(&mut self) -> Result<Vec<Todo>, String> {
         let mut pairs: Vec<(&Tdid, &Todo)> = self.todos.iter().collect();
 

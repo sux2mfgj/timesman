@@ -17,7 +17,6 @@ mod post;
 use post::LocalPostStore;
 
 mod todo;
-use todo::LocalTodoStore;
 
 #[derive(Serialize, Deserialize)]
 struct RootMeta {

@@ -20,10 +20,6 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-//#[cfg(feature = "http")]
-//mod remote;
-//#[cfg(feature = "http")]
-//use remote::RemoteStore;
 
 use std::{fmt::Debug, sync::Arc};
 use tokio::sync::Mutex;
@@ -33,7 +29,7 @@ use async_trait::async_trait;
 use timesman_type::{File, Pid, Post, Tag, Tdid, Tid, Times, Todo};
 
 #[derive(Debug)]
-pub enum StoreErrorr {
+pub enum StoreError {
     NotSupported,
 }
 
@@ -43,10 +39,6 @@ pub enum StoreType {
     Memory,
     #[cfg(feature = "json")]
     Json(PathBuf, bool),
-    //#[cfg(feature = "http")]
-    //Remote,
-    //#[cfg(feature = "grpc")]
-    //Grpc(String),
     #[cfg(feature = "local")]
     Local(String),
 }
@@ -121,13 +113,12 @@ pub trait TodoStore: Send + Sync + 'static {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
     use tokio::runtime::Runtime;
 
     async fn test_store(mut store: Box<dyn Store>) {
         // Test creating a TimesStore
         let title = "Test Times".to_string();
-        let times_store = store.create(title.clone()).await.unwrap();
+        let _times_store = store.create(title.clone()).await.unwrap();
 
         // Test retrieving TimesStore
         let times_list = store.get().await.unwrap();
