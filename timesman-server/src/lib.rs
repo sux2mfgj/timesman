@@ -3,10 +3,10 @@
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-//#[cfg(feature = "grpc")]
-//mod grpc;
-//#[cfg(feature = "grpc")]
-//pub use grpc::GrpcServer;
+#[cfg(feature = "grpc")]
+mod grpc;
+#[cfg(feature = "grpc")]
+pub use grpc::GrpcServer;
 
 use async_trait::async_trait;
 

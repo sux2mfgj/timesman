@@ -3,6 +3,7 @@ use super::{GrpcClient, PostStore, TimesStore, TodoStore};
 use super::{GrpcPostStore, GrpcTodoStore};
 
 use timesman_type::{File, Post, Tid, Times};
+use tonic;
 
 pub(crate) struct GrpcTimesStore {
     client: GrpcClient,
@@ -22,7 +23,15 @@ impl TimesStore for GrpcTimesStore {
     }
 
     async fn update(&mut self, times: Times) -> Result<Times, String> {
-        todo!();
+        let mut c = self.client.lock().await;
+        let updated_times = c
+            .update_times(tonic::Request::new(times.into()))
+            .await
+            .map_err(|e| format!("{e}"))?;
+        
+        let result: Times = updated_times.into_inner().into();
+        self.times = result.clone();
+        Ok(result)
     }
 
     async fn pstore(

@@ -27,11 +27,22 @@ impl Into<timesman_type::Times> for grpc::Times {
     }
 }
 
-use chrono::{Datelike, Timelike};
+use chrono::{Datelike, NaiveDateTime, Timelike};
+
+fn to_timestamp(c: NaiveDateTime) -> prost_types::Timestamp {
+    prost_types::Timestamp::date_time(
+        c.year() as i64,
+        c.month() as u8,
+        c.day() as u8,
+        c.hour() as u8,
+        c.minute() as u8,
+        c.second() as u8,
+    )
+    .unwrap()
+}
 
 impl From<timesman_type::Times> for grpc::Times {
     fn from(value: timesman_type::Times) -> Self {
-        let ctime = value.created_at;
         let ctime = {
             let c = value.created_at;
             prost_types::Timestamp::date_time(
@@ -92,6 +103,7 @@ impl Into<timesman_type::Post> for grpc::Post {
             created_at: ctime,
             updated_at: utime,
             file: None,
+            tag: self.tagid,
         }
     }
 }
@@ -131,6 +143,54 @@ impl From<timesman_type::Post> for grpc::Post {
             post: value.post,
             created_at: Some(ctime),
             updated_at: utime,
+            tagid: value.tag,
+        }
+    }
+}
+
+impl From<timesman_type::Todo> for grpc::Todo {
+    fn from(value: timesman_type::Todo) -> Self {
+        let ctime = to_timestamp(value.created_at);
+        let dtime = if let Some(u) = value.done_at {
+            Some(to_timestamp(u))
+        } else {
+            None
+        };
+
+        Self {
+            id: value.id,
+            content: value.content,
+            created_at: Some(ctime),
+            done_at: dtime,
+        }
+    }
+}
+
+impl Into<timesman_type::Todo> for grpc::Todo {
+    fn into(self) -> timesman_type::Todo {
+        let created_at = if let Some(c) = self.created_at {
+            chrono::DateTime::from_timestamp(c.seconds, c.nanos as u32)
+                .unwrap()
+                .naive_local()
+        } else {
+            panic!();
+        };
+
+        let done_at = if let Some(d) = self.done_at {
+            Some(
+                chrono::DateTime::from_timestamp(d.seconds, d.nanos as u32)
+                    .unwrap()
+                    .naive_local(),
+            )
+        } else {
+            None
+        };
+
+        timesman_type::Todo {
+            id: self.id,
+            content: self.content,
+            created_at,
+            done_at,
         }
     }
 }

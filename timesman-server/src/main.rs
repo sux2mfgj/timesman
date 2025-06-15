@@ -4,8 +4,6 @@ mod config;
 //mod http;
 
 use config::FrontType;
-use std::sync::Arc;
-use tokio::sync::Mutex;
 
 use clap::Parser;
 use timesman_bstore::StoreType;
@@ -32,10 +30,17 @@ async fn main() -> std::io::Result<()> {
 
     let server: Box<dyn TimesManServer> = match config.front_type {
         FrontType::Grpc => {
-            todo!();
+            #[cfg(feature = "grpc")]
+            {
+                Box::new(timesman_server::GrpcServer {})
+            }
+            #[cfg(not(feature = "grpc"))]
+            {
+                panic!("gRPC feature not enabled");
+            }
         }
         FrontType::Http => {
-            todo!();
+            panic!("HTTP server not implemented");
         }
     };
 

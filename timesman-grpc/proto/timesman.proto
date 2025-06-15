@@ -14,15 +14,23 @@ service TimesMan {
   rpc CreatePost(CreatePostPrams) returns (Post);
   rpc DeletePost(DeletePostParam) returns (google.protobuf.Empty);
   rpc UpdatePost(UpdatePostParam) returns (Post);
+
+  rpc GetTodos(TimesId) returns (TodoArray);
+  rpc CreateTodo(CreateTodoParams) returns (Todo);
+  rpc DoneTodo(DoneTodoParams) returns (Todo);
 }
 
 message PostId { uint64 id = 1; }
 
 message TimesId { uint64 id = 1; }
 
+message TodoId { uint64 id = 1; }
+
 message TimesArray { repeated Times timeses = 1; }
 
 message PostArray { repeated Post posts = 1; }
+
+message TodoArray { repeated Todo todos = 1; }
 
 message TimesTitle { string title = 1; }
 
@@ -43,6 +51,17 @@ message UpdatePostParam {
   Post post = 2;
 }
 
+message CreateTodoParams {
+  uint64 tid = 1;
+  string content = 2;
+}
+
+message DoneTodoParams {
+  uint64 tid = 1;
+  uint64 tdid = 2;
+  bool done = 3;
+}
+
 message Times {
   uint64 id = 1;
   string title = 2;
@@ -55,4 +74,12 @@ message Post {
   string post = 2;
   google.protobuf.Timestamp created_at = 3;
   optional google.protobuf.Timestamp updated_at = 4;
+  optional uint64 tagid = 5;
+}
+
+message Todo {
+  uint64 id = 1;
+  string content = 2;
+  google.protobuf.Timestamp created_at = 3;
+  optional google.protobuf.Timestamp done_at = 4;
 }

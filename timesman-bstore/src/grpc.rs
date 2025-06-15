@@ -98,7 +98,12 @@ impl Store for GrpcStore {
     }
 
     async fn delete(&mut self, tid: Tid) -> Result<(), String> {
-        todo!();
+        let mut c = self.client.lock().await;
+        let id = grpc::TimesId { id: tid };
+        c.delete_times(tonic::Request::new(id))
+            .await
+            .map_err(|e| format!("{e}"))?;
+        Ok(())
     }
 }
 

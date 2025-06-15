@@ -1,11 +1,9 @@
-use std::marker::{Send, Sync};
-use std::sync::mpsc;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use super::TimesManServer;
 
-use timesman_bstore::{Store, StoreEvent};
+use timesman_bstore::Store;
 
 use async_trait::async_trait;
 
@@ -22,14 +20,12 @@ impl TimesManServer for GrpcServer {
         &self,
         listen: &str,
         store: Arc<Mutex<dyn Store>>,
-        tx: Option<mpsc::Sender<StoreEvent>>,
     ) {
         let addr = listen.parse().unwrap();
 
         Server::builder()
             .add_service(times_man_server::TimesManServer::new(TMServer {
                 store,
-                tx,
             }))
             .serve(addr)
             .await
@@ -39,7 +35,6 @@ impl TimesManServer for GrpcServer {
 
 pub struct TMServer {
     store: Arc<Mutex<dyn Store>>,
-    tx: Option<mpsc::Sender<StoreEvent>>,
 }
 
 #[async_trait]
@@ -50,14 +45,18 @@ impl times_man_server::TimesMan for TMServer {
     ) -> Result<tonic::Response<grpc::TimesArray>, tonic::Status> {
         let mut store = self.store.lock().await;
 
-        let times = store.get_times().await.map_err(|e| {
+        let times_stores = store.get().await.map_err(|e| {
             tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
         })?;
 
-        let timeses = times
-            .iter()
-            .map(|t| t.clone().into())
-            .collect::<Vec<grpc::Times>>();
+        let mut timeses = Vec::new();
+        for times_store in times_stores {
+            let mut ts = times_store.lock().await;
+            let times = ts.get().await.map_err(|e| {
+                tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
+            })?;
+            timeses.push(grpc::Times::from(times));
+        }
 
         Ok(tonic::Response::new(grpc::TimesArray { timeses }))
     }
@@ -69,32 +68,63 @@ impl times_man_server::TimesMan for TMServer {
         let mut store = self.store.lock().await;
         let title = request.into_inner().title;
 
-        let times = store.create_times(title).await.unwrap();
+        let times_store = store.create(title).await.map_err(|e| {
+            tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
+        })?;
 
-        if let Some(tx) = &self.tx {
-            tx.send(StoreEvent::CreateTimes(times.clone())).unwrap();
-        }
+        let mut ts = times_store.lock().await;
+        let times = ts.get().await.map_err(|e| {
+            tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
+        })?;
 
         Ok(tonic::Response::new(grpc::Times::from(times)))
     }
 
     async fn delete_times(
         &self,
-        _request: tonic::Request<grpc::TimesId>,
+        request: tonic::Request<grpc::TimesId>,
     ) -> Result<tonic::Response<()>, tonic::Status> {
-        Err(tonic::Status::new(
-            tonic::Code::Unimplemented,
-            "unimplemented",
-        ))
+        let mut store = self.store.lock().await;
+        let tid = request.into_inner().id;
+
+        store.delete(tid).await.map_err(|e| {
+            tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
+        })?;
+
+        Ok(tonic::Response::new(()))
     }
 
     async fn update_times(
         &self,
-        _request: tonic::Request<grpc::Times>,
+        request: tonic::Request<grpc::Times>,
     ) -> Result<tonic::Response<grpc::Times>, tonic::Status> {
+        let mut store = self.store.lock().await;
+        let times_data: timesman_type::Times = request.into_inner().into();
+        let tid = times_data.id;
+
+        // Find the times store by ID
+        let times_stores = store.get().await.map_err(|e| {
+            tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
+        })?;
+
+        for times_store in times_stores {
+            let mut ts = times_store.lock().await;
+            let times = ts.get().await.map_err(|e| {
+                tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
+            })?;
+            
+            if times.id == tid {
+                let updated_times = ts.update(times_data).await.map_err(|e| {
+                    tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
+                })?;
+
+                return Ok(tonic::Response::new(grpc::Times::from(updated_times)));
+            }
+        }
+
         Err(tonic::Status::new(
-            tonic::Code::Unimplemented,
-            "unimplemented",
+            tonic::Code::NotFound,
+            format!("Times with id {} not found", tid),
         ))
     }
 
@@ -103,48 +133,280 @@ impl times_man_server::TimesMan for TMServer {
         request: tonic::Request<grpc::TimesId>,
     ) -> Result<tonic::Response<grpc::PostArray>, tonic::Status> {
         let mut store = self.store.lock().await;
-
         let tid = request.into_inner().id;
 
-        let posts = store.get_posts(tid).await.map_err(|e| {
+        // Find the times store by ID
+        let times_stores = store.get().await.map_err(|e| {
             tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
         })?;
 
-        let posts = posts
-            .iter()
-            .map(|t| t.clone().into())
-            .collect::<Vec<grpc::Post>>();
+        for times_store in times_stores {
+            let mut ts = times_store.lock().await;
+            let times = ts.get().await.map_err(|e| {
+                tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
+            })?;
+            
+            if times.id == tid {
+                let post_store = ts.pstore().await.map_err(|e| {
+                    tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
+                })?;
+                let mut ps = post_store.lock().await;
+                let posts = ps.get_all().await.map_err(|e| {
+                    tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
+                })?;
 
-        Ok(tonic::Response::new(grpc::PostArray { posts }))
+                let posts = posts
+                    .iter()
+                    .map(|p| grpc::Post::from(p.clone()))
+                    .collect::<Vec<grpc::Post>>();
+
+                return Ok(tonic::Response::new(grpc::PostArray { posts }));
+            }
+        }
+
+        Err(tonic::Status::new(
+            tonic::Code::NotFound,
+            format!("Times with id {} not found", tid),
+        ))
     }
 
     async fn create_post(
         &self,
-        _request: tonic::Request<grpc::CreatePostPrams>,
+        request: tonic::Request<grpc::CreatePostPrams>,
     ) -> Result<tonic::Response<grpc::Post>, tonic::Status> {
+        let mut store = self.store.lock().await;
+        let params = request.into_inner();
+        let tid = params.id;
+        let text = params.text;
+
+        // Find the times store by ID
+        let times_stores = store.get().await.map_err(|e| {
+            tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
+        })?;
+
+        for times_store in times_stores {
+            let mut ts = times_store.lock().await;
+            let times = ts.get().await.map_err(|e| {
+                tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
+            })?;
+            
+            if times.id == tid {
+                let post_store = ts.pstore().await.map_err(|e| {
+                    tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
+                })?;
+                let mut ps = post_store.lock().await;
+                let post = ps.post(text, None).await.map_err(|e| {
+                    tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
+                })?;
+
+                return Ok(tonic::Response::new(grpc::Post::from(post)));
+            }
+        }
+
         Err(tonic::Status::new(
-            tonic::Code::Unimplemented,
-            "unimplemented",
+            tonic::Code::NotFound,
+            format!("Times with id {} not found", tid),
         ))
     }
 
     async fn delete_post(
         &self,
-        _request: tonic::Request<grpc::DeletePostParam>,
+        request: tonic::Request<grpc::DeletePostParam>,
     ) -> Result<tonic::Response<()>, tonic::Status> {
+        let mut store = self.store.lock().await;
+        let params = request.into_inner();
+        let tid = params.tid;
+        let pid = params.pid;
+
+        // Find the times store by ID
+        let times_stores = store.get().await.map_err(|e| {
+            tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
+        })?;
+
+        for times_store in times_stores {
+            let mut ts = times_store.lock().await;
+            let times = ts.get().await.map_err(|e| {
+                tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
+            })?;
+            
+            if times.id == tid {
+                let post_store = ts.pstore().await.map_err(|e| {
+                    tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
+                })?;
+                let mut ps = post_store.lock().await;
+                ps.delete(pid).await.map_err(|e| {
+                    tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
+                })?;
+
+                return Ok(tonic::Response::new(()));
+            }
+        }
+
         Err(tonic::Status::new(
-            tonic::Code::Unimplemented,
-            "unimplemented",
+            tonic::Code::NotFound,
+            format!("Times with id {} not found", tid),
         ))
     }
 
     async fn update_post(
         &self,
-        _request: tonic::Request<grpc::UpdatePostParam>,
+        request: tonic::Request<grpc::UpdatePostParam>,
     ) -> Result<tonic::Response<grpc::Post>, tonic::Status> {
+        let mut store = self.store.lock().await;
+        let params = request.into_inner();
+        let tid = params.tid;
+        let post_data = params.post.ok_or_else(|| {
+            tonic::Status::new(tonic::Code::InvalidArgument, "Post data is required")
+        })?;
+
+        // Find the times store by ID
+        let times_stores = store.get().await.map_err(|e| {
+            tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
+        })?;
+
+        for times_store in times_stores {
+            let mut ts = times_store.lock().await;
+            let times = ts.get().await.map_err(|e| {
+                tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
+            })?;
+            
+            if times.id == tid {
+                let post_store = ts.pstore().await.map_err(|e| {
+                    tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
+                })?;
+                let mut ps = post_store.lock().await;
+                let updated_post = ps.update(post_data.into()).await.map_err(|e| {
+                    tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
+                })?;
+
+                return Ok(tonic::Response::new(grpc::Post::from(updated_post)));
+            }
+        }
+
         Err(tonic::Status::new(
-            tonic::Code::Unimplemented,
-            "unimplemented",
+            tonic::Code::NotFound,
+            format!("Times with id {} not found", tid),
+        ))
+    }
+
+    async fn get_todos(
+        &self,
+        request: tonic::Request<grpc::TimesId>,
+    ) -> Result<tonic::Response<grpc::TodoArray>, tonic::Status> {
+        let mut store = self.store.lock().await;
+        let tid = request.into_inner().id;
+
+        // Find the times store by ID
+        let times_stores = store.get().await.map_err(|e| {
+            tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
+        })?;
+
+        for times_store in times_stores {
+            let mut ts = times_store.lock().await;
+            let times = ts.get().await.map_err(|e| {
+                tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
+            })?;
+            
+            if times.id == tid {
+                let todo_store = ts.tdstore().await.map_err(|e| {
+                    tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
+                })?;
+                let mut tds = todo_store.lock().await;
+                let todos = tds.get().await.map_err(|e| {
+                    tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
+                })?;
+
+                let todos = todos
+                    .iter()
+                    .map(|t| grpc::Todo::from(t.clone()))
+                    .collect::<Vec<grpc::Todo>>();
+
+                return Ok(tonic::Response::new(grpc::TodoArray { todos }));
+            }
+        }
+
+        Err(tonic::Status::new(
+            tonic::Code::NotFound,
+            format!("Times with id {} not found", tid),
+        ))
+    }
+
+    async fn create_todo(
+        &self,
+        request: tonic::Request<grpc::CreateTodoParams>,
+    ) -> Result<tonic::Response<grpc::Todo>, tonic::Status> {
+        let mut store = self.store.lock().await;
+        let params = request.into_inner();
+        let tid = params.tid;
+        let content = params.content;
+
+        // Find the times store by ID
+        let times_stores = store.get().await.map_err(|e| {
+            tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
+        })?;
+
+        for times_store in times_stores {
+            let mut ts = times_store.lock().await;
+            let times = ts.get().await.map_err(|e| {
+                tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
+            })?;
+            
+            if times.id == tid {
+                let todo_store = ts.tdstore().await.map_err(|e| {
+                    tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
+                })?;
+                let mut tds = todo_store.lock().await;
+                let todo = tds.new(content).await.map_err(|e| {
+                    tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
+                })?;
+
+                return Ok(tonic::Response::new(grpc::Todo::from(todo)));
+            }
+        }
+
+        Err(tonic::Status::new(
+            tonic::Code::NotFound,
+            format!("Times with id {} not found", tid),
+        ))
+    }
+
+    async fn done_todo(
+        &self,
+        request: tonic::Request<grpc::DoneTodoParams>,
+    ) -> Result<tonic::Response<grpc::Todo>, tonic::Status> {
+        let mut store = self.store.lock().await;
+        let params = request.into_inner();
+        let tid = params.tid;
+        let tdid = params.tdid;
+        let done = params.done;
+
+        // Find the times store by ID
+        let times_stores = store.get().await.map_err(|e| {
+            tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
+        })?;
+
+        for times_store in times_stores {
+            let mut ts = times_store.lock().await;
+            let times = ts.get().await.map_err(|e| {
+                tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
+            })?;
+            
+            if times.id == tid {
+                let todo_store = ts.tdstore().await.map_err(|e| {
+                    tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
+                })?;
+                let mut tds = todo_store.lock().await;
+                let todo = tds.done(tdid, done).await.map_err(|e| {
+                    tonic::Status::new(tonic::Code::Aborted, format!("{e}"))
+                })?;
+
+                return Ok(tonic::Response::new(grpc::Todo::from(todo)));
+            }
+        }
+
+        Err(tonic::Status::new(
+            tonic::Code::NotFound,
+            format!("Times with id {} not found", tid),
         ))
     }
 }
