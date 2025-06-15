@@ -339,6 +339,9 @@ impl TimesModel {
                 AppResponse::FileDropped(path) => {
                     ures.push(UIResponse::FileDropped(path.clone()));
                 }
+                AppResponse::Error(_) => {
+                    // Errors are not relevant for times model
+                }
             }
         }
     }

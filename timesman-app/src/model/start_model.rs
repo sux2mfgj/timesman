@@ -28,7 +28,7 @@ impl StartModel {
     fn handle_ui_requests(
         &mut self,
         ureq: UIRequest,
-        _uresp: &mut Vec<UIResponse>,
+        uresp: &mut Vec<UIResponse>,
         rt: &Runtime,
     ) {
         match ureq {
@@ -63,8 +63,19 @@ impl Model for StartModel {
         &mut self,
         ctx: &egui::Context,
         rt: &Runtime,
-        _resp: Vec<AppResponse>,
+        resp: Vec<AppResponse>,
     ) -> Result<Vec<AppRequest>, String> {
+        // Handle app responses (like errors)
+        for r in resp {
+            match r {
+                AppResponse::Error(err) => {
+                    self.uresp.push(UIResponse::Error(err));
+                }
+                _ => {
+                    // Other response types are not relevant for start model
+                }
+            }
+        }
         let ureqs = self.ui.update(ctx, &self.uresp).unwrap();
 
         let mut uresp = vec![];

@@ -44,6 +44,7 @@ pub enum UIRequest {
 
 pub enum AppResponse {
     FileDropped(PathBuf),
+    Error(String),
 }
 
 pub struct App {
@@ -96,6 +97,12 @@ impl App {
             }
             AppRequest::Err(e) => {
                 tmlog(format!("{e}"));
+                // Send error to current model if it's the start model
+                if let Some(model) = self.model_stack.front_mut() {
+                    // This is a bit of a hack, but we need to notify the current model about the error
+                    // For now, we'll use a special App response type
+                    self.resp_tx.send(AppResponse::Error(e)).unwrap();
+                }
                 Ok(())
             }
             AppRequest::ChangeState(s) => match s {
