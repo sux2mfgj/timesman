@@ -77,10 +77,15 @@ impl LocalStore {
 }
 
 /*
- * /meta.data
- * /{tid}/meta.data
- * /{tid}/posts/{posts}
- * /{tid}/todo/{todos}
+ * Storage structure:
+ * /meta.data                    - Root metadata
+ * /{tid}/meta.data              - Times metadata  
+ * /{tid}/posts/meta.data        - Posts metadata
+ * /{tid}/posts/{pid}            - Individual posts
+ * /{tid}/tags/meta.data         - Tags metadata
+ * /{tid}/tags/{tagid}           - Individual tags
+ * /{tid}/todos/meta.data        - Todos metadata
+ * /{tid}/todos/{tdid}           - Individual todos
  */
 
 #[derive(Serialize, Deserialize)]

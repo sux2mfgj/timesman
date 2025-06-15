@@ -11,14 +11,14 @@ pub struct LocalTodoStore {
     store: Arc<Mutex<UnQLite>>,
 }
 
-// {tid}/todo/meta.data
-// {tid}/todo/{tdid}.data
+// {tid}/todos/meta.data
+// {tid}/todos/{tdid}
 fn get_meta_path(tid: Tid) -> String {
-    format!("{}/todo/meta.data", tid)
+    format!("{tid}/todos/meta.data")
 }
 
 fn get_todo_path(tid: Tid, tdid: Tdid) -> String {
-    format!("{tid}/todo/{tdid}")
+    format!("{tid}/todos/{tdid}")
 }
 
 #[derive(Serialize, Deserialize)]
@@ -144,5 +144,24 @@ impl TodoStore for LocalTodoStore {
 
     async fn delete(&mut self, tdid: Tdid) -> Result<(), String> {
         todo!()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_todo_path_consistency() {
+        let tid = 123;
+        let tdid = 456;
+
+        // Test todo paths (should be plural and consistent)
+        assert_eq!(get_meta_path(tid), "123/todos/meta.data");
+        assert_eq!(get_todo_path(tid, tdid), "123/todos/456");
+        
+        // Verify consistent format
+        assert!(get_meta_path(tid).ends_with("/meta.data"));
+        assert!(get_todo_path(tid, tdid).starts_with(&format!("{tid}/todos/")));
     }
 }

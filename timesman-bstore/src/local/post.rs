@@ -16,15 +16,15 @@ fn get_pmeta_path(tid: Tid) -> String {
 }
 
 fn get_post_path(tid: Tid, pid: Pid) -> String {
-    format!("{tid}/posts/${pid}")
+    format!("{tid}/posts/{pid}")
 }
 
 fn get_tag_meta_path(tid: Tid) -> String {
-    format!("{tid}/tag/meta.data")
+    format!("{tid}/tags/meta.data")
 }
 
 fn get_tag_path(tid: Tid, tagid: TagId) -> String {
-    format!("{tid}/tag/${tagid}")
+    format!("{tid}/tags/{tagid}")
 }
 
 impl LocalPostStore {
@@ -224,5 +224,29 @@ impl PostStore for LocalPostStore {
         }
 
         Ok(post)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_path_consistency() {
+        let tid = 123;
+        let pid = 456;
+        let tagid = 789;
+
+        // Test post paths
+        assert_eq!(get_pmeta_path(tid), "123/posts/meta.data");
+        assert_eq!(get_post_path(tid, pid), "123/posts/456");
+        
+        // Test tag paths (should be plural and consistent)
+        assert_eq!(get_tag_meta_path(tid), "123/tags/meta.data");
+        assert_eq!(get_tag_path(tid, tagid), "123/tags/789");
+        
+        // Verify no dollar signs in paths
+        assert!(!get_post_path(tid, pid).contains('$'));
+        assert!(!get_tag_path(tid, tagid).contains('$'));
     }
 }
