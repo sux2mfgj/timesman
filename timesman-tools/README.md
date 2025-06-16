@@ -39,6 +39,22 @@ cargo run -p timesman-tools -- --conn-type grpc --server "http://localhost:9090"
 timesman-tools --conn-type <CONNECTION_TYPE> [--server <SERVER_URL>] <COMMAND>
 ```
 
+### TUI Mode (Recommended)
+
+For an interactive experience, use the TUI (Text User Interface) mode:
+
+```bash
+cargo run -p timesman-tools -- --conn-type grpc tui
+```
+
+The TUI provides a full-screen interface with:
+- **Times List**: Browse, create, edit, and delete time entries
+- **Posts List**: Manage posts within selected time entries  
+- **Keyboard Navigation**: Intuitive arrow key navigation
+- **Real-time Updates**: Automatic refresh and status updates
+- **Error Handling**: Clear error messages and recovery
+- **Help System**: Built-in help accessible with 'h' key
+
 #### Global Options
 
 - `--conn-type <TYPE>` (required) - Connection type (currently only `grpc` supported)
@@ -46,7 +62,38 @@ timesman-tools --conn-type <CONNECTION_TYPE> [--server <SERVER_URL>] <COMMAND>
 - `--help` - Show help information
 - `--version` - Show version information
 
+### TUI Keyboard Shortcuts
+
+#### Times List View
+- `↑/↓` - Navigate list
+- `Enter` - View posts for selected time entry
+- `n` - Create new time entry
+- `e` - Edit selected time entry
+- `d` - Delete selected time entry
+- `r` - Refresh list
+
+#### Posts List View  
+- `↑/↓` - Navigate list
+- `n` - Create new post
+- `e` - Edit selected post
+- `d` - Delete selected post
+- `r` - Refresh list
+- `Esc` - Return to times list
+
+#### Global Shortcuts
+- `h` - Show help
+- `q` / `Ctrl+Q` - Quit application
+- `Esc` - Cancel current action / Go back
+
 ## Commands
+
+### TUI Mode
+
+```bash
+cargo run -p timesman-tools -- --conn-type grpc tui
+```
+
+**Interactive Text User Interface** - Full-featured TUI for managing times and posts with keyboard navigation.
 
 ### Times Management
 

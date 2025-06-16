@@ -11,6 +11,8 @@ timesman-grpc = { path = "../timesman-grpc" }
 timesman-type = {path = "../timesman-type"}
 tokio = "1.42.0"
 tonic = "0.12.3"
+ratatui = "0.28"
+crossterm = "0.28"
 
 [dev-dependencies]
 tokio-test = "0.4"
