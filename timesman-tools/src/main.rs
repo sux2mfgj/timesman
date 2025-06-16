@@ -1,4 +1,5 @@
 mod grpc;
+mod tui;
 
 use clap::{Parser, Subcommand};
 use chrono;
@@ -35,6 +36,8 @@ struct Args {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Interactive TUI (Text User Interface) mode
+    Tui,
     GetTimesList,
     CreateTimes {
         #[arg(short, long)]
@@ -91,6 +94,9 @@ fn list_posts(posts: Vec<Post>) {
 
 fn run_command(mut c: Box<dyn Client>, cmd: &Command) -> Result<(), String> {
     match cmd {
+        Command::Tui => {
+            tui::run_tui(c)?;
+        }
         Command::GetTimesList => {
             list_times(c.get_times()?);
         }
