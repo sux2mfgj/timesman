@@ -18,6 +18,8 @@ struct Args {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Interactive TUI (Text User Interface) mode
+    Tui,
     GetTimesList,
     CreateTimes {
         #[arg(short, long)]
@@ -62,6 +64,19 @@ enum Command {
 #[cfg(test)]
 mod argument_parsing_tests {
     use super::*;
+
+    #[test]
+    fn test_parse_tui() {
+        let args = Args::try_parse_from(&[
+            "timesman-tools",
+            "--conn-type", "grpc",
+            "tui"
+        ]).unwrap();
+        
+        assert_eq!(args.conn_type, "grpc");
+        assert!(args.server.is_none());
+        assert!(matches!(args.command, Command::Tui));
+    }
 
     #[test]
     fn test_parse_get_times_list() {
