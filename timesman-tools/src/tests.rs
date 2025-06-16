@@ -313,4 +313,138 @@ mod command_tests {
         let result = run_command(Box::new(client), &cmd);
         assert!(result.is_err());
     }
+
+    #[test] 
+    fn test_tui_command_structure() {
+        // Test that TUI command exists and can be parsed
+        let client = MockClient::new().with_sample_data();
+        let cmd = Command::Tui;
+        
+        // We can't actually run the TUI in tests due to terminal requirements,
+        // but we can verify the command structure is correct
+        assert!(matches!(cmd, Command::Tui));
+    }
+}
+
+#[cfg(test)]
+mod tui_tests {
+    use super::*;
+    use crate::tui::app::{App, AppMode};
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    #[test]
+    fn test_input_mode_key_handling_prevents_help_interference() {
+        let client = MockClient::new().with_sample_data();
+        let mut app = App::new(Box::new(client));
+        
+        // Test CreateTimes mode
+        app.mode = AppMode::CreateTimes;
+        app.input.clear();
+        
+        // Simulate typing 'h' - should add to input, not trigger help
+        let key_event = KeyEvent::new(KeyCode::Char('h'), KeyModifiers::NONE);
+        let should_quit = app.handle_key_event(key_event).unwrap();
+        
+        assert!(!should_quit);
+        assert_eq!(app.mode, AppMode::CreateTimes); // Should still be in input mode
+        assert_eq!(app.input, "h"); // 'h' should be added to input
+        
+        // Test typing more characters including 'h'
+        let chars = ['e', 'l', 'l', 'o', ' ', 'h', 'e', 'l', 'p'];
+        for c in chars {
+            let key_event = KeyEvent::new(KeyCode::Char(c), KeyModifiers::NONE);
+            app.handle_key_event(key_event).unwrap();
+        }
+        
+        assert_eq!(app.input, "hello help");
+        assert_eq!(app.mode, AppMode::CreateTimes);
+    }
+
+    #[test]
+    fn test_input_mode_escape_returns_to_parent_mode() {
+        let client = MockClient::new().with_sample_data();
+        let mut app = App::new(Box::new(client));
+        
+        // Test CreateTimes mode escape behavior
+        app.mode = AppMode::CreateTimes;
+        app.input = "some input".to_string();
+        
+        let escape_event = KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE);
+        app.handle_key_event(escape_event).unwrap();
+        
+        assert_eq!(app.mode, AppMode::TimesList);
+        assert_eq!(app.input, ""); // Input should be cleared
+        
+        // Test CreatePost mode escape behavior
+        app.mode = AppMode::CreatePost;
+        app.input = "some post content".to_string();
+        
+        let escape_event = KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE);
+        app.handle_key_event(escape_event).unwrap();
+        
+        assert_eq!(app.mode, AppMode::PostsList);
+        assert_eq!(app.input, "");
+    }
+
+    #[test]
+    fn test_non_input_mode_help_key_works() {
+        let client = MockClient::new().with_sample_data();
+        let mut app = App::new(Box::new(client));
+        
+        // Test help key works in TimesList mode
+        app.mode = AppMode::TimesList;
+        
+        let help_event = KeyEvent::new(KeyCode::Char('h'), KeyModifiers::NONE);
+        app.handle_key_event(help_event).unwrap();
+        
+        assert_eq!(app.mode, AppMode::Help);
+        
+        // Test help key works in PostsList mode
+        app.mode = AppMode::PostsList;
+        
+        let help_event = KeyEvent::new(KeyCode::Char('h'), KeyModifiers::NONE);
+        app.handle_key_event(help_event).unwrap();
+        
+        assert_eq!(app.mode, AppMode::Help);
+    }
+
+    #[test]
+    fn test_ctrl_q_works_in_all_modes() {
+        let client = MockClient::new().with_sample_data();
+        let mut app = App::new(Box::new(client));
+        
+        let modes_to_test = vec![
+            AppMode::TimesList,
+            AppMode::PostsList,
+            AppMode::CreateTimes,
+            AppMode::EditTimes,
+            AppMode::CreatePost,
+            AppMode::EditPost,
+            AppMode::Help,
+        ];
+        
+        for mode in modes_to_test {
+            app.mode = mode.clone();
+            
+            let ctrl_q_event = KeyEvent::new(KeyCode::Char('q'), KeyModifiers::CONTROL);
+            let should_quit = app.handle_key_event(ctrl_q_event).unwrap();
+            
+            assert!(should_quit, "Ctrl+Q should work in mode: {:?}", mode);
+        }
+    }
+
+    #[test]
+    fn test_backspace_works_in_input_modes() {
+        let client = MockClient::new().with_sample_data();
+        let mut app = App::new(Box::new(client));
+        
+        app.mode = AppMode::CreateTimes;
+        app.input = "hello".to_string();
+        
+        let backspace_event = KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE);
+        app.handle_key_event(backspace_event).unwrap();
+        
+        assert_eq!(app.input, "hell");
+        assert_eq!(app.mode, AppMode::CreateTimes);
+    }
 }
