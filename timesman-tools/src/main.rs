@@ -6,6 +6,8 @@ use chrono;
 use timesman_type::{Post, Times};
 
 #[cfg(test)]
+mod mock_client;
+#[cfg(test)]
 mod tests;
 
 trait Client {
