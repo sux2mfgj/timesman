@@ -1,4 +1,5 @@
 use timesman_grpc::grpc::times_man_client::TimesManClient;
+use timesman_grpc::grpc::{TimesTitle, TimesId, CreatePostPrams, DeletePostParam, UpdatePostParam};
 use timesman_type::{Post, Times};
 
 pub struct GrpcClient {
@@ -22,30 +23,80 @@ impl super::Client for GrpcClient {
     }
 
     fn create_times(&mut self, title: String) -> Result<Times, String> {
-        Err("not yet implemented".to_string())
+        let request = TimesTitle { title };
+        let response = self
+            .rt
+            .block_on(async { self.client.create_times(request).await })
+            .map_err(|e| format!("gRPC error: {}", e))?;
+        
+        Ok(response.into_inner().into())
     }
 
     fn delete_times(&mut self, tid: u64) -> Result<(), String> {
-        Err("not yet implemented".to_string())
+        let request = TimesId { id: tid };
+        self.rt
+            .block_on(async { self.client.delete_times(request).await })
+            .map_err(|e| format!("gRPC error: {}", e))?;
+        
+        Ok(())
     }
 
     fn update_times(&mut self, times: Times) -> Result<Times, String> {
-        Err("not yet implemented".to_string())
+        let request: timesman_grpc::grpc::Times = times.into();
+        let response = self
+            .rt
+            .block_on(async { self.client.update_times(request).await })
+            .map_err(|e| format!("gRPC error: {}", e))?;
+        
+        Ok(response.into_inner().into())
     }
 
     fn get_posts(&mut self, tid: u64) -> Result<Vec<Post>, String> {
-        Err("not yet implemented".to_string())
+        let request = TimesId { id: tid };
+        let response = self
+            .rt
+            .block_on(async { self.client.get_posts(request).await })
+            .map_err(|e| format!("gRPC error: {}", e))?;
+        
+        let posts = response
+            .into_inner()
+            .posts
+            .iter()
+            .map(|p| p.clone().into())
+            .collect::<Vec<Post>>();
+        
+        Ok(posts)
     }
     fn create_post(&mut self, tid: u64, text: String) -> Result<Post, String> {
-        Err("not yet implemented".to_string())
+        let request = CreatePostPrams { id: tid, text };
+        let response = self
+            .rt
+            .block_on(async { self.client.create_post(request).await })
+            .map_err(|e| format!("gRPC error: {}", e))?;
+        
+        Ok(response.into_inner().into())
     }
 
     fn delete_post(&mut self, tid: u64, pid: u64) -> Result<(), String> {
-        Err("not yet implemented".to_string())
+        let request = DeletePostParam { tid, pid };
+        self.rt
+            .block_on(async { self.client.delete_post(request).await })
+            .map_err(|e| format!("gRPC error: {}", e))?;
+        
+        Ok(())
     }
 
     fn update_post(&mut self, tid: u64, post: Post) -> Result<Post, String> {
-        Err("not yet implemented".to_string())
+        let request = UpdatePostParam { 
+            tid, 
+            post: Some(post.into()) 
+        };
+        let response = self
+            .rt
+            .block_on(async { self.client.update_post(request).await })
+            .map_err(|e| format!("gRPC error: {}", e))?;
+        
+        Ok(response.into_inner().into())
     }
 }
 
