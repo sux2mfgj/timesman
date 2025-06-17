@@ -12,8 +12,8 @@ path = "~/Library/Application Support/timesman/unqlite.db"
 
 # Alternative configurations:
 # Memory store (no persistence)
-# [store]
-# type = "Memory"
+#[store]
+#type = "Memory"
 
 # JSON file store
 # [store] 
