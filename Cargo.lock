@@ -5975,6 +5975,7 @@ dependencies = [
  "mockall",
  "predicates",
  "ratatui",
+ "serde_json",
  "tempfile",
  "timesman-grpc",
  "timesman-type",
