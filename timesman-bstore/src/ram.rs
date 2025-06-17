@@ -247,6 +247,7 @@ impl TodoStore for RamTodoStore {
         let todo = Todo {
             id,
             content,
+            detail: None,
             created_at: Utc::now().naive_local(),
             done_at: None,
         };

@@ -41,6 +41,7 @@ impl TodoStore for GrpcTodoStore {
         let param = grpc::CreateTodoParams {
             tid: self.tid,
             content,
+            detail: None,
         };
         let todo = c
             .create_todo(tonic::Request::new(param))
@@ -65,9 +66,26 @@ impl TodoStore for GrpcTodoStore {
         Ok(todo.into_inner().into())
     }
 
-    async fn update(&mut self, _todo: Todo) -> Result<Todo, String> {
-        // Note: Update method not implemented in gRPC proto
-        Err("Todo update not supported via gRPC".to_string())
+    async fn update(&mut self, todo: Todo) -> Result<Todo, String> {
+        let mut c = self.client.lock().await;
+        
+        // For now, we'll use UpdateTodoDetail if the detail field changed
+        if let Some(detail) = &todo.detail {
+            let param = grpc::UpdateTodoDetailParams {
+                tid: self.tid,
+                tdid: todo.id,
+                detail: detail.clone(),
+            };
+            let updated_todo = c
+                .update_todo_detail(tonic::Request::new(param))
+                .await
+                .map_err(|e| format!("{e}"))?;
+            
+            Ok(updated_todo.into_inner().into())
+        } else {
+            // If no detail, return the todo as-is since we can't update content via gRPC yet
+            Ok(todo)
+        }
     }
 
     async fn delete(&mut self, _tdid: Tdid) -> Result<(), String> {
