@@ -5,8 +5,10 @@ use std::collections::HashMap;
 pub struct MockClient {
     pub times: HashMap<u64, Times>,
     pub posts: HashMap<u64, Vec<Post>>,
+    pub todos: HashMap<u64, Vec<Todo>>,
     pub next_times_id: u64,
     pub next_post_id: u64,
+    pub next_todo_id: u64,
     pub should_error: bool,
     pub error_message: String,
 }
@@ -16,8 +18,10 @@ impl MockClient {
         Self {
             times: HashMap::new(),
             posts: HashMap::new(),
+            todos: HashMap::new(),
             next_times_id: 1,
             next_post_id: 1,
+            next_todo_id: 1,
             should_error: false,
             error_message: "Mock error".to_string(),
         }
@@ -70,8 +74,35 @@ impl MockClient {
         self.posts.insert(1, vec![post1, post2]);
         self.posts.insert(2, vec![]);
         
+        // Add sample todos
+        let todo1 = Todo {
+            id: 1,
+            content: "Complete documentation".to_string(),
+            detail: Some("Write comprehensive documentation for the todo detail feature including API endpoints and CLI usage examples.".to_string()),
+            created_at: now,
+            done_at: None,
+        };
+        let todo2 = Todo {
+            id: 2,
+            content: "Review code".to_string(),
+            detail: None,
+            created_at: now,
+            done_at: Some(now),
+        };
+        let todo3 = Todo {
+            id: 3,
+            content: "Plan next sprint".to_string(),
+            detail: Some("Organize upcoming tasks for the next development sprint, including priority assessment and resource allocation.".to_string()),
+            created_at: now,
+            done_at: None,
+        };
+        
+        self.todos.insert(1, vec![todo1, todo2]);
+        self.todos.insert(2, vec![todo3]);
+        
         self.next_times_id = 3;
         self.next_post_id = 3;
+        self.next_todo_id = 4;
         
         self
     }
@@ -103,6 +134,7 @@ impl Client for MockClient {
         
         self.times.insert(self.next_times_id, times.clone());
         self.posts.insert(self.next_times_id, vec![]);
+        self.todos.insert(self.next_times_id, vec![]);
         self.next_times_id += 1;
         
         Ok(times)
@@ -119,6 +151,7 @@ impl Client for MockClient {
         
         self.times.remove(&tid);
         self.posts.remove(&tid);
+        self.todos.remove(&tid);
         Ok(())
     }
 
@@ -216,5 +249,174 @@ impl Client for MockClient {
         }
         
         Err(format!("Post with ID {} not found in times {}", post.id, tid))
+    }
+
+    fn get_todos(&mut self, tid: u64) -> Result<Vec<Todo>, String> {
+        if self.should_error {
+            return Err(self.error_message.clone());
+        }
+        
+        if !self.times.contains_key(&tid) {
+            return Err(format!("Times with ID {} not found", tid));
+        }
+        
+        Ok(self.todos.get(&tid).unwrap_or(&vec![]).clone())
+    }
+
+    fn create_todo(&mut self, tid: u64, content: String) -> Result<Todo, String> {
+        if self.should_error {
+            return Err(self.error_message.clone());
+        }
+        
+        if !self.times.contains_key(&tid) {
+            return Err(format!("Times with ID {} not found", tid));
+        }
+        
+        let now = chrono::Utc::now().naive_utc();
+        let todo = Todo {
+            id: self.next_todo_id,
+            content,
+            detail: None,
+            created_at: now,
+            done_at: None,
+        };
+        
+        self.todos.entry(tid).or_insert_with(Vec::new).push(todo.clone());
+        self.next_todo_id += 1;
+        
+        Ok(todo)
+    }
+
+    fn create_todo_with_detail(&mut self, tid: u64, content: String, detail: Option<String>) -> Result<Todo, String> {
+        if self.should_error {
+            return Err(self.error_message.clone());
+        }
+        
+        if !self.times.contains_key(&tid) {
+            return Err(format!("Times with ID {} not found", tid));
+        }
+        
+        let now = chrono::Utc::now().naive_utc();
+        let todo = Todo {
+            id: self.next_todo_id,
+            content,
+            detail,
+            created_at: now,
+            done_at: None,
+        };
+        
+        self.todos.entry(tid).or_insert_with(Vec::new).push(todo.clone());
+        self.next_todo_id += 1;
+        
+        Ok(todo)
+    }
+
+    fn delete_todo(&mut self, tid: u64, tdid: u64) -> Result<(), String> {
+        if self.should_error {
+            return Err(self.error_message.clone());
+        }
+        
+        if !self.times.contains_key(&tid) {
+            return Err(format!("Times with ID {} not found", tid));
+        }
+        
+        let todos = self.todos.entry(tid).or_insert_with(Vec::new);
+        let initial_len = todos.len();
+        todos.retain(|t| t.id != tdid);
+        
+        if todos.len() == initial_len {
+            return Err(format!("Todo with ID {} not found in times {}", tdid, tid));
+        }
+        
+        Ok(())
+    }
+
+    fn update_todo(&mut self, tid: u64, todo: Todo) -> Result<Todo, String> {
+        if self.should_error {
+            return Err(self.error_message.clone());
+        }
+        
+        if !self.times.contains_key(&tid) {
+            return Err(format!("Times with ID {} not found", tid));
+        }
+        
+        let todos = self.todos.entry(tid).or_insert_with(Vec::new);
+        
+        for existing_todo in todos.iter_mut() {
+            if existing_todo.id == todo.id {
+                let updated_todo = todo.clone();
+                *existing_todo = updated_todo.clone();
+                return Ok(updated_todo);
+            }
+        }
+        
+        Err(format!("Todo with ID {} not found in times {}", todo.id, tid))
+    }
+
+    fn get_todo_detail(&mut self, tid: u64, tdid: u64) -> Result<Todo, String> {
+        if self.should_error {
+            return Err(self.error_message.clone());
+        }
+        
+        if !self.times.contains_key(&tid) {
+            return Err(format!("Times with ID {} not found", tid));
+        }
+        
+        let empty_vec = vec![];
+        let todos = self.todos.get(&tid).unwrap_or(&empty_vec);
+        
+        for todo in todos {
+            if todo.id == tdid {
+                return Ok(todo.clone());
+            }
+        }
+        
+        Err(format!("Todo with ID {} not found in times {}", tdid, tid))
+    }
+
+    fn update_todo_detail(&mut self, tid: u64, tdid: u64, detail: String) -> Result<Todo, String> {
+        if self.should_error {
+            return Err(self.error_message.clone());
+        }
+        
+        if !self.times.contains_key(&tid) {
+            return Err(format!("Times with ID {} not found", tid));
+        }
+        
+        let todos = self.todos.entry(tid).or_insert_with(Vec::new);
+        
+        for existing_todo in todos.iter_mut() {
+            if existing_todo.id == tdid {
+                existing_todo.detail = Some(detail);
+                return Ok(existing_todo.clone());
+            }
+        }
+        
+        Err(format!("Todo with ID {} not found in times {}", tdid, tid))
+    }
+
+    fn mark_todo_done(&mut self, tid: u64, tdid: u64, done: bool) -> Result<Todo, String> {
+        if self.should_error {
+            return Err(self.error_message.clone());
+        }
+        
+        if !self.times.contains_key(&tid) {
+            return Err(format!("Times with ID {} not found", tid));
+        }
+        
+        let todos = self.todos.entry(tid).or_insert_with(Vec::new);
+        
+        for existing_todo in todos.iter_mut() {
+            if existing_todo.id == tdid {
+                if done {
+                    existing_todo.done_at = Some(chrono::Utc::now().naive_utc());
+                } else {
+                    existing_todo.done_at = None;
+                }
+                return Ok(existing_todo.clone());
+            }
+        }
+        
+        Err(format!("Todo with ID {} not found in times {}", tdid, tid))
     }
 }

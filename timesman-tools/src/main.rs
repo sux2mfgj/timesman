@@ -4,10 +4,10 @@ mod tui;
 use clap::{Parser, Subcommand};
 use chrono;
 
-use timesman_type::{Post, Times};
+use timesman_type::{Post, Times, Todo};
 
 #[cfg(test)]
-mod mock_client;
+pub mod mock_client;
 #[cfg(test)]
 mod tests;
 
@@ -21,6 +21,15 @@ trait Client {
     fn create_post(&mut self, tid: u64, text: String) -> Result<Post, String>;
     fn delete_post(&mut self, tid: u64, pid: u64) -> Result<(), String>;
     fn update_post(&mut self, tid: u64, post: Post) -> Result<Post, String>;
+
+    fn get_todos(&mut self, tid: u64) -> Result<Vec<Todo>, String>;
+    fn create_todo(&mut self, tid: u64, content: String) -> Result<Todo, String>;
+    fn create_todo_with_detail(&mut self, tid: u64, content: String, detail: Option<String>) -> Result<Todo, String>;
+    fn delete_todo(&mut self, tid: u64, tdid: u64) -> Result<(), String>;
+    fn update_todo(&mut self, tid: u64, todo: Todo) -> Result<Todo, String>;
+    fn get_todo_detail(&mut self, tid: u64, tdid: u64) -> Result<Todo, String>;
+    fn update_todo_detail(&mut self, tid: u64, tdid: u64, detail: String) -> Result<Todo, String>;
+    fn mark_todo_done(&mut self, tid: u64, tdid: u64, done: bool) -> Result<Todo, String>;
 }
 
 #[derive(Parser)]
@@ -77,6 +86,66 @@ enum Command {
         #[arg(short = 'T', long)]
         text: String,
     },
+    GetTodoList {
+        #[arg(short, long)]
+        tid: u64,
+    },
+    CreateTodo {
+        #[arg(short, long)]
+        tid: u64,
+        #[arg(short = 'c', long)]
+        content: String,
+    },
+    CreateTodoWithDetail {
+        #[arg(short, long)]
+        tid: u64,
+        #[arg(short = 'c', long)]
+        content: String,
+        #[arg(short = 'd', long)]
+        detail: String,
+    },
+    DeleteTodo {
+        #[arg(short, long)]
+        tid: u64,
+        #[arg(long)]
+        tdid: u64,
+    },
+    UpdateTodo {
+        #[arg(short, long)]
+        tid: u64,
+        #[arg(long)]
+        tdid: u64,
+        #[arg(short = 'c', long)]
+        content: String,
+    },
+    GetTodoDetail {
+        #[arg(short, long)]
+        tid: u64,
+        #[arg(long)]
+        tdid: u64,
+    },
+    UpdateTodoDetail {
+        #[arg(short, long)]
+        tid: u64,
+        #[arg(long)]
+        tdid: u64,
+        #[arg(short = 'd', long)]
+        detail: String,
+    },
+    MarkTodoDone {
+        #[arg(short, long)]
+        tid: u64,
+        #[arg(long)]
+        tdid: u64,
+        #[arg(short = 'D', long, action = clap::ArgAction::SetTrue)]
+        done: bool,
+    },
+    MarkTodoUndone {
+        #[arg(short, long)]
+        tid: u64,
+        #[arg(long)]
+        tdid: u64,
+    },
 }
 
 fn list_times(times: Vec<Times>) {
@@ -89,6 +158,23 @@ fn list_posts(posts: Vec<Post>) {
     for p in posts {
         println!("ID: {}, Post: {}, Created: {}, Updated: {:?}, Tag: {:?}", 
                  p.id, p.post, p.created_at, p.updated_at, p.tag);
+    }
+}
+
+fn list_todos(todos: Vec<Todo>) {
+    for t in todos {
+        let status = if t.done_at.is_some() { "DONE" } else { "PENDING" };
+        let detail = if let Some(detail) = &t.detail {
+            if detail.len() > 50 {
+                format!(" - {}", &detail[..47]).to_string() + "..."
+            } else {
+                format!(" - {}", detail)
+            }
+        } else {
+            String::new()
+        };
+        println!("ID: {}, Content: {}{}, Status: {}, Created: {}, Done: {:?}", 
+                 t.id, t.content, detail, status, t.created_at, t.done_at);
     }
 }
 
@@ -140,6 +226,56 @@ fn run_command(mut c: Box<dyn Client>, cmd: &Command) -> Result<(), String> {
             };
             let updated_post = c.update_post(*tid, post)?;
             println!("Updated post: ID {}, Text: {}", updated_post.id, updated_post.post);
+        }
+        Command::GetTodoList { tid } => {
+            list_todos(c.get_todos(*tid)?);
+        }
+        Command::CreateTodo { tid, content } => {
+            let todo = c.create_todo(*tid, content.clone())?;
+            println!("Created todo: ID {}, Content: {}", todo.id, todo.content);
+        }
+        Command::CreateTodoWithDetail { tid, content, detail } => {
+            let todo = c.create_todo_with_detail(*tid, content.clone(), Some(detail.clone()))?;
+            println!("Created todo with detail: ID {}, Content: {}, Detail: {}", 
+                     todo.id, todo.content, detail);
+        }
+        Command::DeleteTodo { tid, tdid } => {
+            c.delete_todo(*tid, *tdid)?;
+            println!("Deleted todo with ID: {} from times: {}", tdid, tid);
+        }
+        Command::UpdateTodo { tid, tdid, content } => {
+            let todo = Todo {
+                id: *tdid,
+                content: content.clone(),
+                detail: None,
+                created_at: chrono::Utc::now().naive_utc(),
+                done_at: None,
+            };
+            let updated_todo = c.update_todo(*tid, todo)?;
+            println!("Updated todo: ID {}, Content: {}", updated_todo.id, updated_todo.content);
+        }
+        Command::GetTodoDetail { tid, tdid } => {
+            let todo = c.get_todo_detail(*tid, *tdid)?;
+            println!("Todo ID: {}, Content: {}", todo.id, todo.content);
+            if let Some(detail) = &todo.detail {
+                println!("Detail: {}", detail);
+            } else {
+                println!("Detail: None");
+            }
+            println!("Created: {}, Done: {:?}", todo.created_at, todo.done_at);
+        }
+        Command::UpdateTodoDetail { tid, tdid, detail } => {
+            let updated_todo = c.update_todo_detail(*tid, *tdid, detail.clone())?;
+            println!("Updated todo detail: ID {}, Detail: {}", updated_todo.id, detail);
+        }
+        Command::MarkTodoDone { tid, tdid, done } => {
+            let updated_todo = c.mark_todo_done(*tid, *tdid, *done)?;
+            let status = if *done { "DONE" } else { "PENDING" };
+            println!("Marked todo ID {} as {}", updated_todo.id, status);
+        }
+        Command::MarkTodoUndone { tid, tdid } => {
+            let updated_todo = c.mark_todo_done(*tid, *tdid, false)?;
+            println!("Marked todo ID {} as PENDING", updated_todo.id);
         }
     }
 
