@@ -18,6 +18,8 @@ service TimesMan {
   rpc GetTodos(TimesId) returns (TodoArray);
   rpc CreateTodo(CreateTodoParams) returns (Todo);
   rpc DoneTodo(DoneTodoParams) returns (Todo);
+  rpc GetTodoDetail(TodoDetailParams) returns (Todo);
+  rpc UpdateTodoDetail(UpdateTodoDetailParams) returns (Todo);
 }
 
 message PostId { uint64 id = 1; }
@@ -54,12 +56,24 @@ message UpdatePostParam {
 message CreateTodoParams {
   uint64 tid = 1;
   string content = 2;
+  optional string detail = 3;
 }
 
 message DoneTodoParams {
   uint64 tid = 1;
   uint64 tdid = 2;
   bool done = 3;
+}
+
+message TodoDetailParams {
+  uint64 tid = 1;
+  uint64 tdid = 2;
+}
+
+message UpdateTodoDetailParams {
+  uint64 tid = 1;
+  uint64 tdid = 2;
+  string detail = 3;
 }
 
 message Times {
@@ -80,6 +94,7 @@ message Post {
 message Todo {
   uint64 id = 1;
   string content = 2;
-  google.protobuf.Timestamp created_at = 3;
-  optional google.protobuf.Timestamp done_at = 4;
+  optional string detail = 3;
+  google.protobuf.Timestamp created_at = 4;
+  optional google.protobuf.Timestamp done_at = 5;
 }

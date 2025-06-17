@@ -81,6 +81,7 @@ pub type Tdid = u64;
 pub struct Todo {
     pub id: Tdid,
     pub content: String,
+    pub detail: Option<String>,
     pub created_at: chrono::NaiveDateTime,
     pub done_at: Option<chrono::NaiveDateTime>,
 }
@@ -264,6 +265,7 @@ mod tests {
         let todo = Todo {
             id: 1,
             content: "Finish project".to_string(),
+            detail: Some("Complete the final implementation and testing of the project before the deadline.".to_string()),
             created_at: created,
             done_at: Some(done),
         };
@@ -280,6 +282,7 @@ mod tests {
         let todo = Todo {
             id: 2,
             content: "Start new task".to_string(),
+            detail: None,
             created_at: created,
             done_at: None,
         };
@@ -296,6 +299,7 @@ mod tests {
         let todo1 = Todo {
             id: 1,
             content: "Task".to_string(),
+            detail: None,
             created_at: created,
             done_at: None,
         };
@@ -303,11 +307,66 @@ mod tests {
         let todo2 = Todo {
             id: 1,
             content: "Task".to_string(),
+            detail: None,
             created_at: created,
             done_at: None,
         };
         
         assert_eq!(todo1, todo2);
+    }
+
+    #[test]
+    fn todo_with_detail() {
+        let created = NaiveDateTime::parse_from_str("2023-01-01 10:00:00", "%Y-%m-%d %H:%M:%S").unwrap();
+        
+        let todo = Todo {
+            id: 3,
+            content: "Research project".to_string(),
+            detail: Some("Research the latest trends in web development, focusing on performance optimization and user experience. Look into frameworks like Next.js, SvelteKit, and emerging technologies. Document findings with links and examples.".to_string()),
+            created_at: created,
+            done_at: None,
+        };
+        
+        assert_eq!(todo.id, 3);
+        assert_eq!(todo.content, "Research project");
+        assert!(todo.detail.is_some());
+        assert!(todo.detail.as_ref().unwrap().contains("web development"));
+        assert!(todo.done_at.is_none());
+    }
+
+    #[test]
+    fn todo_detail_equality() {
+        let created = NaiveDateTime::parse_from_str("2023-01-01 10:00:00", "%Y-%m-%d %H:%M:%S").unwrap();
+        let detail_text = "Detailed explanation of the task".to_string();
+        
+        let todo1 = Todo {
+            id: 1,
+            content: "Task".to_string(),
+            detail: Some(detail_text.clone()),
+            created_at: created,
+            done_at: None,
+        };
+        
+        let todo2 = Todo {
+            id: 1,
+            content: "Task".to_string(),
+            detail: Some(detail_text),
+            created_at: created,
+            done_at: None,
+        };
+        
+        assert_eq!(todo1, todo2);
+        
+        // Test inequality when details differ
+        let todo3 = Todo {
+            id: 1,
+            content: "Task".to_string(),
+            detail: Some("Different detail".to_string()),
+            created_at: created,
+            done_at: None,
+        };
+        
+        assert_ne!(todo1, todo3);
     }
 
     #[test]
@@ -325,5 +384,188 @@ mod tests {
         let deserialized: Times = serde_json::from_str(&json).unwrap();
         
         assert_eq!(times, deserialized);
+    }
+
+    #[test]
+    fn test_todo_detail_serialization() {
+        let created = NaiveDateTime::parse_from_str("2023-01-01 10:00:00", "%Y-%m-%d %H:%M:%S").unwrap();
+        
+        // Test with detail field
+        let todo_with_detail = Todo {
+            id: 1,
+            content: "Test task".to_string(),
+            detail: Some("Detailed description of the task with multiple lines\nand special characters: ñáéíóú".to_string()),
+            created_at: created,
+            done_at: None,
+        };
+        
+        let json = serde_json::to_string(&todo_with_detail).unwrap();
+        let deserialized: Todo = serde_json::from_str(&json).unwrap();
+        assert_eq!(todo_with_detail, deserialized);
+        
+        // Test without detail field  
+        let todo_without_detail = Todo {
+            id: 2,
+            content: "Simple task".to_string(),
+            detail: None,
+            created_at: created,
+            done_at: None,
+        };
+        
+        let json = serde_json::to_string(&todo_without_detail).unwrap();
+        let deserialized: Todo = serde_json::from_str(&json).unwrap();
+        assert_eq!(todo_without_detail, deserialized);
+    }
+
+    #[test] 
+    fn test_todo_detail_backward_compatibility() {
+        let created = NaiveDateTime::parse_from_str("2023-01-01 10:00:00", "%Y-%m-%d %H:%M:%S").unwrap();
+        
+        // Test that old JSON without detail field can be deserialized
+        let old_todo_json = r#"{
+            "id": 1,
+            "content": "Old task without detail field",
+            "created_at": "2023-01-01T10:00:00",
+            "done_at": null
+        }"#;
+        
+        let deserialized: Todo = serde_json::from_str(old_todo_json).unwrap();
+        assert_eq!(deserialized.id, 1);
+        assert_eq!(deserialized.content, "Old task without detail field");
+        assert_eq!(deserialized.detail, None);
+        assert_eq!(deserialized.created_at, created);
+        assert_eq!(deserialized.done_at, None);
+        
+        // Test that new JSON with explicit null detail works
+        let new_todo_json = r#"{
+            "id": 2,
+            "content": "New task with explicit null detail",
+            "detail": null,
+            "created_at": "2023-01-01T10:00:00",
+            "done_at": null
+        }"#;
+        
+        let deserialized: Todo = serde_json::from_str(new_todo_json).unwrap();
+        assert_eq!(deserialized.detail, None);
+    }
+
+    #[test]
+    fn test_todo_detail_validation() {
+        let created = NaiveDateTime::parse_from_str("2023-01-01 10:00:00", "%Y-%m-%d %H:%M:%S").unwrap();
+        
+        // Test with empty detail
+        let todo_empty_detail = Todo {
+            id: 1,
+            content: "Task".to_string(),
+            detail: Some("".to_string()),
+            created_at: created,
+            done_at: None,
+        };
+        assert!(todo_empty_detail.detail.as_ref().unwrap().is_empty());
+        
+        // Test with very long detail (simulate realistic limit)
+        let long_detail = "x".repeat(10000);
+        let todo_long_detail = Todo {
+            id: 2,
+            content: "Task".to_string(),
+            detail: Some(long_detail.clone()),
+            created_at: created,
+            done_at: None,
+        };
+        assert_eq!(todo_long_detail.detail.as_ref().unwrap().len(), 10000);
+        
+        // Test with Unicode characters
+        let unicode_detail = "Task with Unicode: 🚀 ñáéíóú 中文 العربية 🎉".to_string();
+        let todo_unicode = Todo {
+            id: 3,
+            content: "Unicode task".to_string(),
+            detail: Some(unicode_detail.clone()),
+            created_at: created,
+            done_at: None,
+        };
+        assert_eq!(todo_unicode.detail.as_ref().unwrap(), &unicode_detail);
+        
+        // Test serialization roundtrip with Unicode
+        let json = serde_json::to_string(&todo_unicode).unwrap();
+        let deserialized: Todo = serde_json::from_str(&json).unwrap();
+        assert_eq!(todo_unicode, deserialized);
+        
+        // Test with newlines and special characters
+        let special_detail = "Line 1\nLine 2\r\nTabs:\t\tSpaces:   \"Quotes\" 'Single' \\Backslashes\\".to_string();
+        let todo_special = Todo {
+            id: 4,
+            content: "Special chars".to_string(),
+            detail: Some(special_detail.clone()),
+            created_at: created,
+            done_at: None,
+        };
+        
+        let json = serde_json::to_string(&todo_special).unwrap();
+        let deserialized: Todo = serde_json::from_str(&json).unwrap();
+        assert_eq!(todo_special, deserialized);
+    }
+
+    #[test]
+    fn test_todo_detail_equality() {
+        let created = NaiveDateTime::parse_from_str("2023-01-01 10:00:00", "%Y-%m-%d %H:%M:%S").unwrap();
+        
+        // Test equality with same detail
+        let todo1 = Todo {
+            id: 1,
+            content: "Task".to_string(),
+            detail: Some("Same detail".to_string()),
+            created_at: created,
+            done_at: None,
+        };
+        
+        let todo2 = Todo {
+            id: 1,
+            content: "Task".to_string(),
+            detail: Some("Same detail".to_string()),
+            created_at: created,
+            done_at: None,
+        };
+        assert_eq!(todo1, todo2);
+        
+        // Test inequality with different details
+        let todo3 = Todo {
+            id: 1,
+            content: "Task".to_string(),
+            detail: Some("Different detail".to_string()),
+            created_at: created,
+            done_at: None,
+        };
+        assert_ne!(todo1, todo3);
+        
+        // Test equality with both None details
+        let todo4 = Todo {
+            id: 1,
+            content: "Task".to_string(),
+            detail: None,
+            created_at: created,
+            done_at: None,
+        };
+        
+        let todo5 = Todo {
+            id: 1,
+            content: "Task".to_string(),
+            detail: None,
+            created_at: created,
+            done_at: None,
+        };
+        assert_eq!(todo4, todo5);
+        
+        // Test inequality between Some and None
+        assert_ne!(todo1, todo4);
+        
+        // Test with empty string vs None
+        let todo6 = Todo {
+            id: 1,
+            content: "Task".to_string(),
+            detail: Some("".to_string()),
+            created_at: created,
+            done_at: None,
+        };
+        assert_ne!(todo4, todo6); // None != Some("")
     }
 }
