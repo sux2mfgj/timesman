@@ -25,6 +25,8 @@ pub enum UIRequest {
     Dump(PathBuf),
     Sort(bool),
     Todo(String),
+    TodoWithDetail(String, String),
+    UpdateTodoDetail(Tdid, String),
     Tag(String),
     TodoDone(Tdid, bool),
     Close,
@@ -60,6 +62,7 @@ fn load_dropped_file(file_path: PathBuf) -> Option<File> {
 pub enum UIResponse {
     ClearText,
     ClearTextSidePane,
+    ClearTextSidePaneDetail,
     FileDropped(PathBuf),
 }
 
@@ -376,6 +379,11 @@ impl TimesUI {
                 .select_side_panel(Some(side_panel::SidePanelType::Todo));
         }
 
+        if ui::consume_key_with_meta(ctx, Modifiers::COMMAND, Key::T) {
+            self.side_panel
+                .select_side_panel(Some(side_panel::SidePanelType::TodoDetail));
+        }
+
         if ui::consume_key_with_meta(ctx, Modifiers::COMMAND, Key::A) {
             self.side_panel
                 .select_side_panel(Some(side_panel::SidePanelType::Tag));
@@ -449,6 +457,9 @@ impl TimesUI {
                 }
                 UIResponse::ClearTextSidePane => {
                     self.side_panel.clear_text();
+                }
+                UIResponse::ClearTextSidePaneDetail => {
+                    self.side_panel.clear_detail_text();
                 }
                 UIResponse::FileDropped(path) => {
                     self.dropped_file = load_dropped_file(path);

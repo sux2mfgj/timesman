@@ -204,20 +204,93 @@ impl TimesModel {
                     let urtx = self.urtx.clone();
                     rt.spawn(async move {
                         let mut tdstore = tdstore.lock().await;
-                        let todo = tdstore.new(todo).await.unwrap();
-
-                        let mut pstore = pstore.lock().await;
-                        let post = pstore
-                            .post(
-                                format!("todo ({}) is created", todo.content),
-                                None,
-                            )
-                            .await
-                            .unwrap();
-
-                        aetx.send(AsyncEvent::AddTodo(todo)).unwrap();
-                        aetx.send(AsyncEvent::AddPost(post)).unwrap();
-                        urtx.send(UIResponse::ClearTextSidePane).unwrap();
+                        match tdstore.new(todo.clone()).await {
+                            Ok(todo) => {
+                                let mut pstore = pstore.lock().await;
+                                match pstore
+                                    .post(
+                                        format!("todo ({}) is created", todo.content),
+                                        None,
+                                    )
+                                    .await {
+                                    Ok(post) => {
+                                        aetx.send(AsyncEvent::AddTodo(todo)).unwrap();
+                                        aetx.send(AsyncEvent::AddPost(post)).unwrap();
+                                        urtx.send(UIResponse::ClearTextSidePane).unwrap();
+                                    }
+                                    Err(e) => {
+                                        aetx.send(AsyncEvent::Err(format!("Failed to create post: {}", e))).unwrap();
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                aetx.send(AsyncEvent::Err(format!("Failed to create todo: {}", e))).unwrap();
+                            }
+                        }
+                    });
+                }
+                UIRequest::TodoWithDetail(content, detail) => {
+                    let tdstore = self.tdstore.clone();
+                    let pstore = self.pstore.clone();
+                    let aetx = self.aetx.clone();
+                    let urtx = self.urtx.clone();
+                    rt.spawn(async move {
+                        let mut tdstore = tdstore.lock().await;
+                        // Create a regular todo first, then update it with detail
+                        match tdstore.new(content.clone()).await {
+                            Ok(mut todo) => {
+                                todo.detail = Some(detail.clone());
+                                match tdstore.update(todo).await {
+                                    Ok(todo) => {
+                                        let mut pstore = pstore.lock().await;
+                                        let post_content = if detail.is_empty() {
+                                            format!("todo ({}) is created", content)
+                                        } else {
+                                            format!("todo ({}) is created with detail", content)
+                                        };
+                                        match pstore.post(post_content, None).await {
+                                            Ok(post) => {
+                                                aetx.send(AsyncEvent::AddTodo(todo)).unwrap();
+                                                aetx.send(AsyncEvent::AddPost(post)).unwrap();
+                                                urtx.send(UIResponse::ClearTextSidePane).unwrap();
+                                                urtx.send(UIResponse::ClearTextSidePaneDetail).unwrap();
+                                            }
+                                            Err(e) => {
+                                                aetx.send(AsyncEvent::Err(format!("Failed to create post: {}", e))).unwrap();
+                                            }
+                                        }
+                                    }
+                                    Err(e) => {
+                                        aetx.send(AsyncEvent::Err(format!("Failed to update todo with detail: {}", e))).unwrap();
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                aetx.send(AsyncEvent::Err(format!("Failed to create todo: {}", e))).unwrap();
+                            }
+                        }
+                    });
+                }
+                UIRequest::UpdateTodoDetail(tdid, detail) => {
+                    let tdstore = self.tdstore.clone();
+                    let aetx = self.aetx.clone();
+                    let todos = self.todos.clone();
+                    rt.spawn(async move {
+                        let mut tdstore = tdstore.lock().await;
+                        // Find the existing todo and update its detail
+                        if let Some(mut todo) = todos.into_iter().find(|t| t.id == tdid) {
+                            todo.detail = Some(detail.clone());
+                            match tdstore.update(todo).await {
+                                Ok(updated_todo) => {
+                                    aetx.send(AsyncEvent::UpdateTodo(updated_todo)).unwrap();
+                                }
+                                Err(e) => {
+                                    aetx.send(AsyncEvent::Err(format!("Failed to update todo detail: {}", e))).unwrap();
+                                }
+                            }
+                        } else {
+                            aetx.send(AsyncEvent::Err(format!("Todo with ID {} not found", tdid))).unwrap();
+                        }
                     });
                 }
                 UIRequest::TodoDone(tdid, done) => {
@@ -227,19 +300,29 @@ impl TimesModel {
 
                     rt.spawn(async move {
                         let mut tdstore = tdstore.lock().await;
-                        let todo = tdstore.done(tdid, done).await.unwrap();
-
-                        let mut pstore = pstore.lock().await;
-                        let post = pstore
-                            .post(
-                                format!("todo ({}) is done", &todo.content),
-                                None,
-                            )
-                            .await
-                            .unwrap();
-
-                        aetx.send(AsyncEvent::UpdateTodo(todo)).unwrap();
-                        aetx.send(AsyncEvent::AddPost(post)).unwrap();
+                        match tdstore.done(tdid, done).await {
+                            Ok(todo) => {
+                                let mut pstore = pstore.lock().await;
+                                let status = if done { "done" } else { "undone" };
+                                match pstore
+                                    .post(
+                                        format!("todo ({}) is {}", &todo.content, status),
+                                        None,
+                                    )
+                                    .await {
+                                    Ok(post) => {
+                                        aetx.send(AsyncEvent::UpdateTodo(todo)).unwrap();
+                                        aetx.send(AsyncEvent::AddPost(post)).unwrap();
+                                    }
+                                    Err(e) => {
+                                        aetx.send(AsyncEvent::Err(format!("Failed to create post for todo status: {}", e))).unwrap();
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                aetx.send(AsyncEvent::Err(format!("Failed to update todo status: {}", e))).unwrap();
+                            }
+                        }
                     });
                 }
                 UIRequest::Dump(path) => {
