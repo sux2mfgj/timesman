@@ -199,11 +199,17 @@ impl Store for LocalStore {
         let todos_meta_key = format!("{}/todos/meta.data", tid);
         let _ = store.kv_delete(&todos_meta_key); // Ignore error if doesn't exist
         
-        // Remove from tstores
-        self.tstores.retain(|_tstore| {
-            // This is a bit tricky since we can't easily check the ID without locking
-            // For now, we'll just clear all tstores to be safe
-            false
+        // Remove from tstores - properly filter by checking the times ID
+        self.tstores.retain(|tstore| {
+            // We need to check if this tstore has the matching ID
+            // This is a blocking operation but necessary for correct filtering
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            rt.block_on(async {
+                match tstore.lock().await.get().await {
+                    Ok(times) => times.id != tid, // Keep if ID doesn't match
+                    Err(_) => false, // Remove if we can't get the times (corrupted)
+                }
+            })
         });
         
         Ok(())

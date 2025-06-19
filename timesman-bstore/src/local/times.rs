@@ -25,7 +25,17 @@ impl TimesStore for LocalTimesStore {
 
     async fn update(&mut self, times: Times) -> Result<Times, String> {
         self.times = times.clone();
-        todo!("update /times/{}/meta.data", times.id);
+        
+        // Persist the updated times to storage
+        let times_path = format!("{}/meta.data", times.id);
+        let serialized = serde_json::to_string(&times)
+            .map_err(|e| format!("Failed to serialize times: {}", e))?;
+        
+        let store = self.store.lock().await;
+        store.kv_store(times_path, serialized.into_bytes())
+            .map_err(|e| format!("Failed to store times: {}", e))?;
+        
+        Ok(times)
     }
 
     async fn pstore(
