@@ -1,0 +1,302 @@
+use super::{
+    File, Pid, Post, PostStore, Store, Tdid, Tid, Times, TimesStore, Todo,
+    TodoStore,
+};
+
+use async_trait::async_trait;
+use chrono::Local;
+use core::fmt;
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
+
+struct LocalTimes {
+    times: Times,
+    posts: Arc<HashMap<Pid, Post>>,
+    next_pid: u64,
+}
+
+impl LocalTimes {
+    pub fn new(times: Times) -> Self {
+        let posts = Arc::new(HashMap::new());
+        Self {
+            times,
+            posts,
+            next_pid: 0,
+        }
+    }
+}
+
+pub struct RamStore {
+    times: HashMap<Tid, LocalTimes>,
+    next_tid: u64,
+}
+
+impl RamStore {
+    pub fn new() -> Self {
+        Self {
+            times: HashMap::new(),
+            next_tid: 0,
+        }
+    }
+}
+
+#[async_trait]
+impl TimesStore for RamStore {
+    async fn check(&mut self) -> Result<(), String> {
+        Ok(())
+    }
+
+    async fn get(&mut self, tid: Tid) -> Result<Times, String> {
+        let ltimes =
+            self.times.get(&tid).ok_or(format!("invalid tid: {tid}"))?;
+
+        let times = ltimes.times.clone();
+
+        Ok(times)
+    }
+
+    async fn create(&mut self, title: String) -> Result<Times, String> {
+        let id = self.next_tid;
+        let times = Times {
+            id,
+            title,
+            created_at: Local::now().naive_local(),
+            updated_at: None,
+        };
+
+        self.next_tid += 1;
+
+        let ltimes = LocalTimes::new(times.clone());
+
+        self.times.insert(id, ltimes);
+
+        Ok(times)
+    }
+
+    async fn delete(&mut self, tid: u64) -> Result<(), String> {
+        todo!();
+    }
+
+    async fn update(&mut self, times: Times) -> Result<Times, String> {
+        todo!();
+    }
+}
+
+struct RamPStore {
+    posts: Arc<HashMap<Pid, Post>>,
+}
+
+#[async_trait]
+impl PostStore for RamPStore {
+    async fn get(&mut self, pid: u64) -> Result<Post, String> {
+        let post = self.posts.get(&pid).ok_or(format!("pid is invalid"))?;
+
+        Ok(post.clone())
+    }
+
+    async fn get_all(&mut self) -> Result<Vec<Post>, String> {
+        let mut pairs: Vec<(&u64, &Post)> = self.posts.iter().collect();
+
+        pairs.sort_by(|a, b| a.0.cmp(&b.0));
+
+        let posts = pairs.iter().map(|x| x.1.clone()).collect();
+        Ok(posts)
+    }
+
+    async fn post(&mut self, post: String, file: Option<(String, File)>) {
+        todo!();
+    }
+
+    async fn delete(&mut self, pid: u64) -> Result<(), String> {
+        todo!();
+    }
+
+    async fn update(&mut self, post: Post) -> Result<Post, String> {
+        todo!();
+    }
+}
+
+impl RamPStore {
+    pub fn new(posts: Arc<HashMap<Pid, Post>>) -> Self {
+        Self { posts }
+    }
+}
+
+struct RamTDStore {}
+
+#[async_trait]
+impl TodoStore for RamTDStore {
+    async fn get(&mut self) -> Result<Vec<Todo>, String> {
+        todo!();
+    }
+    async fn new(&mut self, content: String) -> Result<Todo, String> {
+        todo!();
+    }
+    async fn update(&mut self, todo: Todo) -> Result<Todo, String> {
+        todo!();
+    }
+    async fn delete(&mut self, tdid: Tdid) -> Result<(), String> {
+        todo!();
+    }
+}
+
+impl RamTDStore {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+/*
+#[async_trait]
+impl Store for RamStore {
+    async fn check(&mut self) -> Result<(), String> {
+        Ok(())
+    }
+
+    async fn get_times(&mut self) -> Result<Vec<super::Times>, String> {
+        Ok(self.times.iter().map(|t| t.1.times.clone()).collect())
+    }
+
+    async fn create_times(
+        &mut self,
+        title: String,
+    ) -> Result<super::Times, String> {
+        let id = self.next_tid;
+        self.next_tid += 1;
+
+        let now = Local::now();
+
+        let times = Times {
+            id,
+            title,
+            created_at: now.naive_local(),
+            updated_at: None,
+        };
+
+        let ltimes = LocalTimes {
+            times: times.clone(),
+            posts: HashMap::new(),
+            next_pid: 0,
+        };
+
+        self.times.insert(id, ltimes);
+
+        Ok(times)
+    }
+
+    async fn delete_times(&mut self, _tid: u64) -> Result<(), String> {
+        unimplemented!();
+    }
+
+    async fn update_times(
+        &mut self,
+        times: super::Times,
+    ) -> Result<Times, String> {
+        if let Some(t) = self.times.get_mut(&times.id) {
+            t.times = times;
+            let now = Local::now();
+            t.times.updated_at = Some(now.naive_local());
+            Ok(t.times.clone())
+        } else {
+            return Err("times id is invalid".to_string());
+        }
+    }
+
+    async fn get_posts(
+        &mut self,
+        tid: u64,
+    ) -> Result<Vec<super::Post>, String> {
+        let ltimes = self.times.get(&tid).ok_or("invalid tid")?;
+
+        let mut pairs: Vec<(&u64, &Post)> = ltimes.posts.iter().collect();
+
+        pairs.sort_by(|a, b| a.0.cmp(&b.0));
+
+        let posts = pairs.iter().map(|x| x.1.clone()).collect();
+
+        Ok(posts)
+    }
+
+    async fn create_post(
+        &mut self,
+        tid: u64,
+        post: String,
+        file: Option<(String, File)>,
+    ) -> Result<super::Post, String> {
+        let ltimes = self.times.get_mut(&tid).ok_or("invalid tid")?;
+
+        let post = Post {
+            id: ltimes.next_pid,
+            post,
+            created_at: Local::now().naive_local(),
+            updated_at: None,
+            file,
+        };
+
+        ltimes.posts.insert(post.id, post.clone());
+        ltimes.next_pid += 1;
+
+        Ok(post)
+    }
+
+    async fn update_post(
+        &mut self,
+        tid: u64,
+        mut post: super::Post,
+    ) -> Result<super::Post, String> {
+        let times = match self.times.get_mut(&tid) {
+            Some(t) => t,
+            None => {
+                return Err("Invalid tid".to_string());
+            }
+        };
+
+        let oldpost = match times.posts.get_mut(&post.id) {
+            Some(p) => p,
+            None => return Err("Invalid pid".to_string()),
+        };
+
+        post.updated_at = Some(Local::now().naive_local());
+
+        *oldpost = post.clone();
+
+        Ok(post)
+    }
+
+    async fn delete_post(&mut self, tid: u64, pid: u64) -> Result<(), String> {
+        if let Some(times) = self.times.get_mut(&tid) {
+            if let Some(_) = times.posts.remove(&pid) {
+                Ok(())
+            } else {
+                Err("Invalid pid".to_string())
+            }
+        } else {
+            Err("Invalid tid".to_string())
+        }
+    }
+
+    async fn get_latest_post(
+        &mut self,
+        tid: u64,
+    ) -> Result<Option<Post>, String> {
+        if let Some(ltimes) = self.times.get(&tid) {
+            let keys: Vec<u64> = ltimes.posts.clone().into_keys().collect();
+            if let Some(latest_pid) = keys.iter().max() {
+                if let Some(post) = ltimes.posts.get(latest_pid) {
+                    return Ok(Some(post.clone()));
+                }
+            }
+        }
+
+        Ok(None)
+    }
+}
+*/
+
+impl fmt::Debug for RamStore {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "TODO")
+    }
+}

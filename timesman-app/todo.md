@@ -1,0 +1,8 @@
+- Remove trailing newline
+- Times with an designated title
+- Reference or reply
+- Thread
+- Fix bugs 
+  - Crashing issues in new environments
+    - fonts dir is not created
+- Dump

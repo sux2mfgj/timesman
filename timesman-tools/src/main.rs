@@ -4,7 +4,9 @@ mod tui;
 use clap::{Parser, Subcommand};
 use chrono;
 
-use timesman_type::{Post, Times, Todo};
+use timesman_type::{File, FileType, Post, Times, Todo};
+use std::fs;
+use std::path::Path;
 
 #[cfg(test)]
 pub mod mock_client;
@@ -19,6 +21,7 @@ trait Client {
 
     fn get_posts(&mut self, tid: u64) -> Result<Vec<Post>, String>;
     fn create_post(&mut self, tid: u64, text: String) -> Result<Post, String>;
+    fn create_post_with_file(&mut self, tid: u64, text: String, file: File) -> Result<Post, String>;
     fn delete_post(&mut self, tid: u64, pid: u64) -> Result<(), String>;
     fn update_post(&mut self, tid: u64, post: Post) -> Result<Post, String>;
 
@@ -71,6 +74,14 @@ enum Command {
         tid: u64,
         #[arg(short = 'T', long)]
         text: String,
+    },
+    CreatePostWithFile {
+        #[arg(short, long)]
+        tid: u64,
+        #[arg(short = 'T', long)]
+        text: String,
+        #[arg(short = 'f', long)]
+        file_path: String,
     },
     DeletePost {
         #[arg(short, long)]
@@ -178,6 +189,51 @@ fn list_todos(todos: Vec<Todo>) {
     }
 }
 
+fn load_file_from_path(file_path: &str) -> Result<File, String> {
+    let path = Path::new(file_path);
+    
+    if !path.exists() {
+        return Err(format!("File does not exist: {}", file_path));
+    }
+    
+    let file_name = path.file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("unknown")
+        .to_string();
+    
+    let file_data = fs::read(file_path)
+        .map_err(|e| format!("Failed to read file {}: {}", file_path, e))?;
+    
+    let file_type = if let Some(extension) = path.extension().and_then(|ext| ext.to_str()) {
+        match extension.to_lowercase().as_str() {
+            "txt" | "md" | "json" | "toml" | "yaml" | "yml" | "rs" | "py" | "js" | "ts" | "html" | "css" | "xml" => {
+                let text_content = String::from_utf8(file_data)
+                    .map_err(|_| format!("File {} is not valid UTF-8 text", file_path))?;
+                FileType::Text(text_content)
+            }
+            "jpg" | "jpeg" | "png" | "gif" | "bmp" | "webp" | "ico" | "svg" => {
+                FileType::Image(file_data)
+            }
+            _ => {
+                FileType::Other(file_data)
+            }
+        }
+    } else {
+        if file_data.iter().all(|&b| b.is_ascii() && (b.is_ascii_graphic() || b.is_ascii_whitespace())) {
+            let text_content = String::from_utf8(file_data)
+                .map_err(|_| format!("File {} could not be interpreted as text", file_path))?;
+            FileType::Text(text_content)
+        } else {
+            FileType::Other(file_data)
+        }
+    };
+    
+    Ok(File {
+        name: file_name,
+        ftype: file_type,
+    })
+}
+
 fn run_command(mut c: Box<dyn Client>, cmd: &Command) -> Result<(), String> {
     match cmd {
         Command::Tui => {
@@ -210,6 +266,12 @@ fn run_command(mut c: Box<dyn Client>, cmd: &Command) -> Result<(), String> {
         Command::CreatePost { tid, text } => {
             let post = c.create_post(*tid, text.clone())?;
             println!("Created post: ID {}, Text: {}", post.id, post.post);
+        }
+        Command::CreatePostWithFile { tid, text, file_path } => {
+            let file = load_file_from_path(file_path)?;
+            let post = c.create_post_with_file(*tid, text.clone(), file)?;
+            println!("Created post with file: ID {}, Text: {}, File: {}", post.id, post.post, 
+                     post.file.as_ref().map(|f| f.name.as_str()).unwrap_or("unknown"));
         }
         Command::DeletePost { tid, pid } => {
             c.delete_post(*tid, *pid)?;

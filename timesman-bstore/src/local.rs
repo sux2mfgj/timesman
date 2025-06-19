@@ -199,18 +199,25 @@ impl Store for LocalStore {
         let todos_meta_key = format!("{}/todos/meta.data", tid);
         let _ = store.kv_delete(&todos_meta_key); // Ignore error if doesn't exist
         
-        // Remove from tstores - properly filter by checking the times ID
-        self.tstores.retain(|tstore| {
-            // We need to check if this tstore has the matching ID
-            // This is a blocking operation but necessary for correct filtering
-            let rt = tokio::runtime::Runtime::new().unwrap();
-            rt.block_on(async {
-                match tstore.lock().await.get().await {
-                    Ok(times) => times.id != tid, // Keep if ID doesn't match
-                    Err(_) => false, // Remove if we can't get the times (corrupted)
+        // Remove from tstores - collect IDs first, then filter
+        let mut indices_to_remove = Vec::new();
+        for (index, tstore) in self.tstores.iter().enumerate() {
+            match tstore.lock().await.get().await {
+                Ok(times) if times.id == tid => {
+                    indices_to_remove.push(index);
                 }
-            })
-        });
+                Err(_) => {
+                    // Remove corrupted stores too
+                    indices_to_remove.push(index);
+                }
+                _ => {} // Keep stores with different IDs
+            }
+        }
+        
+        // Remove in reverse order to maintain correct indices
+        for &index in indices_to_remove.iter().rev() {
+            self.tstores.remove(index);
+        }
         
         Ok(())
     }

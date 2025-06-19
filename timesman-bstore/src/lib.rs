@@ -170,7 +170,7 @@ mod tests {
     fn test_post_ram_store() {
         let rt = Runtime::new().unwrap();
         rt.block_on(async {
-            let store = Box::new(LocalStore::new(":mem:").await);
+            let store = Box::new(RamStore::new());
             test_posts(store).await;
         });
     }
@@ -213,7 +213,7 @@ mod tests {
     fn test_recreate_ram_pstore() {
         let rt = Runtime::new().unwrap();
         rt.block_on(async {
-            let store = Box::new(LocalStore::new(":mem:").await);
+            let store = Box::new(RamStore::new());
             test_recreate_pstore(store).await;
         });
     }

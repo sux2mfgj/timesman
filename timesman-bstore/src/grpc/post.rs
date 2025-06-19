@@ -1,6 +1,6 @@
-use super::{async_trait, Arc, Mutex};
-use super::{GrpcClient, PostStore, TimesStore, TodoStore};
-use timesman_type::{File, Pid, Post, Tag, Tid, Times};
+use super::async_trait;
+use super::{GrpcClient, PostStore};
+use timesman_type::{File, Pid, Post, Tag, Tid};
 use tonic;
 use timesman_grpc::grpc;
 
@@ -43,11 +43,16 @@ impl PostStore for GrpcPostStore {
     }
 
     async fn get_tags(&mut self) -> Result<Vec<Tag>, String> {
-        todo!();
+        // gRPC service doesn't currently support tag endpoints
+        // Return empty vector for now to prevent panics
+        Ok(vec![])
     }
 
     async fn create_tag(&mut self, name: String) -> Result<Tag, String> {
-        todo!();
+        // gRPC service doesn't currently support tag creation
+        // Return a placeholder tag to prevent panics
+        // In a full implementation, this would need gRPC endpoints
+        Err(format!("Tag creation not supported in gRPC mode: {}", name))
     }
 
     async fn post(

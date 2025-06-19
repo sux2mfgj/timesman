@@ -78,6 +78,30 @@ impl super::Client for GrpcClient {
         Ok(response.into_inner().into())
     }
 
+    fn create_post_with_file(&mut self, tid: u64, text: String, file: timesman_type::File) -> Result<Post, String> {
+        let file_info = match &file.ftype {
+            timesman_type::FileType::Text(content) => {
+                format!("\n\n--- File: {} ---\n{}", file.name, content)
+            }
+            timesman_type::FileType::Image(data) => {
+                format!("\n\n--- Image File: {} ({} bytes) ---", file.name, data.len())
+            }
+            timesman_type::FileType::Other(data) => {
+                format!("\n\n--- Binary File: {} ({} bytes) ---", file.name, data.len())
+            }
+        };
+        
+        let full_text = format!("{}{}", text, file_info);
+        
+        let request = CreatePostPrams { id: tid, text: full_text };
+        let response = self
+            .rt
+            .block_on(async { self.client.create_post(request).await })
+            .map_err(|e| format!("gRPC error: {}", e))?;
+        
+        Ok(response.into_inner().into())
+    }
+
     fn delete_post(&mut self, tid: u64, pid: u64) -> Result<(), String> {
         let request = DeletePostParam { tid, pid };
         self.rt

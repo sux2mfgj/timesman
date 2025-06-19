@@ -5,6 +5,7 @@ use std::{collections::HashMap, fs};
 use super::ui;
 use infer::Infer;
 use timesman_type::{File, FileType, Post, Tag, TagId, Tdid, Todo};
+use serde_json;
 
 use chrono::{DateTime, Local, Timelike};
 use dirs;
@@ -204,8 +205,13 @@ impl TimesUI {
         body: &mut TableBody,
     ) {
         let hight = if let Some(file) = &p.file {
-            match file.ftype {
+            match &file.ftype {
                 FileType::Image(_) => 100f32,
+                FileType::Text(text) => {
+                    // Calculate height based on preview lines and UI elements
+                    let preview_lines = text.lines().take(3).count();
+                    40f32 + (preview_lines as f32 * 15f32) // Base height + line height
+                }
                 _ => 20f32,
             }
         } else {
@@ -271,25 +277,64 @@ impl TimesUI {
     ) {
         match &file.ftype {
             FileType::Image(image) => {
-                let img = egui::Image::from_bytes(
-                    format!("bytes://{}", file.name),
-                    image.clone(),
-                );
-                let img_ui =
-                    ui.add(img.max_height(200.0).sense(egui::Sense::click()));
+                // Create a more unique URI using hash of image data  
+                use std::collections::hash_map::DefaultHasher;
+                use std::hash::{Hash, Hasher};
+                
+                let mut hasher = DefaultHasher::new();
+                image.hash(&mut hasher);
+                let hash = hasher.finish();
+                
+                let uri = format!("bytes://image_{}_{:x}", 
+                    file.name.replace(" ", "_").replace("/", "_").replace("\\", "_"), 
+                    hash);
+                
+                let img = egui::Image::from_bytes(uri, image.clone())
+                    .max_height(200.0)
+                    .max_width(300.0)
+                    .rounding(egui::Rounding::same(5.0));
+                
+                let img_ui = ui.add(img.sense(egui::Sense::click()));
 
                 if img_ui.clicked() {
                     self.preview = Some(file.clone());
                 }
 
-                ui.label(format!("File(image) {}", file.name));
+                ui.label(format!("File(image): {}", file.name));
             }
-            FileType::Text(_) => {
-                let resp = ui.label(format!("File(text): {}", file.name));
-
-                if resp.clicked() {
-                    self.preview = Some(file.clone());
-                }
+            FileType::Text(text) => {
+                ui.vertical(|ui| {
+                    // Show file info
+                    ui.horizontal(|ui| {
+                        ui.label(format!("📄 File(text): {}", file.name));
+                        ui.label(format!("({} chars)", text.len()));
+                    });
+                    
+                    // Show text preview (first few lines)
+                    let preview_lines: Vec<&str> = text.lines().take(3).collect();
+                    let preview_text = if preview_lines.len() < text.lines().count() {
+                        format!("{}\n...", preview_lines.join("\n"))
+                    } else {
+                        preview_lines.join("\n")
+                    };
+                    
+                    egui::Frame::none()
+                        .fill(ui.style().visuals.faint_bg_color)
+                        .inner_margin(egui::Margin::same(8.0))
+                        .rounding(egui::Rounding::same(4.0))
+                        .show(ui, |ui| {
+                            ui.add(
+                                egui::Label::new(preview_text)
+                                    .wrap()
+                                    .sense(egui::Sense::click())
+                            );
+                        });
+                    
+                    // Click to open full preview
+                    if ui.small_button("🔍 View Full Text").clicked() {
+                        self.preview = Some(file.clone());
+                    }
+                });
             }
             FileType::Other(_) => {
                 ui.label(format!("File: {}", file.name));
@@ -425,22 +470,119 @@ impl TimesUI {
 
         match &file.ftype {
             FileType::Image(data) => {
-                let img = egui::Image::from_bytes(
-                    format!("bytes://{}", &file.name),
-                    data.clone(),
-                );
+                use std::collections::hash_map::DefaultHasher;
+                use std::hash::{Hash, Hasher};
+                
+                let mut hasher = DefaultHasher::new();
+                data.hash(&mut hasher);
+                let hash = hasher.finish();
+                
+                let uri = format!("bytes://preview_{}_{:x}", 
+                    file.name.replace(" ", "_").replace("/", "_").replace("\\", "_"), 
+                    hash);
+                    
+                let img = egui::Image::from_bytes(uri, data.clone()).shrink_to_fit();
+                
                 egui::Window::new(&file.name)
-                    .title_bar(false)
+                    .title_bar(true)
                     .collapsible(false)
+                    .resizable(true)
+                    .default_size([600.0, 600.0])
                     .show(ctx, |ui| {
                         ui.add(img);
                     });
             }
             FileType::Text(text) => {
-                //egui::Window::new(&file.name)
-                //    .title_bar(false)
-                //    .collapsible(false)
-                //    .show(ctx, |ui| {});
+                egui::Window::new(&format!("📄 {}", file.name))
+                    .title_bar(true)
+                    .collapsible(false)
+                    .resizable(true)
+                    .default_size([700.0, 500.0])
+                    .min_size([400.0, 300.0])
+                    .show(ctx, |ui| {
+                        // File info header
+                        ui.horizontal(|ui| {
+                            ui.label(format!("Lines: {}", text.lines().count()));
+                            ui.separator();
+                            ui.label(format!("Characters: {}", text.len()));
+                            ui.separator();
+                            ui.label(format!("Bytes: {}", text.as_bytes().len()));
+                        });
+                        
+                        ui.separator();
+                        
+                        // Text content with better formatting
+                        egui::ScrollArea::both()
+                            .auto_shrink([false, false])
+                            .show(ui, |ui| {
+                                // Use monospace font for better text file viewing
+                                ui.style_mut().override_font_id = Some(egui::FontId::monospace(12.0));
+                                
+                                // Add some padding around the text
+                                egui::Frame::none()
+                                    .inner_margin(egui::Margin::same(10.0))
+                                    .show(ui, |ui| {
+                                        // Detect and handle different text formats
+                                        if file.name.ends_with(".json") {
+                                            // Try to format JSON
+                                            match serde_json::from_str::<serde_json::Value>(text) {
+                                                Ok(json_value) => {
+                                                    let formatted = serde_json::to_string_pretty(&json_value)
+                                                        .unwrap_or_else(|_| text.to_string());
+                                                    ui.label(formatted);
+                                                }
+                                                Err(_) => {
+                                                    ui.label(text);
+                                                }
+                                            }
+                                        } else if file.name.ends_with(".md") || file.name.ends_with(".markdown") {
+                                            // Basic markdown-like formatting
+                                            for line in text.lines() {
+                                                if line.starts_with("# ") {
+                                                    ui.heading(&line[2..]);
+                                                } else if line.starts_with("## ") {
+                                                    ui.strong(&line[3..]);
+                                                } else if line.starts_with("- ") || line.starts_with("* ") {
+                                                    ui.label(format!("  • {}", &line[2..]));
+                                                } else if line.trim().is_empty() {
+                                                    ui.add_space(ui.spacing().item_spacing.y);
+                                                } else {
+                                                    ui.label(line);
+                                                }
+                                            }
+                                        } else {
+                                            // Regular text with line numbers for code files
+                                            if file.name.ends_with(".rs") || file.name.ends_with(".py") || 
+                                               file.name.ends_with(".js") || file.name.ends_with(".ts") ||
+                                               file.name.ends_with(".c") || file.name.ends_with(".cpp") {
+                                                for (i, line) in text.lines().enumerate() {
+                                                    ui.horizontal(|ui| {
+                                                        ui.weak(format!("{:3}: ", i + 1));
+                                                        ui.label(line);
+                                                    });
+                                                }
+                                            } else {
+                                                ui.label(text);
+                                            }
+                                        }
+                                    });
+                            });
+                        
+                        ui.separator();
+                        
+                        // Footer with actions
+                        ui.horizontal(|ui| {
+                            if ui.button("📋 Copy to Clipboard").clicked() {
+                                ui.output_mut(|o| o.copied_text = text.clone());
+                            }
+                            
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                if ui.button("✖ Close").clicked() {
+                                    // The preview will be closed by the escape key handler
+                                }
+                            });
+                        });
+                    });
             }
             FileType::Other(_) => {
                 return;
