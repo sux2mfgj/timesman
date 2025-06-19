@@ -11,12 +11,6 @@ mod grpc;
 #[cfg(feature = "grpc")]
 use grpc::GrpcStore;
 
-#[cfg(feature = "json")]
-mod json;
-#[cfg(feature = "json")]
-use json::JsonStore;
-#[cfg(feature = "json")]
-use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
@@ -37,8 +31,6 @@ pub enum StoreError {
 pub enum StoreType {
     #[default]
     Memory,
-    #[cfg(feature = "json")]
-    Json(PathBuf, bool),
     #[cfg(feature = "local")]
     Local(String),
     #[cfg(feature = "grpc")]
@@ -49,10 +41,6 @@ impl StoreType {
     pub async fn to_store(&self) -> Result<Arc<Mutex<dyn Store>>, String> {
         let store: Arc<Mutex<dyn Store>> = match self {
             Self::Memory => Arc::new(Mutex::new(RamStore::new())),
-            #[cfg(feature = "json")]
-            Self::Json(path, is_create) => Arc::new(Mutex::new(
-                JsonStore::new(path.clone(), *is_create).unwrap(),
-            )),
             #[cfg(feature = "local")]
             Self::Local(path) => {
                 Arc::new(Mutex::new(LocalStore::new(&path).await))

@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = ["local", "json"]
+default = ["local"]
 json = ["serde_json"]
 http = ["reqwest"]
 grpc = ["timesman-grpc", "tonic"]

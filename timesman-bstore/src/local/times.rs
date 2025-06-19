@@ -2,6 +2,7 @@ use super::async_trait;
 use super::todo::LocalTodoStore;
 use super::{Arc, Mutex, Times, UnQLite};
 use super::{PostStore, TimesStore, TodoStore};
+use unqlite::KV;
 
 use super::LocalPostStore;
 
