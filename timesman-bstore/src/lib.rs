@@ -22,10 +22,34 @@ use async_trait::async_trait;
 
 use timesman_type::{File, Pid, Post, Tag, Tdid, Tid, Times, Todo};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum StoreError {
-    NotSupported,
+    NotFound(String),
+    InvalidId(String),
+    SerializationError(String),
+    StorageError(String),
+    NetworkError(String),
+    PermissionDenied(String),
+    NotSupported(String),
+    Corrupted(String),
 }
+
+impl std::fmt::Display for StoreError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            StoreError::NotFound(msg) => write!(f, "Not found: {}", msg),
+            StoreError::InvalidId(msg) => write!(f, "Invalid ID: {}", msg),
+            StoreError::SerializationError(msg) => write!(f, "Serialization error: {}", msg),
+            StoreError::StorageError(msg) => write!(f, "Storage error: {}", msg),
+            StoreError::NetworkError(msg) => write!(f, "Network error: {}", msg),
+            StoreError::PermissionDenied(msg) => write!(f, "Permission denied: {}", msg),
+            StoreError::NotSupported(msg) => write!(f, "Not supported: {}", msg),
+            StoreError::Corrupted(msg) => write!(f, "Data corrupted: {}", msg),
+        }
+    }
+}
+
+impl std::error::Error for StoreError {}
 
 #[derive(PartialEq, Default, Debug, Clone, Serialize, Deserialize)]
 pub enum StoreType {
@@ -38,7 +62,7 @@ pub enum StoreType {
 }
 
 impl StoreType {
-    pub async fn to_store(&self) -> Result<Arc<Mutex<dyn Store>>, String> {
+    pub async fn to_store(&self) -> Result<Arc<Mutex<dyn Store>>, StoreError> {
         let store: Arc<Mutex<dyn Store>> = match self {
             Self::Memory => Arc::new(Mutex::new(RamStore::new())),
             #[cfg(feature = "local")]
@@ -47,7 +71,8 @@ impl StoreType {
             }
             #[cfg(feature = "grpc")]
             Self::Grpc(server_url) => {
-                let grpc_store = GrpcStore::new(server_url.clone()).await?;
+                let grpc_store = GrpcStore::new(server_url.clone()).await
+                    .map_err(|e| StoreError::NetworkError(e))?;
                 Arc::new(Mutex::new(grpc_store))
             }
         };
@@ -58,51 +83,51 @@ impl StoreType {
 
 #[async_trait]
 pub trait Store: Send + Sync + 'static {
-    async fn check(&mut self) -> Result<(), String>;
+    async fn check(&mut self) -> Result<(), StoreError>;
     async fn get(
         &mut self,
-    ) -> Result<Vec<Arc<Mutex<dyn TimesStore + Send + Sync>>>, String>;
+    ) -> Result<Vec<Arc<Mutex<dyn TimesStore + Send + Sync>>>, StoreError>;
     async fn create(
         &mut self,
         title: String,
-    ) -> Result<Arc<Mutex<dyn TimesStore + Send + Sync>>, String>;
-    async fn delete(&mut self, tid: Tid) -> Result<(), String>;
+    ) -> Result<Arc<Mutex<dyn TimesStore + Send + Sync>>, StoreError>;
+    async fn delete(&mut self, tid: Tid) -> Result<(), StoreError>;
 }
 
 #[async_trait]
 pub trait TimesStore: Send + Sync + 'static {
-    async fn get(&mut self) -> Result<Times, String>;
-    async fn update(&mut self, times: Times) -> Result<Times, String>;
+    async fn get(&mut self) -> Result<Times, StoreError>;
+    async fn update(&mut self, times: Times) -> Result<Times, StoreError>;
     async fn pstore(
         &mut self,
-    ) -> Result<Arc<Mutex<dyn PostStore + Send + Sync>>, String>;
+    ) -> Result<Arc<Mutex<dyn PostStore + Send + Sync>>, StoreError>;
     async fn tdstore(
         &mut self,
-    ) -> Result<Arc<Mutex<dyn TodoStore + Send + Sync>>, String>;
+    ) -> Result<Arc<Mutex<dyn TodoStore + Send + Sync>>, StoreError>;
 }
 
 #[async_trait]
 pub trait PostStore: Send + Sync + 'static {
-    async fn get(&mut self, pid: Pid) -> Result<Post, String>;
-    async fn get_all(&mut self) -> Result<Vec<Post>, String>;
-    async fn get_tags(&mut self) -> Result<Vec<Tag>, String>;
-    async fn create_tag(&mut self, name: String) -> Result<Tag, String>;
+    async fn get(&mut self, pid: Pid) -> Result<Post, StoreError>;
+    async fn get_all(&mut self) -> Result<Vec<Post>, StoreError>;
+    async fn get_tags(&mut self) -> Result<Vec<Tag>, StoreError>;
+    async fn create_tag(&mut self, name: String) -> Result<Tag, StoreError>;
     async fn post(
         &mut self,
         post: String,
         file: Option<File>,
-    ) -> Result<Post, String>;
-    async fn delete(&mut self, pid: Pid) -> Result<(), String>;
-    async fn update(&mut self, post: Post) -> Result<Post, String>;
+    ) -> Result<Post, StoreError>;
+    async fn delete(&mut self, pid: Pid) -> Result<(), StoreError>;
+    async fn update(&mut self, post: Post) -> Result<Post, StoreError>;
 }
 
 #[async_trait]
 pub trait TodoStore: Send + Sync + 'static {
-    async fn get(&mut self) -> Result<Vec<Todo>, String>;
-    async fn new(&mut self, content: String) -> Result<Todo, String>;
-    async fn done(&mut self, tdid: Tdid, done: bool) -> Result<Todo, String>;
-    async fn update(&mut self, todo: Todo) -> Result<Todo, String>;
-    async fn delete(&mut self, tdid: Tdid) -> Result<(), String>;
+    async fn get(&mut self) -> Result<Vec<Todo>, StoreError>;
+    async fn new(&mut self, content: String) -> Result<Todo, StoreError>;
+    async fn done(&mut self, tdid: Tdid, done: bool) -> Result<Todo, StoreError>;
+    async fn update(&mut self, todo: Todo) -> Result<Todo, StoreError>;
+    async fn delete(&mut self, tdid: Tdid) -> Result<(), StoreError>;
 }
 
 #[cfg(test)]
