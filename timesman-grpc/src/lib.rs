@@ -171,16 +171,17 @@ impl Into<timesman_type::Todo> for grpc::Todo {
     fn into(self) -> timesman_type::Todo {
         let created_at = if let Some(c) = self.created_at {
             chrono::DateTime::from_timestamp(c.seconds, c.nanos as u32)
-                .unwrap()
+                .unwrap_or_else(|| chrono::DateTime::UNIX_EPOCH)
                 .naive_local()
         } else {
-            panic!();
+            // Use current time as fallback instead of panicking
+            chrono::Utc::now().naive_local()
         };
 
         let done_at = if let Some(d) = self.done_at {
             Some(
                 chrono::DateTime::from_timestamp(d.seconds, d.nanos as u32)
-                    .unwrap()
+                    .unwrap_or_else(|| chrono::DateTime::UNIX_EPOCH)
                     .naive_local(),
             )
         } else {

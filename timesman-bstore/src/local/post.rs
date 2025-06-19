@@ -109,7 +109,8 @@ struct PostMeta {
 impl PostMeta {
     pub fn append(&mut self, pid: Pid) {
         self.pids.push(pid);
-        self.npid += 1;
+        // npid should always be max(existing_ids) + 1 to avoid collisions
+        self.npid = self.pids.iter().max().map(|x| x + 1).unwrap_or(0);
     }
 }
 
@@ -182,7 +183,9 @@ impl PostStore for LocalPostStore {
         post: String,
         file: Option<File>,
     ) -> Result<Post, String> {
+        // Get next available ID and increment atomically
         let pid = self.pmeta.npid;
+        self.pmeta.npid += 1;
 
         let post = Post {
             id: pid,
@@ -202,7 +205,8 @@ impl PostStore for LocalPostStore {
                 .unwrap();
         }
 
-        self.pmeta.append(pid);
+        // Add to metadata list
+        self.pmeta.pids.push(pid);
 
         self.sync_post_meta().await;
 
