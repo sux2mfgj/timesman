@@ -196,13 +196,15 @@ impl PostStore for LocalPostStore {
             tag: None,
         };
 
-        let text = serde_json::to_string(&post).unwrap();
+        let text = serde_json::to_string(&post)
+            .map_err(|e| format!("Failed to serialize post: {}", e))?;
+        
         // add a scope to avoid deadlock
         {
             let store = self.store.lock().await;
             store
                 .kv_store(get_post_path(self.tid, pid), text.into_bytes())
-                .unwrap();
+                .map_err(|e| format!("Failed to store post: {}", e))?;
         }
 
         // Add to metadata list

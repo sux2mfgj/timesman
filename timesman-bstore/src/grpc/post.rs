@@ -18,7 +18,9 @@ impl GrpcPostStore {
 #[async_trait]
 impl PostStore for GrpcPostStore {
     async fn get(&mut self, pid: Pid) -> Result<Post, String> {
-        // Get all posts and find the one with matching pid
+        // NOTE: gRPC service doesn't have GetPost endpoint for single posts
+        // This is a limitation of the current gRPC API design
+        // TODO: Add GetPost endpoint to proto file and server for better performance
         let posts = self.get_all().await?;
         posts.into_iter()
             .find(|p| p.id == pid)
