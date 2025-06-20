@@ -1,4 +1,5 @@
 //pub mod http;
+pub mod auth;
 
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -11,6 +12,7 @@ pub use grpc::GrpcServer;
 use async_trait::async_trait;
 
 use timesman_bstore::Store;
+pub use auth::AuthService;
 
 #[async_trait]
 pub trait TimesManServer {

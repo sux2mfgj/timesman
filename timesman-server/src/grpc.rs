@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use super::TimesManServer;
+use super::{AuthService, TimesManServer};
 
 use timesman_bstore::Store;
 
@@ -23,9 +23,12 @@ impl TimesManServer for GrpcServer {
     ) {
         let addr = listen.parse().unwrap();
 
+        let auth_service = AuthService::new("your-secret-key-here"); // TODO: Make this configurable
+        
         Server::builder()
             .add_service(times_man_server::TimesManServer::new(TMServer {
                 store,
+                auth_service,
             }))
             .serve(addr)
             .await
@@ -35,14 +38,67 @@ impl TimesManServer for GrpcServer {
 
 pub struct TMServer {
     store: Arc<Mutex<dyn Store>>,
+    auth_service: AuthService,
+}
+
+impl TMServer {
+    fn validate_token(&self, request: &tonic::Request<impl std::fmt::Debug>) -> Result<timesman_type::Claims, tonic::Status> {
+        let metadata = request.metadata();
+        
+        // Try to get the authorization header
+        let auth_header = metadata
+            .get("authorization")
+            .ok_or_else(|| tonic::Status::new(tonic::Code::Unauthenticated, "Missing authorization header"))?;
+            
+        let auth_str = auth_header
+            .to_str()
+            .map_err(|_| tonic::Status::new(tonic::Code::Unauthenticated, "Invalid authorization header"))?;
+            
+        // Extract Bearer token
+        if !auth_str.starts_with("Bearer ") {
+            return Err(tonic::Status::new(tonic::Code::Unauthenticated, "Invalid authorization format"));
+        }
+        
+        let token = &auth_str[7..]; // Remove "Bearer " prefix
+        
+        // Validate token
+        self.auth_service
+            .validate_token(token)
+            .map_err(|e| tonic::Status::new(tonic::Code::Unauthenticated, e.to_string()))
+    }
 }
 
 #[async_trait]
 impl times_man_server::TimesMan for TMServer {
+    async fn register(
+        &self,
+        request: tonic::Request<grpc::RegisterRequest>,
+    ) -> Result<tonic::Response<grpc::AuthResponse>, tonic::Status> {
+        let register_req: timesman_type::RegisterRequest = request.into_inner().into();
+        
+        match self.auth_service.register(register_req).await {
+            Ok(auth_response) => Ok(tonic::Response::new(grpc::AuthResponse::from(auth_response))),
+            Err(e) => Err(tonic::Status::new(tonic::Code::InvalidArgument, e.to_string())),
+        }
+    }
+
+    async fn login(
+        &self,
+        request: tonic::Request<grpc::LoginRequest>,
+    ) -> Result<tonic::Response<grpc::AuthResponse>, tonic::Status> {
+        let login_req: timesman_type::LoginRequest = request.into_inner().into();
+        
+        match self.auth_service.login(login_req).await {
+            Ok(auth_response) => Ok(tonic::Response::new(grpc::AuthResponse::from(auth_response))),
+            Err(e) => Err(tonic::Status::new(tonic::Code::Unauthenticated, e.to_string())),
+        }
+    }
     async fn get_times(
         &self,
-        _request: tonic::Request<()>,
+        request: tonic::Request<()>,
     ) -> Result<tonic::Response<grpc::TimesArray>, tonic::Status> {
+        // Validate authentication
+        let _claims = self.validate_token(&request)?;
         let mut store = self.store.lock().await;
 
         let times_stores = store.get().await.map_err(|e| {

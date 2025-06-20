@@ -5,6 +5,11 @@ import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
 service TimesMan {
+  // Authentication endpoints
+  rpc Register(RegisterRequest) returns (AuthResponse);
+  rpc Login(LoginRequest) returns (AuthResponse);
+
+  // Main application endpoints (require authentication)
   rpc GetTimes(google.protobuf.Empty) returns (TimesArray);
   rpc CreateTimes(TimesTitle) returns (Times);
   rpc DeleteTimes(TimesId) returns (google.protobuf.Empty);
@@ -97,4 +102,36 @@ message Todo {
   optional string detail = 3;
   google.protobuf.Timestamp created_at = 4;
   optional google.protobuf.Timestamp done_at = 5;
+}
+
+// Authentication messages
+message RegisterRequest {
+  string username = 1;
+  string email = 2;
+  string password = 3;
+}
+
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message AuthResponse {
+  string access_token = 1;
+  string token_type = 2;
+  uint64 expires_in = 3;
+  UserInfo user = 4;
+}
+
+message UserInfo {
+  string id = 1;
+  string username = 2;
+  string email = 3;
+  UserRole role = 4;
+}
+
+enum UserRole {
+  USER_ROLE_ADMIN = 0;
+  USER_ROLE_USER = 1;
+  USER_ROLE_READ_ONLY = 2;
 }

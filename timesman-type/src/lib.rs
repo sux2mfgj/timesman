@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 pub type Tid = u64;
 
@@ -84,6 +85,73 @@ pub struct Todo {
     pub detail: Option<String>,
     pub created_at: chrono::NaiveDateTime,
     pub done_at: Option<chrono::NaiveDateTime>,
+}
+
+// Authentication and authorization types
+pub type UserId = Uuid;
+
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
+pub enum UserRole {
+    Admin,      // Full access to all data
+    User,       // CRUD access to own data
+    ReadOnly,   // Read-only access to own data
+}
+
+impl Default for UserRole {
+    fn default() -> Self {
+        UserRole::User
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
+pub struct User {
+    pub id: UserId,
+    pub username: String,
+    pub email: String,
+    pub password_hash: String,
+    pub role: UserRole,
+    pub created_at: chrono::NaiveDateTime,
+    pub updated_at: Option<chrono::NaiveDateTime>,
+    pub is_active: bool,
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct Claims {
+    pub sub: String,        // User ID (subject)
+    pub username: String,   // Username for display
+    pub role: UserRole,     // User role for authorization
+    pub exp: usize,         // Expiration time (as UTC timestamp)
+    pub iat: usize,         // Issued at (as UTC timestamp)
+    pub iss: String,        // Issuer
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct LoginRequest {
+    pub username: String,
+    pub password: String,
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct RegisterRequest {
+    pub username: String,
+    pub email: String,
+    pub password: String,
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct AuthResponse {
+    pub access_token: String,
+    pub token_type: String,
+    pub expires_in: usize,
+    pub user: UserInfo,
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct UserInfo {
+    pub id: UserId,
+    pub username: String,
+    pub email: String,
+    pub role: UserRole,
 }
 
 #[cfg(test)]

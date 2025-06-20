@@ -198,6 +198,118 @@ impl Into<timesman_type::Todo> for grpc::Todo {
     }
 }
 
+// Authentication type conversions
+impl From<timesman_type::RegisterRequest> for grpc::RegisterRequest {
+    fn from(req: timesman_type::RegisterRequest) -> Self {
+        Self {
+            username: req.username,
+            email: req.email,
+            password: req.password,
+        }
+    }
+}
+
+impl Into<timesman_type::RegisterRequest> for grpc::RegisterRequest {
+    fn into(self) -> timesman_type::RegisterRequest {
+        timesman_type::RegisterRequest {
+            username: self.username,
+            email: self.email,
+            password: self.password,
+        }
+    }
+}
+
+impl From<timesman_type::LoginRequest> for grpc::LoginRequest {
+    fn from(req: timesman_type::LoginRequest) -> Self {
+        Self {
+            username: req.username,
+            password: req.password,
+        }
+    }
+}
+
+impl Into<timesman_type::LoginRequest> for grpc::LoginRequest {
+    fn into(self) -> timesman_type::LoginRequest {
+        timesman_type::LoginRequest {
+            username: self.username,
+            password: self.password,
+        }
+    }
+}
+
+impl From<timesman_type::UserRole> for grpc::UserRole {
+    fn from(role: timesman_type::UserRole) -> Self {
+        match role {
+            timesman_type::UserRole::Admin => grpc::UserRole::Admin,
+            timesman_type::UserRole::User => grpc::UserRole::User,
+            timesman_type::UserRole::ReadOnly => grpc::UserRole::ReadOnly,
+        }
+    }
+}
+
+impl Into<timesman_type::UserRole> for grpc::UserRole {
+    fn into(self) -> timesman_type::UserRole {
+        match self {
+            grpc::UserRole::Admin => timesman_type::UserRole::Admin,
+            grpc::UserRole::User => timesman_type::UserRole::User,
+            grpc::UserRole::ReadOnly => timesman_type::UserRole::ReadOnly,
+        }
+    }
+}
+
+impl From<timesman_type::UserInfo> for grpc::UserInfo {
+    fn from(user: timesman_type::UserInfo) -> Self {
+        Self {
+            id: user.id.to_string(),
+            username: user.username,
+            email: user.email,
+            role: grpc::UserRole::from(user.role) as i32,
+        }
+    }
+}
+
+impl Into<timesman_type::UserInfo> for grpc::UserInfo {
+    fn into(self) -> timesman_type::UserInfo {
+        timesman_type::UserInfo {
+            id: self.id.parse().unwrap_or_default(), // Parse UUID
+            username: self.username,
+            email: self.email,
+            role: grpc::UserRole::try_from(self.role)
+                .unwrap_or(grpc::UserRole::User)
+                .into(),
+        }
+    }
+}
+
+impl From<timesman_type::AuthResponse> for grpc::AuthResponse {
+    fn from(resp: timesman_type::AuthResponse) -> Self {
+        Self {
+            access_token: resp.access_token,
+            token_type: resp.token_type,
+            expires_in: resp.expires_in as u64,
+            user: Some(grpc::UserInfo::from(resp.user)),
+        }
+    }
+}
+
+impl Into<timesman_type::AuthResponse> for grpc::AuthResponse {
+    fn into(self) -> timesman_type::AuthResponse {
+        let default_user = grpc::UserInfo {
+            id: uuid::Uuid::new_v4().to_string(),
+            username: "unknown".to_string(),
+            email: "unknown@example.com".to_string(),
+            role: grpc::UserRole::User as i32,
+        };
+        
+        timesman_type::AuthResponse {
+            access_token: self.access_token,
+            token_type: self.token_type,
+            expires_in: self.expires_in as usize,
+            user: self.user.unwrap_or(default_user).into(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
