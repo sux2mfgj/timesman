@@ -1,0 +1,57 @@
+# Cross-compilation configuration for TimesMan
+# This file configures linkers and build settings for various target platforms
+
+[target.x86_64-unknown-linux-gnu]
+linker = "x86_64-linux-gnu-gcc"
+
+[target.aarch64-unknown-linux-gnu]
+linker = "aarch64-linux-gnu-gcc"
+
+[target.x86_64-pc-windows-gnu]
+linker = "x86_64-w64-mingw32-gcc"
+
+[target.aarch64-pc-windows-msvc]
+# Windows MSVC doesn't need custom linker when building on Windows
+
+[target.x86_64-apple-darwin]
+# macOS Intel - uses system linker when building on macOS
+
+[target.aarch64-apple-darwin]
+# macOS Apple Silicon - uses system linker when building on macOS
+
+# Build settings for release mode
+[profile.release]
+lto = true          # Link-time optimization for smaller binaries
+codegen-units = 1   # Better optimization
+panic = "abort"     # Smaller binaries by not including unwinding code
+strip = true        # Remove debug symbols
+
+[profile.release-small]
+inherits = "release"
+opt-level = "z"     # Optimize for size
+strip = true
+
+# Environment variables for cross-compilation
+[env]
+# OpenSSL configuration for cross-compilation
+OPENSSL_STATIC = "1"
+OPENSSL_NO_VENDOR = "1"
+
+# PKG_CONFIG settings for cross-compilation
+PKG_CONFIG_ALLOW_CROSS = "1"
+
+# Specific settings for Windows cross-compilation
+[target.x86_64-pc-windows-gnu.env]
+CC = "x86_64-w64-mingw32-gcc"
+CXX = "x86_64-w64-mingw32-g++"
+AR = "x86_64-w64-mingw32-ar"
+
+[target.aarch64-unknown-linux-gnu.env]
+CC = "aarch64-linux-gnu-gcc"
+CXX = "aarch64-linux-gnu-g++"
+AR = "aarch64-linux-gnu-ar"
+
+[target.x86_64-unknown-linux-gnu.env]
+CC = "x86_64-linux-gnu-gcc"
+CXX = "x86_64-linux-gnu-g++"
+AR = "x86_64-linux-gnu-ar"

@@ -1,0 +1,97 @@
+# Docker Compose configuration for TimesMan
+# Provides a complete deployment with server and optional database
+
+version: '3.8'
+
+services:
+  timesman-server:
+    build: .
+    # Uncomment to use pre-built image instead
+    # image: timesman/server:latest
+    container_name: timesman-server
+    restart: unless-stopped
+    ports:
+      - "50051:50051"  # gRPC port
+      - "8080:8080"    # HTTP port (if enabled)
+    environment:
+      - RUST_LOG=info
+      - TIMESMAN_JWT_SECRET=${TIMESMAN_JWT_SECRET:-change-this-secret-in-production}
+      - TIMESMAN_LISTEN=0.0.0.0:50051
+      - TIMESMAN_TOKEN_EXPIRY_HOURS=24
+    volumes:
+      - ./config:/config:ro
+      - timesman-data:/data
+      - timesman-logs:/logs
+    networks:
+      - timesman-network
+    healthcheck:
+      test: ["CMD", "/app/timesman-server", "--version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Database service for persistent storage
+  # Uncomment if using database backend
+  # timesman-db:
+  #   image: postgres:15-alpine
+  #   container_name: timesman-db
+  #   restart: unless-stopped
+  #   environment:
+  #     - POSTGRES_DB=timesman
+  #     - POSTGRES_USER=timesman
+  #     - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-timesman-password}
+  #   volumes:
+  #     - timesman-db-data:/var/lib/postgresql/data
+  #   networks:
+  #     - timesman-network
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U timesman"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 5
+
+  # Optional: Redis for caching/sessions
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: timesman-redis
+  #   restart: unless-stopped
+  #   volumes:
+  #     - timesman-redis-data:/data
+  #   networks:
+  #     - timesman-network
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 30s
+  #     timeout: 3s
+  #     retries: 5
+
+  # Optional: Reverse proxy with SSL termination
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: timesman-nginx
+  #   restart: unless-stopped
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./ssl:/etc/nginx/ssl:ro
+  #   networks:
+  #     - timesman-network
+  #   depends_on:
+  #     - timesman-server
+
+volumes:
+  timesman-data:
+    driver: local
+  timesman-logs:
+    driver: local
+  # timesman-db-data:
+  #   driver: local
+  # timesman-redis-data:
+  #   driver: local
+
+networks:
+  timesman-network:
+    driver: bridge

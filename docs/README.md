@@ -36,6 +36,14 @@ This directory contains comprehensive documentation for the TimesMan authenticat
 - Token refresh strategies
 - CLI/cURL examples
 
+### 📦 [PACKAGING.md](./PACKAGING.md)
+**Cross-Platform Distribution**
+- Build scripts for Linux, Windows, macOS
+- Native package generation (AppImage, MSI, DMG)
+- GitHub Actions CI/CD automation
+- Container deployment guide
+- Distribution and installation instructions
+
 ## Quick Start
 
 ### 1. Choose Your Path

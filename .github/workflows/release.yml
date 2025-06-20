@@ -1,0 +1,308 @@
+name: Release Builds
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build'
+        required: true
+        default: '0.1.0'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build for ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux builds
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: Linux x86_64
+            cross: false
+            
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: Linux ARM64
+            cross: true
+            
+          # Windows builds
+          - target: x86_64-pc-windows-gnu
+            os: ubuntu-latest
+            name: Windows x86_64
+            cross: true
+            
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            name: Windows x86_64 MSVC
+            cross: false
+            
+          # macOS builds
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            name: macOS Intel
+            cross: false
+            
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            name: macOS Apple Silicon
+            cross: false
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        target: ${{ matrix.target }}
+        override: true
+        profile: minimal
+
+    - name: Install cross-compilation tools (Linux)
+      if: matrix.os == 'ubuntu-latest' && matrix.cross
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-multilib
+        if [[ "${{ matrix.target }}" == *"aarch64"* ]]; then
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+        fi
+        if [[ "${{ matrix.target }}" == *"windows"* ]]; then
+          sudo apt-get install -y gcc-mingw-w64
+        fi
+
+    - name: Install system dependencies (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          pkg-config \
+          libssl-dev \
+          libfontconfig1-dev \
+          libfreetype6-dev \
+          libxcb-render0-dev \
+          libxcb-shape0-dev \
+          libxcb-xfixes0-dev \
+          libxkbcommon-dev
+
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Cache cargo index
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/git
+        key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Cache cargo build
+      uses: actions/cache@v3
+      with:
+        path: target
+        key: ${{ runner.os }}-cargo-build-target-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Build binaries
+      run: |
+        # Build each binary for the target
+        cargo build --release --target ${{ matrix.target }} --bin timesman-server
+        cargo build --release --target ${{ matrix.target }} --bin timesman-app
+        cargo build --release --target ${{ matrix.target }} --bin timesman-tools
+
+    - name: Prepare release artifacts
+      shell: bash
+      run: |
+        # Create release directory
+        mkdir -p release/${{ matrix.target }}
+        
+        # Copy binaries with appropriate extensions
+        if [[ "${{ matrix.target }}" == *"windows"* ]]; then
+          cp target/${{ matrix.target }}/release/timesman-server.exe release/${{ matrix.target }}/
+          cp target/${{ matrix.target }}/release/timesman-app.exe release/${{ matrix.target }}/
+          cp target/${{ matrix.target }}/release/timesman-tools.exe release/${{ matrix.target }}/
+        else
+          cp target/${{ matrix.target }}/release/timesman-server release/${{ matrix.target }}/
+          cp target/${{ matrix.target }}/release/timesman-app release/${{ matrix.target }}/
+          cp target/${{ matrix.target }}/release/timesman-tools release/${{ matrix.target }}/
+        fi
+        
+        # Copy additional files
+        cp README.md release/${{ matrix.target }}/
+        cp LICENSE release/${{ matrix.target }}/
+        cp -r docs release/${{ matrix.target }}/ || true
+        cp timesman-server/config.toml release/${{ matrix.target }}/config.example.toml
+        
+        # Get version
+        VERSION=$(grep "^version" timesman-server/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
+        
+        # Create release README
+        cat > release/${{ matrix.target }}/README.txt << EOF
+        TimesMan v$VERSION - ${{ matrix.name }}
+        
+        This package contains:
+        - timesman-server: Authentication-enabled gRPC/HTTP server
+        - timesman-app: GUI application for time tracking  
+        - timesman-tools: CLI tools and TUI interface
+        
+        Quick Start:
+        1. Copy config.example.toml to config.toml and edit as needed
+        2. Run ./timesman-server --config config.toml
+        3. Use ./timesman-app for GUI or ./timesman-tools for CLI
+        
+        Documentation: See docs/ folder for complete guides
+        Authentication: See docs/AUTHENTICATION.md for setup instructions
+        
+        Built on: $(date)
+        Platform: ${{ matrix.name }} (${{ matrix.target }})
+        EOF
+
+    - name: Create archive
+      shell: bash
+      run: |
+        cd release
+        if [[ "${{ matrix.target }}" == *"windows"* ]]; then
+          7z a ../timesman-v${{ env.VERSION }}-${{ matrix.target }}.zip ${{ matrix.target }}/
+        else
+          tar -czf ../timesman-v${{ env.VERSION }}-${{ matrix.target }}.tar.gz ${{ matrix.target }}/
+        fi
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: timesman-${{ matrix.target }}
+        path: |
+          *.tar.gz
+          *.zip
+
+  create-release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v3
+      with:
+        path: artifacts
+
+    - name: Prepare release assets
+      run: |
+        mkdir -p release-assets
+        find artifacts -name "*.tar.gz" -o -name "*.zip" | xargs -I {} cp {} release-assets/
+        ls -la release-assets/
+
+    - name: Get version
+      run: |
+        VERSION=$(grep "^version" timesman-server/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ env.VERSION }}
+        name: TimesMan v${{ env.VERSION }}
+        draft: false
+        prerelease: false
+        body: |
+          # TimesMan v${{ env.VERSION }}
+          
+          ## 🎉 What's New
+          
+          Cross-platform release of TimesMan with JWT authentication support.
+          
+          ## 📦 Downloads
+          
+          Choose the appropriate package for your platform:
+          
+          ### Linux
+          - **timesman-v${{ env.VERSION }}-x86_64-unknown-linux-gnu.tar.gz** - Linux x86_64
+          - **timesman-v${{ env.VERSION }}-aarch64-unknown-linux-gnu.tar.gz** - Linux ARM64
+          
+          ### Windows  
+          - **timesman-v${{ env.VERSION }}-x86_64-pc-windows-gnu.zip** - Windows x86_64 (MinGW)
+          - **timesman-v${{ env.VERSION }}-x86_64-pc-windows-msvc.zip** - Windows x86_64 (MSVC)
+          
+          ### macOS
+          - **timesman-v${{ env.VERSION }}-x86_64-apple-darwin.tar.gz** - macOS Intel
+          - **timesman-v${{ env.VERSION }}-aarch64-apple-darwin.tar.gz** - macOS Apple Silicon
+          
+          ## 🚀 Quick Start
+          
+          1. Download the appropriate package for your platform
+          2. Extract the archive
+          3. Copy `config.example.toml` to `config.toml` and configure
+          4. Run `./timesman-server --config config.toml`
+          5. Use `./timesman-app` for GUI or `./timesman-tools` for CLI
+          
+          ## 📚 Documentation
+          
+          - [Authentication Guide](https://github.com/${{ github.repository }}/blob/main/docs/AUTHENTICATION.md)
+          - [API Examples](https://github.com/${{ github.repository }}/blob/main/docs/API_EXAMPLES.md)
+          - [Migration Guide](https://github.com/${{ github.repository }}/blob/main/docs/MIGRATION_GUIDE.md)
+          
+          ## 🔒 Security Features
+          
+          - JWT-based authentication with Argon2 password hashing
+          - Role-based access control (Admin, User, ReadOnly)
+          - Secure token validation and expiration
+          - TLS support for production deployments
+          
+          ## ⚙️ System Requirements
+          
+          - **Linux**: glibc 2.17+, OpenSSL 1.1+
+          - **Windows**: Windows 10+ (x64)
+          - **macOS**: macOS 10.15+ (Catalina)
+        files: release-assets/*
+        generate_release_notes: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-containers:
+    name: Build Container Images
+    needs: build
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Docker Hub
+      if: github.event_name != 'pull_request'
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Get version
+      run: |
+        VERSION=$(grep "^version" timesman-server/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: |
+          timesman/server:latest
+          timesman/server:v${{ env.VERSION }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
